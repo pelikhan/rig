@@ -6,14 +6,14 @@
 
 ```ts
 import { agent, s, useEngine, validate } from "rig";
-import { sh } from "rig/sh";
+import { sh } from "rig";
 ```
 
 - `agent(spec)` defines a typed structured agent.
 - `s.*` defines explicit schemas.
 - `useEngine(engine)` swaps the runtime engine.
 - `validate(value, schema)` validates JSON-like data.
-- `sh.*` builds declarative shell intents from the optional shell module.
+- `sh.*` builds declarative intents from the core runtime.
 
 ## Quick start
 
@@ -75,12 +75,11 @@ You can disable repair with `repair: false` or provide `repair(error) => string`
 
 ## Shell intents
 
-Shell intents are optional and live outside the core API.
-They are declarative placeholders, not in-process shell execution.
+Shell intents are part of the core API and are declarative placeholders, not in-process shell execution.
 
 ```ts
 import { agent, s } from "rig";
-import { sh } from "rig/sh";
+import { sh } from "rig";
 
 const reviewRepo = agent({
   name: "reviewRepo",
@@ -104,6 +103,14 @@ await reviewRepo({
 });
 ```
 
+RIG also supports explicit file intents aligned with PyAgent essentials:
+
+```ts
+sh.read("README.md")
+sh.write("README.md", "# Updated\n")
+```
+
+`"rig/sh"` remains as a compatibility import and re-exports core `sh`.
 ## Engines
 
 The core engine contract is tiny:

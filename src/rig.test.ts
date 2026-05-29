@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { AgentError, agent, s, useEngine, validate } from "rig";
-import { collectIntents, sh } from "rig/sh";
+import { AgentError, agent, collectIntents, s, sh, useEngine, validate } from "rig";
 import type { Engine } from "rig";
 
 function mockEngine(response: unknown): Engine {
@@ -226,19 +225,27 @@ describe("validate", () => {
 });
 
 describe("shell intents", () => {
+  it("keeps rig/sh as a compatibility import", async () => {
+    const compat = await import("rig/sh");
+    expect(compat.sh.read("README.md").mode).toBe("sh.read");
+  });
+
   it("collects intents from nested input", () => {
     const input = {
       diff: sh.text("git diff"),
       result: sh.result("npm test", { cwd: "/tmp/workspace" }),
+      readme: sh.read("README.md"),
     };
 
     const { value, intents } = collectIntents(input);
-    expect(intents).toHaveLength(2);
+    expect(intents).toHaveLength(3);
     expect(intents[0]?.mode).toBe("sh.text");
     expect(intents[1]?.mode).toBe("sh.result");
+    expect(intents[2]?.mode).toBe("sh.read");
     expect(value).toEqual({
       diff: { $intent: intents[0]?.id },
       result: { $intent: intents[1]?.id },
+      readme: { $intent: intents[2]?.id },
     });
   });
 
