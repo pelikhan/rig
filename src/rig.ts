@@ -51,7 +51,7 @@ export type AgentContext = {
   parsed?: unknown;
   output?: unknown;
   error?: Error;
-  signal?: AbortSignal;
+  signal?: AbortSignal | undefined;
 };
 export type Middleware = (ctx: AgentContext, next: () => Promise<void>) => Promise<void>;
 /** @deprecated Use middleware instead. */
