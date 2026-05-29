@@ -6,6 +6,7 @@ It gives you:
 - a tiny `agent(name, options)` API
 - schema-first input/output definitions
 - strict JSON output validation
+- composable middleware for request/response lifecycle control
 - declarative shell intents (`sh.text`, `sh.result`, `sh.write`)
 - hooks for observability and control
 
@@ -59,7 +60,36 @@ const result = await releaseAgent({
   - `agent.unknown()`
 - **Intents, not side effects**: shell work is declared in input and resolved by the engine.
 - **Composable agents**: pass subagents with `agents: { ... }`.
-- **Hooks**: `beforeCall`, `beforeSend`, `afterSend`, `afterParse`, `onError`, `afterCall`.
+- **Middleware**: intercept `beforeCall`, `beforeSend`, `afterSend`, `afterParse`, `afterValidate`, `afterCall`, and `error`.
+
+## Middleware
+
+Middleware lets you inspect or modify agent state at each phase of a call.
+
+```ts
+import { agent } from "rig";
+
+agent.use(async (ctx, next) => {
+  if (ctx.phase === "beforeSend") {
+    ctx.prompt += "\nRespond with valid JSON only.";
+  }
+  await next();
+});
+
+const supportAgent = agent("supportAgent", {
+  middleware: [async (ctx, next) => {
+    if (ctx.phase === "afterParse") {
+      ctx.parsed = { ...ctx.parsed, handledBy: "middleware" };
+    }
+    await next();
+  }],
+});
+```
+
+- Register global middleware with `agent.use(...)`.
+- Register per-agent middleware with `middleware: [...]` or `myAgent.use(...)`.
+- Each registration returns an unsubscribe function.
+- Legacy `hooks` remain available for compatibility, but middleware is the preferred API.
 
 ## Local development
 
