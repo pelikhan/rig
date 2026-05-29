@@ -1,17 +1,19 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const listFiles = agent("listFiles", {
-  output: {
-    files: ["src/index.ts"],
-  },
-  instructions: `
-    Parse input.text as shell output.
-    Return only source file paths.
-  `,
+const summarizeFiles = agent({
+  name: "summarizeFiles",
+  instructions: "Summarize the repository file list in one sentence.",
+  input: s.object({
+    files: s.string,
+  }),
+  output: s.object({
+    summary: s.string,
+  }),
 });
 
-const { files } = await listFiles({
-  text: sh.text("find src -name '*.ts' -type f | sort"),
+const result = await summarizeFiles({
+  files: sh.text("find src -name '*.ts' -type f | sort"),
 });
 
-console.log(files);
+console.log(result.summary);

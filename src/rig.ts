@@ -1,133 +1,112 @@
-/**
- * rig.ts API summary:
- * - `agent(name, options)` creates typed JSON-in/JSON-out agents.
- * - `agent.use` / `agent.on` register global middleware or legacy hooks.
- * - `agent.enum` / `agent.literal` / `agent.nullable` / `agent.unknown` define output markers.
- * - `sh.text` / `sh.result` / `sh.write` build shell intents for tool execution.
- * - `useEngine(engine)` overrides the runtime engine implementation.
- * - Types exported for composition include `Json`, `Permissions`, `Phase`,
- *   `AgentContext`, `Middleware`, `Hooks`, `AgentOptions`, `CallOptions`, and `AgentFn`.
- */
-import { CopilotClient } from "@github/copilot-sdk";
+import { collectIntents, sh } from "./sh.js";
+import type { ShIntent } from "./sh.js";
+import { copilotEngine } from "./engines/copilot.js";
 
-type Logger = (entry?: Record<string, unknown>) => void;
-function createLogger(namespace: string): Logger {
-  return (entry = {}) => {
-    const line = JSON.stringify({ ts: Date.now(), ns: namespace, ...entry });
-    process.stderr.write(line + "\n");
-  };
-}
-
-type Log = {
-  agent: Logger;
-  engine: Logger;
-  validate: Logger;
-};
-
-function createLog(namespace: string): Log {
-  return {
-    agent: createLogger(`rig:${namespace}:agent`),
-    engine: createLogger(`rig:${namespace}:engine`),
-    validate: createLogger(`rig:${namespace}:validate`),
-  };
-}
+export { collectIntents, sh };
+export type { ShIntent, ShOptions } from "./sh.js";
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-export type Permissions = {
-  shell?: "deny" | "readonly" | "ask" | "allow";
-  write?: "deny" | "workspace" | "allow";
-};
-type MaybePromise<T> = T | Promise<T>;
-export type Phase =
-  | "beforeCall"
-  | "beforeSend"
-  | "afterSend"
-  | "afterParse"
-  | "afterValidate"
-  | "afterCall"
-  | "error";
-export type AgentContext = {
-  agent: string;
-  namespace: string;
-  model: string;
-  turn: number;
-  phase: Phase;
-  input: unknown;
-  prompt: string;
-  response?: string;
-  parsed?: unknown;
-  output?: unknown;
-  error?: Error;
-  signal?: AbortSignal | undefined;
-};
-export type Middleware = (ctx: AgentContext, next: () => Promise<void>) => Promise<void>;
-/** @deprecated Use middleware instead. */
-export type Hooks = {
-  beforeCall?(ctx: { agent: string; input: any }): MaybePromise<any>;
-  beforeSend?(ctx: { agent: string; prompt: string; turn: number }): MaybePromise<string | void>;
-  afterSend?(ctx: { agent: string; response: string; turn: number }): MaybePromise<string | void>;
-  afterParse?(ctx: { agent: string; parsed: any; turn: number }): MaybePromise<any>;
-  onError?(ctx: { agent: string; error: string; response: string; turn: number }): MaybePromise<string | void>;
-  afterCall?(ctx: { agent: string; input: any; output: any }): MaybePromise<void>;
-};
-export type AgentOptions<I = any, O = any> = {
-  model?: string;
-  timeout?: number;
-  max_turns?: number;
-  input?: I;
-  output?: O;
-  instructions?: string;
-  permissions?: Permissions;
-  agents?: Record<string, AgentFn<any, any>>;
-  middleware?: Middleware[];
-  /** @deprecated Use middleware instead. */
-  hooks?: Hooks;
-};
-export type CallOptions = {
-  signal?: AbortSignal;
-  timeout?: number;
-  model?: string;
-  max_turns?: number;
-};
-export type AgentFn<I = any, O = any> = ((input?: Infer<I>, options?: CallOptions) => Promise<Infer<O>>) & {
-  agentName: string;
-  inputShape: I;
-  outputShape: O;
-  _namespace: string;
-  use(middleware: Middleware): () => void;
-};
-export type ShOptions = {
-  cwd?: string;
-  env?: Record<string, string>;
-  timeout?: number;
-  purpose?: string;
-  signal?: AbortSignal;
-};
+export type ValidationResult = { ok: true } | { ok: false; error: string };
 
-type Marker =
+export type StringSchema = { kind: "string" };
+export type NumberSchema = { kind: "number" };
+export type BooleanSchema = { kind: "boolean" };
+export type UnknownSchema = { kind: "unknown" };
+export type ArraySchema<Item extends SchemaLike = SchemaLike> = { kind: "array"; item: Item };
+export type ObjectSchema<Fields extends Record<string, SchemaLike> = Record<string, SchemaLike>> = {
+  kind: "object";
+  fields: Fields;
+};
+export type RecordSchema<Value extends SchemaLike = SchemaLike> = { kind: "record"; value: Value };
+export type EnumSchema<Values extends readonly Json[] = readonly Json[]> = { kind: "enum"; values: Values };
+export type LiteralSchema<Value extends Json = Json> = { kind: "literal"; value: Value };
+export type NullableSchema<Inner extends SchemaLike = SchemaLike> = { kind: "nullable"; inner: Inner };
+export type OptionalSchema<Inner extends SchemaLike = SchemaLike> = { kind: "optional"; inner: Inner };
+
+export type Schema =
+  | StringSchema
+  | NumberSchema
+  | BooleanSchema
+  | UnknownSchema
+  | ArraySchema<any>
+  | ObjectSchema<any>
+  | RecordSchema<any>
+  | EnumSchema<any>
+  | LiteralSchema<any>
+  | NullableSchema<any>
+  | OptionalSchema<any>;
+
+export type LegacyMarker =
   | { __rig: "enum"; values: readonly Json[] }
   | { __rig: "literal"; value: Json }
-  | { __rig: "nullable"; shape: any }
+  | { __rig: "nullable"; shape: SchemaLike }
   | { __rig: "unknown" };
 
-type ShIntent = {
-  __rig: "sh";
-  id: string;
-  mode: "sh.text" | "sh.result" | "sh.write";
-  command?: string;
-  path?: string;
-  contents?: string;
-  options?: Omit<ShOptions, "signal">;
-};
+export type SchemaLike = Schema | LegacyMarker | string | number | boolean | readonly [SchemaLike] | { [key: string]: SchemaLike };
 
-type Infer<T> = T extends { __rig: "enum"; values: readonly (infer U)[] } ? U :
-  T extends { __rig: "literal"; value: infer U } ? U :
-  T extends { __rig: "nullable"; shape: infer U } ? Infer<U> | null :
+export type Simplify<T> = { [K in keyof T]: T[K] } & {};
+export type AgentInputValue<T> =
+  T extends readonly (infer Item)[] ? ShIntent | AgentInputValue<Item>[] :
+  T extends object ? ShIntent | { [K in keyof T]: AgentInputValue<T[K]> } :
+  T | ShIntent;
+
+export type InferSchema<T> =
+  T extends { kind: "string" } ? string :
+  T extends { kind: "number" } ? number :
+  T extends { kind: "boolean" } ? boolean :
+  T extends { kind: "unknown" } ? unknown :
+  T extends { kind: "array"; item: infer Item } ? InferSchema<Item>[] :
+  T extends { kind: "record"; value: infer Value } ? Record<string, InferSchema<Value>> :
+  T extends { kind: "enum"; values: infer Values extends readonly unknown[] } ? Values[number] :
+  T extends { kind: "literal"; value: infer Value } ? Value :
+  T extends { kind: "nullable"; inner: infer Inner } ? InferSchema<Inner> | null :
+  T extends { kind: "optional"; inner: infer Inner } ? InferSchema<Inner> | undefined :
+  T extends { kind: "object"; fields: infer Fields extends Record<string, unknown> } ? Simplify<
+    & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? never : K]: InferSchema<Fields[K]> }
+    & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? K : never]?: Fields[K] extends { kind: "optional"; inner: infer Inner } ? InferSchema<Inner> : never }
+  > :
+  T extends { __rig: "enum"; values: infer Values extends readonly unknown[] } ? Values[number] :
+  T extends { __rig: "literal"; value: infer Value } ? Value :
+  T extends { __rig: "nullable"; shape: infer Inner } ? InferSchema<Inner> | null :
   T extends { __rig: "unknown" } ? unknown :
-  T extends string ? string : T extends number ? number : T extends boolean ? boolean :
-  T extends readonly [infer U] ? Infer<U>[] :
-  T extends readonly any[] ? any[] :
-  T extends object ? { [K in keyof T as K extends `${infer P}_` ? P : K]: Infer<T[K]> } : any;
+  T extends string ? string :
+  T extends number ? number :
+  T extends boolean ? boolean :
+  T extends readonly [infer Item] ? InferSchema<Item>[] :
+  T extends { "*": infer Value } ? Record<string, InferSchema<Value>> :
+  T extends Record<string, unknown> ? Simplify<
+    & { [K in keyof T as K extends `${infer _Name}_` ? never : K]: InferSchema<T[K]> }
+    & { [K in keyof T as K extends `${infer Name}_` ? Name : never]?: InferSchema<T[K]> }
+  > :
+  unknown;
+
+export const s = {
+  string: { kind: "string" } as StringSchema,
+  number: { kind: "number" } as NumberSchema,
+  boolean: { kind: "boolean" } as BooleanSchema,
+  unknown: { kind: "unknown" } as UnknownSchema,
+  array<Item extends SchemaLike>(item: Item): ArraySchema<Item> {
+    return { kind: "array", item };
+  },
+  object<Fields extends Record<string, SchemaLike>>(fields: Fields): ObjectSchema<Fields> {
+    return { kind: "object", fields };
+  },
+  record<Value extends SchemaLike>(value: Value): RecordSchema<Value> {
+    return { kind: "record", value };
+  },
+  enum<const Values extends readonly Json[]>(...values: Values): EnumSchema<Values> {
+    return { kind: "enum", values };
+  },
+  literal<Value extends Json>(value: Value): LiteralSchema<Value> {
+    return { kind: "literal", value };
+  },
+  nullable<Inner extends SchemaLike>(inner: Inner): NullableSchema<Inner> {
+    return { kind: "nullable", inner };
+  },
+  optional<Inner extends SchemaLike>(inner: Inner): OptionalSchema<Inner> {
+    return { kind: "optional", inner };
+  },
+};
 
 export type Engine = {
   createSession(options: { model: string }): EngineSession;
@@ -137,422 +116,539 @@ export type EngineSession = {
   send(prompt: string, options: { signal?: AbortSignal }): Promise<string>;
 };
 
-let engine: Engine | undefined;
-let nextIntentId = 1;
-const globalMiddleware: Middleware[] = [];
+export type RepairHandler = false | "default" | ((error: AgentError) => string);
 
-export function useEngine(next: Engine): void { engine = next; }
-
-export const sh = {
-  text(command: string, options?: ShOptions): any {
-    return intent("sh.text", options ? { command, options: stripSignal(options)! } : { command });
-  },
-  result(command: string, options?: ShOptions): any {
-    return intent("sh.result", options ? { command, options: stripSignal(options)! } : { command });
-  },
-  write(path: string, contents: string, options?: ShOptions): any {
-    return intent("sh.write", options ? { path, contents, options: stripSignal(options)! } : { path, contents });
-  },
+export type AgentSpec<Input extends SchemaLike = ObjectSchema<{ text: StringSchema }>, Output extends SchemaLike = ObjectSchema<{ text: StringSchema }>> = {
+  name: string;
+  instructions?: string;
+  input?: Input;
+  output?: Output;
+  model?: string;
+  timeout?: number;
+  maxTurns?: number;
+  repair?: RepairHandler;
+  permissions?: { shell?: "deny" | "readonly" | "ask" | "allow"; write?: "deny" | "workspace" | "allow" };
+  agents?: Record<string, AgentFn<any, any>>;
 };
 
-export function agent<I = { text: string }, O = { text: string }>(
-  name: string,
-  options: AgentOptions<I, O> = {},
-): AgentFn<I, O> {
-  const namespace = name;
-  const lg = createLog(namespace);
-  const inputShape = (options.input ?? { text: "input text" }) as I;
-  const outputShape = (options.output ?? { text: "output text" }) as O;
-  const localMiddleware: Middleware[] = [
-    ...(options.middleware ?? []),
-    ...(options.hooks ? [hookAdapter(options.hooks)] : []),
-  ];
-  lg.agent({ event: "define", model: options.model ?? "gpt-4.1", max_turns: options.max_turns ?? 4 });
+export type LegacyAgentOptions<Input = { text: string }, Output = { text: string }> = {
+  instructions?: string;
+  input?: Input;
+  output?: Output;
+  model?: string;
+  timeout?: number;
+  maxTurns?: number;
+  max_turns?: number;
+  repair?: RepairHandler;
+  permissions?: AgentSpec["permissions"];
+  agents?: Record<string, AgentFn<any, any>>;
+};
 
-  // Re-namespace subagents under this agent's path
-  if (options.agents) {
-    for (const [key, sub] of Object.entries(options.agents)) {
-      const childNs = `${namespace}:${sub._namespace ?? sub.agentName ?? key}`;
-      (sub as AgentFn)._namespace = childNs;
-    }
+export type CallOptions = {
+  signal?: AbortSignal;
+  timeout?: number;
+  model?: string;
+  maxTurns?: number;
+  max_turns?: number;
+};
+
+export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValue<Input>, options?: CallOptions) => Promise<Output>) & {
+  agentName: string;
+  inputSchema: Schema;
+  outputSchema: Schema;
+  inputShape: Schema;
+  outputShape: Schema;
+  spec: AgentSpec<any, any>;
+  _namespace: string;
+};
+
+export class AgentError extends Error {
+  readonly kind: "parse" | "validation";
+  readonly agent: string;
+  readonly turn: number;
+  readonly response: string;
+  readonly schema: Schema;
+  readonly schemaText: string;
+
+  constructor(options: {
+    kind: "parse" | "validation";
+    agent: string;
+    turn: number;
+    response: string;
+    schema: Schema;
+    message: string;
+  }) {
+    super(options.message);
+    this.name = "AgentError";
+    this.kind = options.kind;
+    this.agent = options.agent;
+    this.turn = options.turn;
+    this.response = options.response;
+    this.schema = options.schema;
+    this.schemaText = renderSchema(options.schema);
   }
-
-  const fn = async (input?: Infer<I>, call: CallOptions = {}) => {
-    const signal = timeoutSignal(call.signal, call.timeout ?? options.timeout);
-    const maxTurns = call.max_turns ?? options.max_turns ?? 4;
-    const model = call.model ?? options.model ?? "gpt-4.1";
-    let actualInput: any = input ?? ({ text: "" } as Infer<I>);
-
-    // Use the runtime namespace (may have been nested by a parent)
-    const runtimeNs = (fn as AgentFn)._namespace;
-    const l = runtimeNs !== namespace ? createLog(runtimeNs) : lg;
-    const middleware = collectMiddleware(localMiddleware);
-    const ctx: AgentContext = {
-      agent: name,
-      namespace: runtimeNs,
-      model,
-      turn: 0,
-      phase: "beforeCall",
-      input: actualInput,
-      prompt: "",
-      signal,
-    };
-
-    l.agent({ event: "call", model });
-    await runPhase(ctx, middleware, "beforeCall");
-    actualInput = ctx.input;
-
-    const session = getEngine().createSession({ model });
-    l.engine({ event: "session_created" });
-    let prompt = renderPrompt(name, options, inputShape, outputShape, actualInput);
-    let last = "";
-    for (let turn = 1; turn <= maxTurns; turn++) {
-      throwIfAborted(signal);
-      ctx.turn = turn;
-      ctx.prompt = prompt;
-      await runPhase(ctx, middleware, "beforeSend");
-      prompt = ctx.prompt;
-      l.engine({ event: "send", turn, prompt_len: prompt.length });
-      last = await session.send(prompt, signal ? { signal } : {});
-      l.engine({ event: "recv", turn, response_len: last.length });
-      ctx.response = last;
-      await runPhase(ctx, middleware, "afterSend");
-      last = ctx.response ?? last;
-      const parsed = tryParseJson(last);
-      if (parsed.ok) {
-        ctx.parsed = parsed.value;
-        await runPhase(ctx, middleware, "afterParse");
-        const value = ctx.parsed;
-        const v = validate(value, outputShape);
-        if (v.ok) {
-          l.agent({ event: "ok", turn });
-          const output = stripOptionalKeys(value) as Infer<O>;
-          ctx.output = output;
-          await runPhase(ctx, middleware, "afterValidate");
-          await runPhase(ctx, middleware, "afterCall");
-          return ctx.output as Infer<O>;
-        }
-        l.validate({ event: "fail", turn, error: v.error });
-        ctx.error = new Error(`Output validation failed: ${v.error}`);
-        await runPhase(ctx, middleware, "error");
-        if (ctx.prompt && ctx.prompt !== prompt) { prompt = ctx.prompt; continue; }
-        throw new Error(`Agent ${name} output validation failed: ${v.error}\nResponse:\n${last}`);
-      } else {
-        l.validate({ event: "parse_fail", turn, error: parsed.error });
-        ctx.error = new Error(`Response was not valid JSON: ${parsed.error}`);
-        await runPhase(ctx, middleware, "error");
-        if (ctx.prompt && ctx.prompt !== prompt) { prompt = ctx.prompt; continue; }
-        throw new Error(`Agent ${name} returned invalid JSON: ${parsed.error}\nResponse:\n${last}`);
-      }
-    }
-    throw new Error(`Agent ${name} failed to produce valid output after ${maxTurns} turn(s). Last response:\n${last}`);
-  };
-  (fn as AgentFn<I, O>).agentName = name;
-  (fn as AgentFn<I, O>).inputShape = inputShape;
-  (fn as AgentFn<I, O>).outputShape = outputShape;
-  (fn as AgentFn<I, O>)._namespace = namespace;
-  (fn as AgentFn<I, O>).use = function use(middleware: Middleware): () => void {
-    localMiddleware.push(middleware);
-    return () => {
-      const i = localMiddleware.indexOf(middleware);
-      if (i >= 0) localMiddleware.splice(i, 1);
-    };
-  };
-  return fn as AgentFn<I, O>;
 }
 
-agent.use = function use(middleware: Middleware): () => void {
-  globalMiddleware.push(middleware);
-  return () => {
-    const i = globalMiddleware.indexOf(middleware);
-    if (i >= 0) globalMiddleware.splice(i, 1);
-  };
-};
+let currentEngine: Engine | undefined;
 
-/** @deprecated Use agent.use() with middleware instead. */
-agent.on = function on(hooks: Hooks): () => void {
-  const mw = hookAdapter(hooks);
-  return agent.use(mw);
-};
+export function useEngine(engine: Engine): void {
+  currentEngine = engine;
+}
 
-agent.enum = function values<T extends readonly Json[]>(values: T): { __rig: "enum"; values: T } {
-  return { __rig: "enum", values };
+export function agent<
+  const Input extends SchemaLike = ObjectSchema<{ text: StringSchema }>,
+  const Output extends SchemaLike = ObjectSchema<{ text: StringSchema }>
+>(spec: AgentSpec<Input, Output>): AgentFn<InferSchema<Input>, InferSchema<Output>>;
+export function agent<
+  const Input = { text: string },
+  const Output = { text: string }
+>(name: string, options?: LegacyAgentOptions<Input, Output>): AgentFn<InferSchema<Input>, InferSchema<Output>>;
+export function agent(specOrName: string | AgentSpec<any, any>, maybeOptions: LegacyAgentOptions<any, any> = {}): AgentFn<any, any> {
+  const spec = normalizeSpec(specOrName, maybeOptions);
+  const inputSchema = spec.input ?? s.object({ text: s.string });
+  const outputSchema = spec.output ?? s.object({ text: s.string });
+
+  const fn = (async (input: unknown, options: CallOptions = {}) => {
+    const model = options.model ?? spec.model ?? "gpt-4.1";
+    const maxTurns = options.maxTurns ?? options.max_turns ?? spec.maxTurns ?? 4;
+    const signal = timeoutSignal(options.signal, options.timeout ?? spec.timeout);
+    const repair = spec.repair ?? "default";
+    const session = getEngine().createSession({ model });
+    const normalizedInput = normalizeInput(input, inputSchema);
+    let prompt = renderPrompt(spec, normalizedInput);
+    let lastResponse = "";
+
+    for (let turn = 1; turn <= maxTurns; turn += 1) {
+      throwIfAborted(signal);
+      lastResponse = await session.send(prompt, signal ? { signal } : {});
+
+      const parsed = parseJson(lastResponse);
+      if (parsed.ok) {
+        const result = validate(parsed.value, outputSchema);
+        if (result.ok) {
+          return parsed.value;
+        }
+
+        const error = new AgentError({
+          kind: "validation",
+          agent: spec.name,
+          turn,
+          response: lastResponse,
+          schema: outputSchema,
+          message: `Agent ${spec.name} output validation failed: ${result.error}`,
+        });
+
+        if (turn === maxTurns || repair === false) {
+          throw error;
+        }
+
+        prompt = repairPrompt(spec, error);
+        continue;
+      }
+
+      const error = new AgentError({
+        kind: "parse",
+        agent: spec.name,
+        turn,
+        response: lastResponse,
+        schema: outputSchema,
+        message: `Agent ${spec.name} returned invalid JSON: ${parsed.error}`,
+      });
+
+      if (turn === maxTurns || repair === false) {
+        throw error;
+      }
+
+      prompt = repairPrompt(spec, error);
+    }
+
+    throw new Error(`Agent ${spec.name} failed after ${maxTurns} turns. Last response:\n${lastResponse}`);
+  }) as AgentFn<any, any>;
+
+  fn.agentName = spec.name;
+  fn.inputSchema = inputSchema;
+  fn.outputSchema = outputSchema;
+  fn.inputShape = inputSchema;
+  fn.outputShape = outputSchema;
+  fn.spec = spec;
+  fn._namespace = spec.name;
+  return fn;
+}
+
+agent.enum = function legacyEnum<const Values extends readonly Json[]>(values: Values): EnumSchema<Values> {
+  return s.enum(...values);
 };
-agent.literal = function literal<T extends Json>(value: T): { __rig: "literal"; value: T } {
-  return { __rig: "literal", value };
+agent.literal = function legacyLiteral<Value extends Json>(value: Value): LiteralSchema<Value> {
+  return s.literal(value);
 };
-agent.nullable = function nullable<T>(shape: T): { __rig: "nullable"; shape: T } {
-  return { __rig: "nullable", shape };
+agent.nullable = function legacyNullable<Inner extends SchemaLike>(inner: Inner): NullableSchema<Inner> {
+  return s.nullable(inner);
 };
-agent.unknown = function unknown(): { __rig: "unknown" } {
-  return { __rig: "unknown" };
+agent.unknown = function legacyUnknown(): UnknownSchema {
+  return s.unknown;
 };
 
 export type AgentFactory = typeof agent & {
-  use(middleware: Middleware): () => void;
-  /** @deprecated Use use(middleware) instead. */
-  on(hooks: Hooks): () => void;
-  enum<T extends readonly Json[]>(values: T): { __rig: "enum"; values: T };
-  literal<T extends Json>(value: T): { __rig: "literal"; value: T };
-  nullable<T>(shape: T): { __rig: "nullable"; shape: T };
-  unknown(): { __rig: "unknown" };
+  enum<const Values extends readonly Json[]>(values: Values): EnumSchema<Values>;
+  literal<Value extends Json>(value: Value): LiteralSchema<Value>;
+  nullable<Inner extends SchemaLike>(inner: Inner): NullableSchema<Inner>;
+  unknown(): UnknownSchema;
 };
 
-function collectMiddleware(local: Middleware[]): Middleware[] {
-  return [...globalMiddleware, ...local];
+export function validate(value: unknown, schemaLike: SchemaLike): ValidationResult {
+  return validateSchema(value, normalizeSchema(schemaLike), "$", false);
 }
 
-async function runPhase(ctx: AgentContext, middleware: Middleware[], phase: Phase): Promise<void> {
-  ctx.phase = phase;
-  await runMiddleware(ctx, middleware, async () => {});
-}
-
-async function runMiddleware(
-  ctx: AgentContext,
-  middleware: Middleware[],
-  terminal: () => Promise<void>,
-): Promise<void> {
-  let i = -1;
-  async function dispatch(index: number): Promise<void> {
-    if (index <= i) throw new Error("next() called multiple times");
-    i = index;
-    const fn = middleware[index];
-    if (!fn) return terminal();
-    return fn(ctx, () => dispatch(index + 1));
-  }
-  return dispatch(0);
-}
-
-function hookAdapter(hooks: Hooks): Middleware {
-  return async (ctx, next) => {
-    if (ctx.phase === "beforeCall" && hooks.beforeCall) {
-      ctx.input = (await hooks.beforeCall({ agent: ctx.agent, input: ctx.input })) ?? ctx.input;
-    }
-    if (ctx.phase === "beforeSend" && hooks.beforeSend) {
-      ctx.prompt = (await hooks.beforeSend({ agent: ctx.agent, prompt: ctx.prompt, turn: ctx.turn })) ?? ctx.prompt;
-    }
-    if (ctx.phase === "afterSend" && hooks.afterSend && ctx.response !== undefined) {
-      ctx.response = (await hooks.afterSend({ agent: ctx.agent, response: ctx.response, turn: ctx.turn })) ?? ctx.response;
-    }
-    if (ctx.phase === "afterParse" && hooks.afterParse) {
-      ctx.parsed = (await hooks.afterParse({ agent: ctx.agent, parsed: ctx.parsed, turn: ctx.turn })) ?? ctx.parsed;
-    }
-    if (ctx.phase === "afterCall" && hooks.afterCall) {
-      await hooks.afterCall({ agent: ctx.agent, input: ctx.input, output: ctx.output });
-    }
-    if (ctx.phase === "error" && hooks.onError && ctx.error && ctx.response !== undefined) {
-      const retry = await hooks.onError({ agent: ctx.agent, error: ctx.error.message, response: ctx.response, turn: ctx.turn });
-      if (typeof retry === "string") ctx.prompt = retry;
-    }
-    await next();
-  };
-}
-
-function intent(mode: ShIntent["mode"], args: Omit<Partial<ShIntent>, "__rig" | "id" | "mode">): ShIntent {
-  return { __rig: "sh", id: `intent_${nextIntentId++}`, mode, ...args } as ShIntent;
-}
-
-function getEngine(): Engine {
-  if (!engine) engine = new CopilotEngine();
-  return engine;
-}
-
-class CopilotEngine implements Engine {
-  createSession(options: { model: string }): EngineSession {
-    let session: any;
-    return {
-      async send(prompt: string, opts: { signal?: AbortSignal }): Promise<string> {
-        if (!session) {
-          session = await new CopilotClient().createSession({ model: options.model, streaming: false });
-        }
-        const response = await session.sendAndWait({ prompt, signal: opts.signal } as any);
-        if (typeof response === "string") return response;
-        const r = response as any;
-        return r?.text ?? r?.content ?? r?.data?.text ?? r?.data?.content ?? JSON.stringify(response);
-      },
+function normalizeSpec(specOrName: string | AgentSpec<any, any>, options: LegacyAgentOptions<any, any>): AgentSpec<any, any> {
+  if (typeof specOrName === "string") {
+    const spec: AgentSpec<any, any> = {
+      name: specOrName,
     };
+    if (options.instructions !== undefined) spec.instructions = options.instructions;
+    if (options.input !== undefined) spec.input = normalizeSchema(options.input);
+    if (options.output !== undefined) spec.output = normalizeSchema(options.output);
+    if (options.model !== undefined) spec.model = options.model;
+    if (options.timeout !== undefined) spec.timeout = options.timeout;
+    const maxTurns = options.maxTurns ?? options.max_turns;
+    if (maxTurns !== undefined) spec.maxTurns = maxTurns;
+    if (options.repair !== undefined) spec.repair = options.repair;
+    if (options.permissions !== undefined) spec.permissions = options.permissions;
+    if (options.agents !== undefined) spec.agents = options.agents;
+    return spec;
   }
-}
 
-function renderPrompt<I, O>(name: string, options: AgentOptions<I, O>, inputShape: I, outputShape: O, input: any): string {
-  const { value, intents } = collectIntents(input);
-  const subagents = Object.entries(options.agents ?? {}).map(([k, a]) => ({
-    name: k,
-    input: typeText(a.inputShape),
-    output: typeText(a.outputShape),
-  }));
-  return [
-    `<agent name="${name}">`,
-    "",
-    "<instructions>",
-    options.instructions?.trim() || "Complete the task. Return only the declared output shape.",
-    "</instructions>",
-    "",
-    "<input_schema>",
-    typeText(inputShape),
-    "</input_schema>",
-    "",
-    "<output_schema>",
-    typeText(outputShape),
-    "</output_schema>",
-    "",
-    "<permissions>",
-    json(options.permissions ?? { shell: "readonly", write: "deny" }),
-    "</permissions>",
-    "",
-    subagents.length ? `<subagents>\n${json(subagents)}\n</subagents>` : "<subagents/>",
-    "",
-    "<input>",
-    json(value),
-    "</input>",
-    "",
-    "<intents>",
-    intents.length ? intents.map(renderIntent).join("\n") : "(none)",
-    "</intents>",
-    "",
-    "<rules>",
-    "Resolve each intent using the underlying agentic engine's native execution capabilities:",
-    "- mode `sh.text`: run the command and substitute its stdout as a string.",
-    "- mode `sh.result`: run the command and substitute `{ ok, stdout, stderr, exitCode }`.",
-    "- mode `sh.write`: write contents to path and substitute `{ ok, stdout, stderr, exitCode }`.",
-    "These intents are declarative. They are not framework-level tools, host JavaScript calls, or promises.",
-    "Respect the permissions declaration when deciding whether an intent may be resolved.",
-    "Do not fabricate intent results. Resolve them through the engine or report failure in the output.",
-    "Return only one valid JSON object matching the output schema. No Markdown. No prose outside JSON.",
-    "</rules>",
-    "",
-    "</agent>",
-  ].join("\n");
-}
-
-function renderIntent(i: ShIntent): string {
-  if (i.mode === "sh.write") {
-    const opts = i.options ? ` ${json(i.options)}` : "";
-    return `<intent id="${i.id}" mode="${i.mode}" path="${i.path}"${opts}>\n${i.contents}\n</intent>`;
-  }
-  const opts = i.options ? ` ${json(i.options)}` : "";
-  return `<intent id="${i.id}" mode="${i.mode}"${opts}>\`${i.command}\`</intent>`;
-}
-
-export function collectIntents(value: any): { value: any; intents: ShIntent[] } {
-  const intents: ShIntent[] = [];
-  const seen = new WeakSet<object>();
-  const walk = (v: any): any => {
-    if (isShIntent(v)) {
-      intents.push(v);
-      return { $intent: v.id };
-    }
-    if (!v || typeof v !== "object") return v;
-    if (seen.has(v)) throw new Error("Cannot serialize circular input.");
-    seen.add(v);
-    if (Array.isArray(v)) return v.map(walk);
-    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+  const spec: AgentSpec<any, any> = {
+    name: specOrName.name,
   };
-  return { value: walk(value), intents };
+  if (specOrName.instructions !== undefined) spec.instructions = specOrName.instructions;
+  if (specOrName.input !== undefined) spec.input = normalizeSchema(specOrName.input);
+  if (specOrName.output !== undefined) spec.output = normalizeSchema(specOrName.output);
+  if (specOrName.model !== undefined) spec.model = specOrName.model;
+  if (specOrName.timeout !== undefined) spec.timeout = specOrName.timeout;
+  if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
+  if (specOrName.repair !== undefined) spec.repair = specOrName.repair;
+  if (specOrName.permissions !== undefined) spec.permissions = specOrName.permissions;
+  if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
+  return spec;
 }
 
-export function validate(value: any, shape: any, path = "$", optional = false): { ok: true } | { ok: false; error: string } {
-  if (optional && value === undefined) return { ok: true };
-  if (isMarker(shape)) return validateMarker(value, shape, path);
-  if (typeof shape === "string") return typeof value === "string" ? ok() : bad(path, "string", value);
-  if (typeof shape === "number") return typeof value === "number" ? ok() : bad(path, "number", value);
-  if (typeof shape === "boolean") return typeof value === "boolean" ? ok() : bad(path, "boolean", value);
-  if (Array.isArray(shape)) {
-    if (!Array.isArray(value)) return bad(path, "array", value);
-    if (shape.length === 0) return ok();
-    for (let i = 0; i < value.length; i++) {
-      const r = validate(value[i], shape[0], `${path}[${i}]`);
-      if (!r.ok) return r;
-    }
-    return ok();
+function normalizeInput(input: unknown, schema: Schema): unknown {
+  if (input !== undefined) {
+    return input;
   }
-  if (shape && typeof shape === "object") {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return bad(path, "object", value);
-    const wildcard = (shape as any)["*"];
-    if (wildcard !== undefined) {
-      for (const [k, v] of Object.entries(value)) {
-        const r = validate(v, wildcard, `${path}.${k}`);
-        if (!r.ok) return r;
+  if (schema.kind === "object") {
+    return {};
+  }
+  return input ?? null;
+}
+
+function normalizeSchema(schemaLike: SchemaLike): Schema {
+  if (isSchema(schemaLike)) {
+    return schemaLike;
+  }
+  if (isLegacyMarker(schemaLike)) {
+    switch (schemaLike.__rig) {
+      case "enum":
+        return s.enum(...schemaLike.values);
+      case "literal":
+        return s.literal(schemaLike.value);
+      case "nullable":
+        return s.nullable(normalizeSchema(schemaLike.shape));
+      case "unknown":
+        return s.unknown;
+      default:
+        throw new Error(`Unknown legacy schema marker: ${(schemaLike as { __rig: string }).__rig}`);
+    }
+  }
+  if (typeof schemaLike === "string") {
+    return s.string;
+  }
+  if (typeof schemaLike === "number") {
+    return s.number;
+  }
+  if (typeof schemaLike === "boolean") {
+    return s.boolean;
+  }
+  if (Array.isArray(schemaLike)) {
+    return s.array(normalizeSchema(schemaLike[0] ?? s.unknown));
+  }
+  if (schemaLike && typeof schemaLike === "object") {
+    if ("*" in schemaLike) {
+      return s.record(normalizeSchema(schemaLike["*"]));
+    }
+    const fields = Object.fromEntries(
+      Object.entries(schemaLike).map(([key, value]) => {
+        if (key.endsWith("_")) {
+          return [key.slice(0, -1), s.optional(normalizeSchema(value))];
+        }
+        return [key, normalizeSchema(value)];
+      }),
+    );
+    return s.object(fields);
+  }
+  return s.unknown;
+}
+
+function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
+  const { value, intents } = collectIntents(input);
+  const sections = [
+    `<agent name="${escapeAttribute(spec.name)}">`,
+    tag("instructions", (spec.instructions ?? "Return only valid JSON matching the output schema.").trim()),
+    tag("input_schema", renderSchema(spec.input ?? s.object({ text: s.string }))),
+    tag("output_schema", renderSchema(spec.output ?? s.object({ text: s.string }))),
+    tag("input", json(value)),
+  ];
+
+  if (spec.permissions) {
+    sections.push(tag("permissions", json(spec.permissions)));
+  }
+
+  if (spec.agents && Object.keys(spec.agents).length > 0) {
+    sections.push(tag(
+      "subagents",
+      json(Object.entries(spec.agents).map(([name, subagent]) => ({
+        name,
+        input: renderSchema(subagent.inputSchema),
+        output: renderSchema(subagent.outputSchema),
+      }))),
+    ));
+  }
+
+  sections.push(tag("intents", intents.length ? intents.map(renderIntent).join("\n") : "(none)"));
+  sections.push(tag("rules", [
+    "Return exactly one JSON object.",
+    "Do not wrap the JSON in Markdown.",
+    "Match the output schema exactly.",
+    "Shell intents are unresolved declarative placeholders unless the engine resolves them.",
+  ].join("\n")));
+  sections.push("</agent>");
+
+  return sections.join("\n\n");
+}
+
+function repairPrompt(spec: AgentSpec<any, any>, error: AgentError): string {
+  if (typeof spec.repair === "function") {
+    return spec.repair(error);
+  }
+  return [
+    `<repair agent="${escapeAttribute(spec.name)}" turn="${error.turn}">`,
+    tag("instructions", "Your previous response was invalid. Return only corrected JSON."),
+    tag("error", error.message),
+    tag("output_schema", error.schemaText),
+    tag("previous_response", error.response),
+    "</repair>",
+  ].join("\n\n");
+}
+
+function parseJson(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {}
+
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) {
+    try {
+      return { ok: true, value: JSON.parse(fenced[1]) };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  const objectMatch = text.match(/\{[\s\S]*\}/);
+  if (!objectMatch) {
+    return { ok: false, error: "No JSON object found." };
+  }
+
+  try {
+    return { ok: true, value: JSON.parse(objectMatch[0]) };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+function validateSchema(value: unknown, schema: Schema, path: string, optional: boolean): ValidationResult {
+  if (optional && value === undefined) {
+    return { ok: true };
+  }
+
+  switch (schema.kind) {
+    case "string":
+      return typeof value === "string" ? ok() : bad(path, "string", value);
+    case "number":
+      return typeof value === "number" ? ok() : bad(path, "number", value);
+    case "boolean":
+      return typeof value === "boolean" ? ok() : bad(path, "boolean", value);
+    case "unknown":
+      return ok();
+    case "literal":
+      return deepEqual(value, schema.value) ? ok() : bad(path, JSON.stringify(schema.value), value);
+    case "enum":
+      return schema.values.some((item: Json) => deepEqual(item, value))
+        ? ok()
+        : bad(path, schema.values.map((item: Json) => JSON.stringify(item)).join(" | "), value);
+    case "nullable":
+      return value === null ? ok() : validateSchema(value, normalizeSchema(schema.inner), path, false);
+    case "optional":
+      return validateSchema(value, normalizeSchema(schema.inner), path, true);
+    case "array": {
+      if (!Array.isArray(value)) {
+        return bad(path, "array", value);
+      }
+      for (let index = 0; index < value.length; index += 1) {
+        const result = validateSchema(value[index], normalizeSchema(schema.item), `${path}[${index}]`, false);
+        if (!result.ok) {
+          return result;
+        }
       }
       return ok();
     }
-    for (const [rawKey, child] of Object.entries(shape)) {
-      const isOpt = rawKey.endsWith("_");
-      const key = isOpt ? rawKey.slice(0, -1) : rawKey;
-      const r = validate((value as any)[key], child, `${path}.${key}`, isOpt);
-      if (!r.ok) return r;
-    }
-    return ok();
-  }
-  return ok();
-}
-
-function validateMarker(value: any, marker: Marker, path: string): { ok: true } | { ok: false; error: string } {
-  if (marker.__rig === "unknown") return ok();
-  if (marker.__rig === "nullable") return value === null ? ok() : validate(value, marker.shape, path);
-  if (marker.__rig === "literal") return deepEqual(value, marker.value) ? ok() : bad(path, `literal ${JSON.stringify(marker.value)}`, value);
-  return marker.values.some((v) => deepEqual(v, value)) ? ok() : bad(path, `one of ${JSON.stringify(marker.values)}`, value);
-}
-
-function typeText(shape: any, indent = 0): string {
-  const pad = "  ".repeat(indent);
-  if (isMarker(shape)) {
-    if (shape.__rig === "enum") return shape.values.map((v) => JSON.stringify(v)).join(" | ");
-    if (shape.__rig === "literal") return JSON.stringify(shape.value);
-    if (shape.__rig === "nullable") return `${typeText(shape.shape, indent)} | null`;
-    return "unknown";
-  }
-  if (typeof shape === "string") return "string";
-  if (typeof shape === "number") return "number";
-  if (typeof shape === "boolean") return "boolean";
-  if (Array.isArray(shape)) return `${typeText(shape[0] ?? "", indent)}[]`;
-  if (shape && typeof shape === "object") {
-    const lines = ["{"];
-    for (const [rawKey, v] of Object.entries(shape)) {
-      if (rawKey === "*") lines.push(`${pad}  [key: string]: ${typeText(v, indent + 1)};`);
-      else {
-        const opt = rawKey.endsWith("_");
-        const key = opt ? rawKey.slice(0, -1) : rawKey;
-        lines.push(`${pad}  ${key}${opt ? "?" : ""}: ${typeText(v, indent + 1)};`);
+    case "record": {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return bad(path, "object", value);
       }
+      for (const [key, item] of Object.entries(value)) {
+        const result = validateSchema(item, normalizeSchema(schema.value), `${path}.${key}`, false);
+        if (!result.ok) {
+          return result;
+        }
+      }
+      return ok();
     }
-    lines.push(`${pad}}`);
-    return lines.join("\n");
+    case "object": {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return bad(path, "object", value);
+      }
+      for (const [key, fieldSchema] of Object.entries(schema.fields)) {
+        const result = validateSchema(
+          (value as Record<string, unknown>)[key],
+          normalizeSchema(fieldSchema as SchemaLike),
+          `${path}.${key}`,
+          false,
+        );
+        if (!result.ok) {
+          return result;
+        }
+      }
+      return ok();
+    }
   }
-  return "unknown";
 }
 
-function tryParseJson(text: string): { ok: true; value: any } | { ok: false; error: string } {
-  try { return { ok: true, value: JSON.parse(text) }; } catch {}
-  const m = text.match(/```(?:json)?\s*([\s\S]*?)```/) ?? text.match(/\{[\s\S]*\}/);
-  if (!m) return { ok: false, error: "No JSON object found." };
-  try { return { ok: true, value: JSON.parse(m[1] ?? m[0]) }; }
-  catch (e: any) { return { ok: false, error: e?.message ?? String(e) }; }
+function renderSchema(schemaLike: SchemaLike): string {
+  const schema = normalizeSchema(schemaLike);
+  return renderSchemaNode(schema, 0);
 }
 
-function stripOptionalKeys(v: any): any { return v; }
-function isMarker(v: any): v is Marker { return v && typeof v === "object" && ["enum", "literal", "nullable", "unknown"].includes(v.__rig); }
-function isShIntent(v: any): v is ShIntent { return v && typeof v === "object" && v.__rig === "sh"; }
-function ok(): { ok: true } { return { ok: true }; }
-function bad(path: string, expected: string, actual: any): { ok: false; error: string } {
-  return { ok: false, error: `${path}: expected ${expected}, got ${actual === null ? "null" : Array.isArray(actual) ? "array" : typeof actual}` };
+function renderSchemaNode(schema: Schema, indent: number): string {
+  const pad = "  ".repeat(indent);
+  switch (schema.kind) {
+    case "string":
+      return "string";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "unknown":
+      return "unknown";
+    case "literal":
+      return JSON.stringify(schema.value);
+    case "enum":
+      return schema.values.map((value: Json) => JSON.stringify(value)).join(" | ");
+    case "nullable":
+      return `${renderSchemaNode(normalizeSchema(schema.inner), indent)} | null`;
+    case "optional":
+      return `${renderSchemaNode(normalizeSchema(schema.inner), indent)} | undefined`;
+    case "array":
+      return `${renderSchemaNode(normalizeSchema(schema.item), indent)}[]`;
+    case "record":
+      return `{\n${pad}  [key: string]: ${renderSchemaNode(normalizeSchema(schema.value), indent + 1)};\n${pad}}`;
+    case "object": {
+      const lines = ["{"];
+      for (const [key, value] of Object.entries(schema.fields)) {
+        if (isSchema(value) && value.kind === "optional") {
+          lines.push(`${pad}  ${key}?: ${renderSchemaNode(normalizeSchema(value.inner), indent + 1)};`);
+        } else {
+          lines.push(`${pad}  ${key}: ${renderSchemaNode(normalizeSchema(value as SchemaLike), indent + 1)};`);
+        }
+      }
+      lines.push(`${pad}}`);
+      return lines.join("\n");
+    }
+  }
 }
-function json(v: any): string { return JSON.stringify(v, null, 2); }
-function deepEqual(a: any, b: any): boolean { return JSON.stringify(a) === JSON.stringify(b); }
-function stripSignal(o?: ShOptions): Omit<ShOptions, "signal"> | undefined {
-  if (!o) return undefined;
-  const { signal: _signal, ...rest } = o;
-  return rest;
+
+function renderIntent(intent: { id: string; mode: string; command?: string; path?: string; contents?: string; options?: unknown }): string {
+  const attributes = [
+    `id="${escapeAttribute(intent.id)}"`,
+    `mode="${escapeAttribute(intent.mode)}"`,
+  ];
+  if (intent.command) {
+    attributes.push(`command="${escapeAttribute(intent.command)}"`);
+  }
+  if (intent.path) {
+    attributes.push(`path="${escapeAttribute(intent.path)}"`);
+  }
+  return `<intent ${attributes.join(" ")}>${intent.options ? `${json(intent.options)} ` : ""}${intent.contents ?? ""}</intent>`;
 }
+
+function getEngine(): Engine {
+  currentEngine ??= copilotEngine();
+  return currentEngine;
+}
+
+function isSchema(value: unknown): value is Schema {
+  return !!value
+    && typeof value === "object"
+    && "kind" in value
+    && ["string", "number", "boolean", "unknown", "array", "object", "record", "enum", "literal", "nullable", "optional"].includes((value as { kind: string }).kind);
+}
+
+function isLegacyMarker(value: unknown): value is LegacyMarker {
+  return !!value
+    && typeof value === "object"
+    && "__rig" in value
+    && ["enum", "literal", "nullable", "unknown"].includes((value as { __rig: string }).__rig);
+}
+
+function ok(): ValidationResult {
+  return { ok: true };
+}
+
+function bad(path: string, expected: string, actual: unknown): ValidationResult {
+  const actualType = actual === null ? "null" : Array.isArray(actual) ? "array" : typeof actual;
+  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}` };
+}
+
+function tag(name: string, value: string): string {
+  return `<${name}>\n${value}\n</${name}>`;
+}
+
+function json(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+function deepEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function escapeAttribute(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
 function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
+  if (signal?.aborted) {
+    throw signal.reason ?? new DOMException("Aborted", "AbortError");
+  }
 }
+
 function timeoutSignal(parent?: AbortSignal, timeout?: number): AbortSignal | undefined {
-  if (!timeout) return parent;
+  if (!timeout) {
+    return parent;
+  }
   const controller = new AbortController();
   const onAbort = () => controller.abort(parent?.reason);
   parent?.addEventListener("abort", onAbort, { once: true });
-  const t = setTimeout(() => controller.abort(new Error(`Timed out after ${timeout}ms`)), timeout);
-  controller.signal.addEventListener("abort", () => clearTimeout(t), { once: true });
+  const timer = setTimeout(() => controller.abort(new Error(`Timed out after ${timeout}ms`)), timeout);
+  controller.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
   return controller.signal;
 }

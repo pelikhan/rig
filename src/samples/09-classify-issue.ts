@@ -1,17 +1,21 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
 
-const scripts = agent("scripts", {
-  input: { packageJson: "package.json contents" },
-  output: {
-    scripts: {
-      "*": "npm script command",
-    },
-  },
-  instructions: `Extract package.json scripts into output.scripts.`,
+const classifyIssue = agent({
+  name: "classifyIssue",
+  instructions: "Classify the issue.",
+  input: s.object({
+    title: s.string,
+    body: s.string,
+  }),
+  output: s.object({
+    label: s.enum("bug", "feature", "question", "docs"),
+    confidence: s.enum("low", "medium", "high"),
+  }),
 });
 
-const result = await scripts({
-  packageJson: sh.text("cat package.json"),
+const result = await classifyIssue({
+  title: "Crash on start",
+  body: "segfault",
 });
 
-console.log(result.scripts);
+console.log(result.label, result.confidence);

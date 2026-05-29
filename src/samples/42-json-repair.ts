@@ -1,18 +1,31 @@
-import { agent, sh } from "rig";
+import { agent, s, useEngine } from "rig";
+import type { Engine } from "rig";
 
-const formatter = agent("formatter", {
-  input: { result: { ok: true, stdout: "", stderr: "", exitCode: 0 } },
-  output: {
-    formatted: true,
-    summary: "Formatting summary",
+let calls = 0;
+const flakyEngine: Engine = {
+  createSession() {
+    return {
+      async send() {
+        calls += 1;
+        return calls === 1 ? "not json" : JSON.stringify({ summary: "Recovered after repair" });
+      },
+    };
   },
-  instructions: `Report whether formatting succeeded.`,
-  permissions: {
-    shell: "ask",
-    write: "workspace",
-  },
+};
+
+useEngine(flakyEngine);
+
+const summarize = agent({
+  name: "summarize",
+  instructions: "Summarize the diff.",
+  input: s.object({
+    diff: s.string,
+  }),
+  output: s.object({
+    summary: s.string,
+  }),
+  maxTurns: 2,
+  repair: "default",
 });
 
-console.log(await formatter({
-  result: sh.result("npm run format", { purpose: "format workspace files" }),
-}));
+console.log(await summarize({ diff: "diff --git a/file.ts b/file.ts" }));
