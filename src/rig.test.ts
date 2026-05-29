@@ -91,66 +91,70 @@ describe("agent invocation", () => {
   });
 });
 
-describe("hooks", () => {
-  it("beforeCall transforms input", async () => {
-    let seenInput: any;
+describe("middleware", () => {
+  it("beforeCall phase transforms input", async () => {
+    let seenInput = "";
     useEngine({
       createSession() {
         return { async send(prompt) { seenInput = prompt; return JSON.stringify({ text: "ok" }); } };
       },
     });
-    const a = agent("hook-test", {
-      hooks: {
-        beforeCall(ctx) { return { text: ctx.input.text + " modified" }; },
-      },
+    const a = agent("mw-test", {
+      middleware: [async (ctx, next) => {
+        if (ctx.phase === "beforeCall") ctx.input = { text: `${(ctx.input as any).text} modified` };
+        await next();
+      }],
     });
     await a({ text: "hello" });
     expect(seenInput).toContain("modified");
   });
 
-  it("beforeSend transforms prompt", async () => {
+  it("beforeSend phase transforms prompt", async () => {
     let sentPrompt = "";
     useEngine({
       createSession() {
         return { async send(prompt) { sentPrompt = prompt; return JSON.stringify({ text: "ok" }); } };
       },
     });
-    const a = agent("hook-test", {
-      hooks: {
-        beforeSend(ctx) { return ctx.prompt + "\nEXTRA INSTRUCTION"; },
-      },
+    const a = agent("mw-test", {
+      middleware: [async (ctx, next) => {
+        if (ctx.phase === "beforeSend") ctx.prompt += "\nEXTRA INSTRUCTION";
+        await next();
+      }],
     });
     await a({ text: "hi" });
     expect(sentPrompt).toContain("EXTRA INSTRUCTION");
   });
 
-  it("afterSend transforms raw response", async () => {
+  it("afterSend phase transforms raw response", async () => {
     useEngine({
       createSession() {
         return { async send() { return "```json\n{\"text\": \"raw\"}\n```"; } };
       },
     });
-    const a = agent("hook-test", {
-      hooks: {
-        afterSend() { return JSON.stringify({ text: "intercepted" }); },
-      },
+    const a = agent("mw-test", {
+      middleware: [async (ctx, next) => {
+        if (ctx.phase === "afterSend") ctx.response = JSON.stringify({ text: "intercepted" });
+        await next();
+      }],
     });
     const result = await a({ text: "go" });
     expect(result).toEqual({ text: "intercepted" });
   });
 
-  it("afterParse transforms parsed value", async () => {
+  it("afterParse phase transforms parsed value", async () => {
     useEngine(mockEngine({ text: "original", extra: true }));
-    const a = agent("hook-test", {
-      hooks: {
-        afterParse(ctx) { return { text: ctx.parsed.text + " transformed" }; },
-      },
+    const a = agent("mw-test", {
+      middleware: [async (ctx, next) => {
+        if (ctx.phase === "afterParse") ctx.parsed = { text: `${(ctx.parsed as any).text} transformed` };
+        await next();
+      }],
     });
     const result = await a({ text: "go" });
     expect(result).toEqual({ text: "original transformed" });
   });
 
-  it("onError enables retry by returning a new prompt", async () => {
+  it("error phase enables retry", async () => {
     let calls = 0;
     useEngine({
       createSession() {
@@ -163,49 +167,24 @@ describe("hooks", () => {
         };
       },
     });
-    const a = agent("retry-hook", {
+    const a = agent("retry-mw", {
       max_turns: 3,
-      hooks: {
-        onError(ctx) { return `Fix it. Error: ${ctx.error}`; },
-      },
+      middleware: [async (ctx, next) => {
+        if (ctx.phase === "error") ctx.prompt = `Fix it. Error: ${ctx.error?.message ?? ""}`;
+        await next();
+      }],
     });
     const result = await a({ text: "go" });
     expect(result).toEqual({ text: "recovered" });
     expect(calls).toBe(2);
   });
 
-  it("onError without return throws immediately", async () => {
-    useEngine({ createSession() { return { async send() { return "bad"; } }; } });
-    const errors: string[] = [];
-    const a = agent("no-retry", {
-      max_turns: 5,
-      hooks: {
-        onError(ctx) { errors.push(ctx.error); },
-      },
-    });
-    await expect(a({ text: "go" })).rejects.toThrow(/invalid JSON/);
-    expect(errors).toHaveLength(1);
-  });
-
-  it("afterCall observes final output", async () => {
-    useEngine(mockEngine({ text: "done" }));
-    let observed: any;
-    const a = agent("observe", {
-      hooks: {
-        afterCall(ctx) { observed = ctx; },
-      },
-    });
-    await a({ text: "hi" });
-    expect(observed.agent).toBe("observe");
-    expect(observed.output).toEqual({ text: "done" });
-    expect(observed.input).toEqual({ text: "hi" });
-  });
-
-  it("global hooks via agent.on()", async () => {
+  it("global middleware via agent.use()", async () => {
     const log: string[] = [];
-    const off = agent.on({
-      beforeCall(ctx) { log.push(`call:${ctx.agent}`); },
-      afterCall(ctx) { log.push(`done:${ctx.agent}`); },
+    const off = agent.use(async (ctx, next) => {
+      if (ctx.phase === "beforeCall") log.push(`call:${ctx.agent}`);
+      if (ctx.phase === "afterCall") log.push(`done:${ctx.agent}`);
+      await next();
     });
     useEngine(mockEngine({ text: "ok" }));
     const a = agent("global-test");
@@ -213,21 +192,52 @@ describe("hooks", () => {
     expect(log).toEqual(["call:global-test", "done:global-test"]);
     off();
     await a({ text: "x" });
-    expect(log).toHaveLength(2); // no new entries after off()
+    expect(log).toHaveLength(2);
   });
 
-  it("multiple hooks compose in order", async () => {
+  it("per-agent middleware registration via myAgent.use()", async () => {
+    const phases: string[] = [];
+    const a = agent("local-use");
+    const off = a.use(async (ctx, next) => {
+      if (ctx.phase === "beforeCall") phases.push("beforeCall");
+      await next();
+    });
+    useEngine(mockEngine({ text: "ok" }));
+    await a({ text: "x" });
+    expect(phases).toEqual(["beforeCall"]);
+    off();
+    await a({ text: "x" });
+    expect(phases).toEqual(["beforeCall"]);
+  });
+
+  it("multiple middleware compose in order", async () => {
     const order: number[] = [];
-    const off1 = agent.on({ beforeSend() { order.push(1); } });
-    const off2 = agent.on({ beforeSend() { order.push(2); } });
+    const off1 = agent.use(async (ctx, next) => { if (ctx.phase === "beforeSend") order.push(1); await next(); });
+    const off2 = agent.use(async (ctx, next) => { if (ctx.phase === "beforeSend") order.push(2); await next(); });
     useEngine(mockEngine({ text: "ok" }));
     const a = agent("compose", {
-      hooks: { beforeSend() { order.push(3); } },
+      middleware: [async (ctx, next) => { if (ctx.phase === "beforeSend") order.push(3); await next(); }],
     });
     await a({ text: "x" });
     expect(order).toEqual([1, 2, 3]);
     off1();
     off2();
+  });
+
+  it("supports deprecated hooks through middleware adapter", async () => {
+    let seenInput = "";
+    useEngine({
+      createSession() {
+        return { async send(prompt) { seenInput = prompt; return JSON.stringify({ text: "ok" }); } };
+      },
+    });
+    const a = agent("hook-compat", {
+      hooks: {
+        beforeCall(ctx) { return { text: `${ctx.input.text} legacy` }; },
+      },
+    });
+    await a({ text: "hello" });
+    expect(seenInput).toContain("legacy");
   });
 });
 

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Rig is a minimal TypeScript agent harness. The entire runtime is a single file (`src/rig.ts`) that provides declarative agent construction with typed input/output shapes, shell intents, hooks, and LLM engine abstraction.
+Rig is a minimal TypeScript agent harness. The entire runtime is a single file (`src/rig.ts`) that provides declarative agent construction with typed input/output shapes, shell intents, middleware, and LLM engine abstraction.
 
 ## Architecture
 
@@ -55,5 +55,5 @@ JSONL logger built-in. Enabled via `RIG_LOG=1` or `RIG_DEBUG=1`. Outputs to stde
 - **Shape descriptors**: JS values used as type exemplars (e.g., `""` = string, `0` = number, `[""]` = string array)
 - **Markers**: `agent.enum()`, `agent.literal()`, `agent.nullable()`, `agent.unknown()` for richer types
 - **Shell intents**: `sh.text()`, `sh.result()`, `sh.write()` — declarative placeholders resolved by the engine, not executed in-process
-- **Hooks**: `beforeCall`, `beforeSend`, `afterSend`, `afterParse`, `onError`, `afterCall` — composable lifecycle hooks
+- **Middleware**: `agent.use(...)` / `myAgent.use(...)` lifecycle middleware with explicit phases (`beforeCall`, `beforeSend`, `afterSend`, `afterParse`, `afterValidate`, `afterCall`, `error`)
 - **Engine**: Pluggable via `useEngine()`; default uses `@github/copilot-sdk`

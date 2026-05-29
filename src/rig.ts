@@ -14,7 +14,6 @@ function createLogger(namespace: string): Logger {
 type Log = {
   agent: Logger;
   engine: Logger;
-  hook: Logger;
   validate: Logger;
 };
 
@@ -22,7 +21,6 @@ function createLog(namespace: string): Log {
   return {
     agent: createLogger(`rig:${namespace}:agent`),
     engine: createLogger(`rig:${namespace}:engine`),
-    hook: createLogger(`rig:${namespace}:hook`),
     validate: createLogger(`rig:${namespace}:validate`),
   };
 }
@@ -33,6 +31,30 @@ export type Permissions = {
   write?: "deny" | "workspace" | "allow";
 };
 type MaybePromise<T> = T | Promise<T>;
+export type Phase =
+  | "beforeCall"
+  | "beforeSend"
+  | "afterSend"
+  | "afterParse"
+  | "afterValidate"
+  | "afterCall"
+  | "error";
+export type AgentContext = {
+  agent: string;
+  namespace: string;
+  model: string;
+  turn: number;
+  phase: Phase;
+  input: unknown;
+  prompt: string;
+  response?: string;
+  parsed?: unknown;
+  output?: unknown;
+  error?: Error;
+  signal?: AbortSignal;
+};
+export type Middleware = (ctx: AgentContext, next: () => Promise<void>) => Promise<void>;
+/** @deprecated Use middleware instead. */
 export type Hooks = {
   beforeCall?(ctx: { agent: string; input: any }): MaybePromise<any>;
   beforeSend?(ctx: { agent: string; prompt: string; turn: number }): MaybePromise<string | void>;
@@ -50,6 +72,8 @@ export type AgentOptions<I = any, O = any> = {
   instructions?: string;
   permissions?: Permissions;
   agents?: Record<string, AgentFn<any, any>>;
+  middleware?: Middleware[];
+  /** @deprecated Use middleware instead. */
   hooks?: Hooks;
 };
 export type CallOptions = {
@@ -63,6 +87,7 @@ export type AgentFn<I = any, O = any> = ((input?: Infer<I>, options?: CallOption
   inputShape: I;
   outputShape: O;
   _namespace: string;
+  use(middleware: Middleware): () => void;
 };
 export type ShOptions = {
   cwd?: string;
@@ -107,7 +132,7 @@ export type EngineSession = {
 
 let engine: Engine | undefined;
 let nextIntentId = 1;
-const globalHooks: Hooks[] = [];
+const globalMiddleware: Middleware[] = [];
 
 export function useEngine(next: Engine): void { engine = next; }
 
@@ -131,6 +156,10 @@ export function agent<I = { text: string }, O = { text: string }>(
   const lg = createLog(namespace);
   const inputShape = (options.input ?? { text: "input text" }) as I;
   const outputShape = (options.output ?? { text: "output text" }) as O;
+  const localMiddleware: Middleware[] = [
+    ...(options.middleware ?? []),
+    ...(options.hooks ? [hookAdapter(options.hooks)] : []),
+  ];
   lg.agent("define model=%s max_turns=%d", options.model ?? "gpt-4.1", options.max_turns ?? 4);
 
   // Re-namespace subagents under this agent's path
@@ -145,15 +174,26 @@ export function agent<I = { text: string }, O = { text: string }>(
     const signal = timeoutSignal(call.signal, call.timeout ?? options.timeout);
     const maxTurns = call.max_turns ?? options.max_turns ?? 4;
     const model = call.model ?? options.model ?? "gpt-4.1";
-    const hooks = allHooks(options.hooks);
     let actualInput: any = input ?? ({ text: "" } as Infer<I>);
 
     // Use the runtime namespace (may have been nested by a parent)
     const runtimeNs = (fn as AgentFn)._namespace;
     const l = runtimeNs !== namespace ? createLog(runtimeNs) : lg;
+    const middleware = collectMiddleware(localMiddleware);
+    const ctx: AgentContext = {
+      agent: name,
+      namespace: runtimeNs,
+      model,
+      turn: 0,
+      phase: "beforeCall",
+      input: actualInput,
+      prompt: "",
+      signal,
+    };
 
     l.agent("call model=%s", model);
-    actualInput = (await runHook(hooks, "beforeCall", { agent: name, input: actualInput })) ?? actualInput;
+    await runPhase(ctx, middleware, "beforeCall");
+    actualInput = ctx.input;
 
     const session = getEngine().createSession({ model });
     l.engine("session created");
@@ -161,30 +201,40 @@ export function agent<I = { text: string }, O = { text: string }>(
     let last = "";
     for (let turn = 1; turn <= maxTurns; turn++) {
       throwIfAborted(signal);
-      prompt = (await runHook(hooks, "beforeSend", { agent: name, prompt, turn })) ?? prompt;
+      ctx.turn = turn;
+      ctx.prompt = prompt;
+      await runPhase(ctx, middleware, "beforeSend");
+      prompt = ctx.prompt;
       l.engine("send turn=%d prompt_len=%d", turn, prompt.length);
       last = await session.send(prompt, signal ? { signal } : {});
       l.engine("recv turn=%d response_len=%d", turn, last.length);
-      last = (await runHook(hooks, "afterSend", { agent: name, response: last, turn })) ?? last;
+      ctx.response = last;
+      await runPhase(ctx, middleware, "afterSend");
+      last = ctx.response ?? last;
       const parsed = tryParseJson(last);
       if (parsed.ok) {
-        const transformed = await runHook(hooks, "afterParse", { agent: name, parsed: parsed.value, turn });
-        const value = transformed !== undefined ? transformed : parsed.value;
+        ctx.parsed = parsed.value;
+        await runPhase(ctx, middleware, "afterParse");
+        const value = ctx.parsed;
         const v = validate(value, outputShape);
         if (v.ok) {
           l.agent("ok turn=%d", turn);
           const output = stripOptionalKeys(value) as Infer<O>;
-          await runHook(hooks, "afterCall", { agent: name, input: actualInput, output });
-          return output;
+          ctx.output = output;
+          await runPhase(ctx, middleware, "afterValidate");
+          await runPhase(ctx, middleware, "afterCall");
+          return ctx.output as Infer<O>;
         }
         l.validate("fail turn=%d %s", turn, v.error);
-        const retry = await runHook(hooks, "onError", { agent: name, error: `Output validation failed: ${v.error}`, response: last, turn });
-        if (typeof retry === "string") { prompt = retry; continue; }
+        ctx.error = new Error(`Output validation failed: ${v.error}`);
+        await runPhase(ctx, middleware, "error");
+        if (ctx.prompt && ctx.prompt !== prompt) { prompt = ctx.prompt; continue; }
         throw new Error(`Agent ${name} output validation failed: ${v.error}\nResponse:\n${last}`);
       } else {
         l.validate("parse_fail turn=%d %s", turn, parsed.error);
-        const retry = await runHook(hooks, "onError", { agent: name, error: `Response was not valid JSON: ${parsed.error}`, response: last, turn });
-        if (typeof retry === "string") { prompt = retry; continue; }
+        ctx.error = new Error(`Response was not valid JSON: ${parsed.error}`);
+        await runPhase(ctx, middleware, "error");
+        if (ctx.prompt && ctx.prompt !== prompt) { prompt = ctx.prompt; continue; }
         throw new Error(`Agent ${name} returned invalid JSON: ${parsed.error}\nResponse:\n${last}`);
       }
     }
@@ -194,12 +244,28 @@ export function agent<I = { text: string }, O = { text: string }>(
   (fn as AgentFn<I, O>).inputShape = inputShape;
   (fn as AgentFn<I, O>).outputShape = outputShape;
   (fn as AgentFn<I, O>)._namespace = namespace;
+  (fn as AgentFn<I, O>).use = function use(middleware: Middleware): () => void {
+    localMiddleware.push(middleware);
+    return () => {
+      const i = localMiddleware.indexOf(middleware);
+      if (i >= 0) localMiddleware.splice(i, 1);
+    };
+  };
   return fn as AgentFn<I, O>;
 }
 
+agent.use = function use(middleware: Middleware): () => void {
+  globalMiddleware.push(middleware);
+  return () => {
+    const i = globalMiddleware.indexOf(middleware);
+    if (i >= 0) globalMiddleware.splice(i, 1);
+  };
+};
+
+/** @deprecated Use agent.use() with middleware instead. */
 agent.on = function on(hooks: Hooks): () => void {
-  globalHooks.push(hooks);
-  return () => { const i = globalHooks.indexOf(hooks); if (i >= 0) globalHooks.splice(i, 1); };
+  const mw = hookAdapter(hooks);
+  return agent.use(mw);
 };
 
 agent.enum = function values<T extends readonly Json[]>(values: T): { __rig: "enum"; values: T } {
@@ -216,6 +282,8 @@ agent.unknown = function unknown(): { __rig: "unknown" } {
 };
 
 export type AgentFactory = typeof agent & {
+  use(middleware: Middleware): () => void;
+  /** @deprecated Use use(middleware) instead. */
   on(hooks: Hooks): () => void;
   enum<T extends readonly Json[]>(values: T): { __rig: "enum"; values: T };
   literal<T extends Json>(value: T): { __rig: "literal"; value: T };
@@ -223,23 +291,54 @@ export type AgentFactory = typeof agent & {
   unknown(): { __rig: "unknown" };
 };
 
-function allHooks(local?: Hooks): Hooks[] {
-  return local ? [...globalHooks, local] : globalHooks;
+function collectMiddleware(local: Middleware[]): Middleware[] {
+  return [...globalMiddleware, ...local];
 }
 
-const hookLog = createLogger("rig:hook");
+async function runPhase(ctx: AgentContext, middleware: Middleware[], phase: Phase): Promise<void> {
+  ctx.phase = phase;
+  await runMiddleware(ctx, middleware, async () => {});
+}
 
-async function runHook(hooks: Hooks[], name: keyof Hooks, ctx: any): Promise<any> {
-  let result: any;
-  for (const h of hooks) {
-    const fn = h[name] as ((ctx: any) => any) | undefined;
-    if (fn) {
-      hookLog("%s %s", name, ctx.agent ?? "");
-      const r = await fn(ctx);
-      if (r !== undefined) { result = r; ctx = { ...ctx, ...(typeof r === "string" ? (name === "beforeSend" ? { prompt: r } : name === "afterSend" ? { response: r } : {}) : {}) }; }
-    }
+async function runMiddleware(
+  ctx: AgentContext,
+  middleware: Middleware[],
+  terminal: () => Promise<void>,
+): Promise<void> {
+  let i = -1;
+  async function dispatch(index: number): Promise<void> {
+    if (index <= i) throw new Error("next() called multiple times");
+    i = index;
+    const fn = middleware[index];
+    if (!fn) return terminal();
+    return fn(ctx, () => dispatch(index + 1));
   }
-  return result;
+  return dispatch(0);
+}
+
+function hookAdapter(hooks: Hooks): Middleware {
+  return async (ctx, next) => {
+    if (ctx.phase === "beforeCall" && hooks.beforeCall) {
+      ctx.input = (await hooks.beforeCall({ agent: ctx.agent, input: ctx.input })) ?? ctx.input;
+    }
+    if (ctx.phase === "beforeSend" && hooks.beforeSend) {
+      ctx.prompt = (await hooks.beforeSend({ agent: ctx.agent, prompt: ctx.prompt, turn: ctx.turn })) ?? ctx.prompt;
+    }
+    if (ctx.phase === "afterSend" && hooks.afterSend && ctx.response !== undefined) {
+      ctx.response = (await hooks.afterSend({ agent: ctx.agent, response: ctx.response, turn: ctx.turn })) ?? ctx.response;
+    }
+    if (ctx.phase === "afterParse" && hooks.afterParse) {
+      ctx.parsed = (await hooks.afterParse({ agent: ctx.agent, parsed: ctx.parsed, turn: ctx.turn })) ?? ctx.parsed;
+    }
+    if (ctx.phase === "afterCall" && hooks.afterCall) {
+      await hooks.afterCall({ agent: ctx.agent, input: ctx.input, output: ctx.output });
+    }
+    if (ctx.phase === "error" && hooks.onError && ctx.error && ctx.response !== undefined) {
+      const retry = await hooks.onError({ agent: ctx.agent, error: ctx.error.message, response: ctx.response, turn: ctx.turn });
+      if (typeof retry === "string") ctx.prompt = retry;
+    }
+    await next();
+  };
 }
 
 function intent(mode: ShIntent["mode"], args: Omit<Partial<ShIntent>, "__rig" | "id" | "mode">): ShIntent {
