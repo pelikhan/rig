@@ -561,7 +561,7 @@ function inlineShellPrompts<T>(value: T): T {
       return current;
     }
     if (seen.has(current)) {
-      throw new Error("Cannot serialize circular input.");
+      throw new Error("Cannot serialize circular input while preparing prompt.");
     }
     seen.add(current);
     if (Array.isArray(current)) {
@@ -574,17 +574,30 @@ function inlineShellPrompts<T>(value: T): T {
 }
 
 function renderShellPrompt(intent: ShIntent): string {
-  const options = intent.options ? ` (options: ${json(intent.options)})` : "";
+  const options = formatShellOptions(intent.options);
   switch (intent.mode) {
     case "sh.text":
       return `Run bash command and return stdout as text: ${intent.command}${options}`;
     case "sh.result":
       return `Run bash command and return a structured result (stdout, stderr, exitCode): ${intent.command}${options}`;
     case "sh.read":
-      return `Read file and return its contents as text: ${intent.path}${options}`;
+      return `Read file and return its contents as text: ${JSON.stringify(requiredPath(intent))}${options}`;
     case "sh.write":
-      return `Write file at path ${JSON.stringify(intent.path)} with contents ${JSON.stringify(intent.contents ?? "")}${options}`;
+      return `Write file at path ${JSON.stringify(requiredPath(intent))} with contents:\n${intent.contents ?? ""}${options}`;
+    default:
+      throw new Error(`Unsupported shell mode: ${(intent as { mode?: string }).mode ?? "unknown"}`);
   }
+}
+
+function formatShellOptions(options: ShIntent["options"]): string {
+  return options ? `\nOptions: ${json(options)}` : "";
+}
+
+function requiredPath(intent: ShIntent): string {
+  if (!intent.path) {
+    throw new Error(`Shell mode ${intent.mode} requires a path.`);
+  }
+  return intent.path;
 }
 
 function createIntent(
