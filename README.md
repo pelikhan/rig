@@ -118,8 +118,6 @@ classify.use(async (ctx, next) => {
   if (ctx.phase === "afterParse" && ctx.parsed && typeof ctx.parsed === "object") {
     const triageSummary = "triageSummary" in ctx.parsed && typeof ctx.parsed.triageSummary === "string"
       ? ctx.parsed.triageSummary
-      : "text" in ctx.parsed && typeof ctx.parsed.text === "string"
-      ? ctx.parsed.text
       : "middleware summary";
     ctx.parsed = { ...ctx.parsed, triageSummary: `${triageSummary} [middleware]` };
   }
