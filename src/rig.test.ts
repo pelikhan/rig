@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { AgentError, agent, collectIntents, s, useEngine, validate } from "rig";
-import { sh } from "rig/sh";
+import { AgentError, agent, s, useEngine, validate } from "rig";
+import { collectIntents, sh } from "rig/sh";
 import type { Engine } from "rig";
 
 function mockEngine(response: unknown): Engine {
@@ -36,16 +36,6 @@ describe("agent", () => {
       label: s.enum("bug", "feature", "question", "docs"),
       confidence: s.enum("low", "medium", "high"),
     }));
-  });
-
-  it("keeps a small compatibility bridge for agent(name, options)", async () => {
-    useEngine(mockEngine({ label: "bug" }));
-    const legacy = agent("legacy", {
-      input: { title: "" },
-      output: { label: agent.enum(["bug", "feature"] as const) },
-    });
-
-    await expect(legacy({ title: "Crash" })).resolves.toEqual({ label: "bug" });
   });
 
   it("preserves type inference for schema helpers", async () => {

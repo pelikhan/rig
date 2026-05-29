@@ -1,9 +1,11 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const normalize = agent("normalizeConfig", {
+const normalize = agent({
+  name: "normalizeConfig",
   input: { config: "raw JSON or JS config" },
   output: {
-    normalized: agent.unknown(),
+    normalized: s.unknown,
     warnings: ["warning"],
   },
   instructions: `Normalize the config into a JSON-compatible object.`,

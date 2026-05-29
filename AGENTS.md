@@ -33,6 +33,7 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 - Use `node:` prefix for Node.js built-in imports
 - Types are colocated in `src/rig.ts`, not in separate `.d.ts` files
 - Trailing underscore on object keys (`key_`) means optional field
+- Do not add legacy compatibility bridges; update callers, samples, and docs to the current API
 
 ## Logging
 
@@ -53,7 +54,7 @@ JSONL logger built-in. Enabled via `RIG_LOG=1` or `RIG_DEBUG=1`. Outputs to stde
 ## Key Concepts
 
 - **Shape descriptors**: JS values used as type exemplars (e.g., `""` = string, `0` = number, `[""]` = string array)
-- **Markers**: `agent.enum()`, `agent.literal()`, `agent.nullable()`, `agent.unknown()` for richer types
+- **Schema helpers**: `s.enum()`, `s.literal()`, `s.nullable()`, `s.optional()`, `s.unknown`
 - **Shell intents**: `sh.text()`, `sh.result()`, `sh.write()` — declarative placeholders resolved by the engine, not executed in-process
 - **Middleware**: `agent.use(...)` / `myAgent.use(...)` lifecycle middleware with explicit phases (`beforeCall`, `beforeSend`, `afterSend`, `afterParse`, `afterValidate`, `afterCall`, `error`)
 - **Engine**: Pluggable via `useEngine()`; default uses `@github/copilot-sdk`

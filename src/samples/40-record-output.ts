@@ -1,9 +1,11 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const extractJson = agent("extractJson", {
+const extractJson = agent({
+  name: "extractJson",
   input: { text: "raw command output" },
   output: {
-    raw: agent.unknown(),
+    raw: s.unknown,
     summary: "summary of raw object",
   },
   instructions: `Extract any JSON object from input.text into raw.`,

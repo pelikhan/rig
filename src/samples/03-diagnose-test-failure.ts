@@ -1,15 +1,17 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const reviewer = agent("reviewer", {
+const reviewer = agent({
+  name: "reviewer",
   input: {
     diff: "git diff text",
     status_: "git status output",
   },
   output: {
     summary: "Review summary",
-    risk: agent.enum(["low", "medium", "high"]),
+    risk: s.enum("low", "medium", "high"),
     findings: [{
-      severity: agent.enum(["info", "warning", "error"]),
+      severity: s.enum("info", "warning", "error"),
       message: "Actionable finding",
       file_: "src/index.ts",
       line_: 42,

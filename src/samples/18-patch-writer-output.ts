@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const refactorPlan = agent("refactorPlan", {
+const refactorPlan = agent({
+  name: "refactorPlan",
   input: { files: "file list", target: "refactor goal" },
   output: {
     steps: ["Ordered refactor step"],

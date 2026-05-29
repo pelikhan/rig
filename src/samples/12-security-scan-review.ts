@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const releaseNotes = agent("releaseNotes", {
+const releaseNotes = agent({
+  name: "releaseNotes",
   input: { commits: "git log output" },
   output: {
     version_: "1.2.3",

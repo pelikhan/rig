@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const investigator = agent("investigator", {
+const investigator = agent({
+  name: "investigator",
   input: {
     tree: "repo tree",
     packageJson: "package.json",

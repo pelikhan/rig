@@ -1,9 +1,10 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 
-const repair = agent("jsonRepair", {
+const repair = agent({
+  name: "jsonRepair",
   input: { text: "possibly invalid JSON" },
   output: {
-    repaired: agent.unknown(),
+    repaired: s.unknown,
     changes: ["repair description"],
   },
   instructions: `Repair input.text into a JSON-compatible value.`,

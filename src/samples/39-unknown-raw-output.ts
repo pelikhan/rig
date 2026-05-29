@@ -1,11 +1,12 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 
-const reviewRecord = agent("reviewRecord", {
+const reviewRecord = agent({
+  name: "reviewRecord",
   input: { finding: "finding text" },
   output: {
-    kind: agent.literal("review-finding"),
+    kind: s.literal("review-finding"),
     finding: "finding text",
-    severity: agent.enum(["info", "warning", "error"]),
+    severity: s.enum("info", "warning", "error"),
   },
   instructions: `Convert the finding into a typed review record.`,
 });

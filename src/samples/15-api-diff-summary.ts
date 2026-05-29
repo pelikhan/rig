@@ -1,9 +1,10 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 
-const categorize = agent("categorizeChange", {
+const categorize = agent({
+  name: "categorizeChange",
   input: { text: "change description" },
   output: {
-    category: agent.enum(["added", "changed", "deprecated", "removed", "fixed", "security"]),
+    category: s.enum("added", "changed", "deprecated", "removed", "fixed", "security"),
     entry: "Changelog entry",
   },
   instructions: `Convert the change description to Keep a Changelog style.`,

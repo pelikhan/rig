@@ -1,12 +1,14 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const securityReview = agent("securityReview", {
+const securityReview = agent({
+  name: "securityReview",
   input: {
     dependencies: "dependency list",
     audit: "npm audit output",
   },
   output: {
-    status: agent.enum(["clean", "needs-action", "unknown"]),
+    status: s.enum("clean", "needs-action", "unknown"),
     findings: [{ package: "name", severity: "severity", action: "recommended action" }],
   },
   instructions: `Review dependency security posture from the provided outputs.`,

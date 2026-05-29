@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const planner = agent("testPlanner", {
+const planner = agent({
+  name: "testPlanner",
   input: {
     diff: "git diff text",
     packageJson: "package metadata",

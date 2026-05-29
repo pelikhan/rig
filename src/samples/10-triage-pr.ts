@@ -1,13 +1,14 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 
-const classifyIssue = agent("classifyIssue", {
+const classifyIssue = agent({
+  name: "classifyIssue",
   input: {
     title: "Issue title",
     body: "Issue body",
   },
   output: {
-    kind: agent.enum(["bug", "feature", "question", "chore"]),
-    priority: agent.enum(["p0", "p1", "p2", "p3"]),
+    kind: s.enum("bug", "feature", "question", "chore"),
+    priority: s.enum("p0", "p1", "p2", "p3"),
     rationale: "Short rationale",
     labels: ["label"],
   },
