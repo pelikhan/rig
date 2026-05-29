@@ -9,5 +9,5 @@ const Shape = {
 const result = validate({ summary: "ok", risk: "low" }, Shape);
 
 if (!result.ok) {
-  console.error(result.errors);
+  console.error(result.error);
 }

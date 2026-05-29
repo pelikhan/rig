@@ -149,7 +149,8 @@ class CopilotEngine implements Engine {
     const session = await this.client.createSession({ model: options.model, streaming: false });
     const response = await session.sendAndWait({ prompt, signal: options.signal } as any);
     if (typeof response === "string") return response;
-    return response?.text ?? response?.content ?? JSON.stringify(response);
+    const r = response as any;
+    return r?.text ?? r?.content ?? JSON.stringify(response);
   }
 }
 
@@ -206,7 +207,7 @@ function repairPrompt(original: string, previous: string, error: string): string
   ].join("\n");
 }
 
-function collectIntents(value: any): { value: any; intents: ShIntent[] } {
+export function collectIntents(value: any): { value: any; intents: ShIntent[] } {
   const intents: ShIntent[] = [];
   const seen = new WeakSet<object>();
   const walk = (v: any): any => {
@@ -223,7 +224,7 @@ function collectIntents(value: any): { value: any; intents: ShIntent[] } {
   return { value: walk(value), intents };
 }
 
-function validate(value: any, shape: any, path = "$", optional = false): { ok: true } | { ok: false; error: string } {
+export function validate(value: any, shape: any, path = "$", optional = false): { ok: true } | { ok: false; error: string } {
   if (optional && value === undefined) return { ok: true };
   if (isMarker(shape)) return validateMarker(value, shape, path);
   if (typeof shape === "string") return typeof value === "string" ? ok() : bad(path, "string", value);
