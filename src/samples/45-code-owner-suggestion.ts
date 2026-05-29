@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const flaky = agent("flakyAnalysis", {
+const flaky = agent({
+  name: "flakyAnalysis",
   input: { history: "recent test outputs" },
   output: {
     likelyFlaky: true,

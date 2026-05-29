@@ -1,10 +1,12 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const inferShape = agent("inferShape", {
+const inferShape = agent({
+  name: "inferShape",
   input: { jsonSamples: "newline-delimited JSON samples" },
   output: {
     fields: [{ name: "field", type: "string", optional: true }],
-    example: agent.unknown(),
+    example: s.unknown,
   },
   instructions: `Infer a practical runtime-visible schema from the samples.`,
 });

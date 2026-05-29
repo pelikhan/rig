@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const snapshotReview = agent("snapshotReview", {
+const snapshotReview = agent({
+  name: "snapshotReview",
   input: {
     testResult: { ok: true, stdout: "", stderr: "", exitCode: 0 },
     diff: "snapshot diff",

@@ -111,7 +111,6 @@ sh.write("README.md", "# Updated\n")
 ```
 
 `"rig/sh"` remains as a compatibility import and re-exports core `sh`.
-
 ## Engines
 
 The core engine contract is tiny:
@@ -135,13 +134,13 @@ import { copilotEngine } from "rig/engines/copilot";
 useEngine(copilotEngine());
 ```
 
-## Compatibility bridge
+## API direction
 
-Rig keeps a small migration bridge where it stays simple:
+Rig only documents and supports the current API:
 
-- `agent("name", options)` forwards to `agent({ name, ...options })`
-- old exemplar shapes are normalized into explicit schemas
-- `agent.enum([...])`, `agent.literal(value)`, `agent.nullable(shape)`, and `agent.unknown()` forward to `s.*`
+- define agents with `agent({ name, ... })`
+- import shell helpers from `rig/sh`
+- use `s.*` for explicit schema helpers
 
 Deprecated hooks and lifecycle middleware are removed from the core path.
 Optional wrappers live in `rig/middleware`.

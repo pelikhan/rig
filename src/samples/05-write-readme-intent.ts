@@ -1,12 +1,14 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const readmeWriter = agent("readmeWriter", {
+const readmeWriter = agent({
+  name: "readmeWriter",
   input: {
     packageJson: "package.json contents",
     files: "file list",
   },
   output: {
-    path: agent.literal("README.md"),
+    path: s.literal("README.md"),
     contents: "Markdown README contents",
   },
   instructions: `

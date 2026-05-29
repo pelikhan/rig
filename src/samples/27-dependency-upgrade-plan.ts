@@ -1,9 +1,10 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 
-const designReview = agent("designReview", {
+const designReview = agent({
+  name: "designReview",
   input: { proposal: "design proposal" },
   output: {
-    decision: agent.enum(["approve", "revise", "reject"]),
+    decision: s.enum("approve", "revise", "reject"),
     strengths: ["strength"],
     concerns: ["concern"],
     requiredChanges: ["change"],

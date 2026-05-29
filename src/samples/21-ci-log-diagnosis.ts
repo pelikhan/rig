@@ -1,6 +1,7 @@
 import { agent } from "rig";
 
-const reproducer = agent("reproducer", {
+const reproducer = agent({
+  name: "reproducer",
   input: {
     issueTitle: "Issue title",
     issueBody: "Issue body",

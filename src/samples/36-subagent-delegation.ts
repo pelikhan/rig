@@ -1,9 +1,10 @@
 import { agent } from "rig";
 
-const worker = agent("worker", {
+const worker = agent({
+  name: "worker",
   model: "gpt-4.1",
   timeout: 120_000,
-  max_turns: 4,
+  maxTurns: 4,
   instructions: `Answer input.text as concise JSON text output.`,
 });
 
@@ -14,7 +15,7 @@ const result = await worker(
   {
     model: "gpt-4.1",
     timeout: 30_000,
-    max_turns: 2,
+    maxTurns: 2,
     signal: controller.signal,
   },
 );

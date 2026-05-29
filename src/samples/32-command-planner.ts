@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const packageMap = agent("packageMap", {
+const packageMap = agent({
+  name: "packageMap",
   input: { manifests: "package manifest paths and contents" },
   output: {
     packages: [{ name: "package", path: "packages/name", private: true }],

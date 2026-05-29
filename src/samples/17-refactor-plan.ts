@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const docsGap = agent("docsGap", {
+const docsGap = agent({
+  name: "docsGap",
   input: {
     source: "source files",
     docs: "documentation text",

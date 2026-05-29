@@ -37,16 +37,6 @@ describe("agent", () => {
     }));
   });
 
-  it("keeps a small compatibility bridge for agent(name, options)", async () => {
-    useEngine(mockEngine({ label: "bug" }));
-    const legacy = agent("legacy", {
-      input: { title: "" },
-      output: { label: agent.enum(["bug", "feature"] as const) },
-    });
-
-    await expect(legacy({ title: "Crash" })).resolves.toEqual({ label: "bug" });
-  });
-
   it("preserves type inference for schema helpers", async () => {
     useEngine(mockEngine({
       summary: "Looks good",

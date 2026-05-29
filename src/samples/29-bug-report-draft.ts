@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const licenseCheck = agent("licenseCheck", {
+const licenseCheck = agent({
+  name: "licenseCheck",
   input: { packages: "dependency license output" },
   output: {
     compliant: true,

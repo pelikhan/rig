@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const writer = agent("writer", {
+const writer = agent({
+  name: "writer",
   input: {
     write: {
       ok: true,

@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const envReader = agent("envReader", {
+const envReader = agent({
+  name: "envReader",
   input: { nodeVersion: "node version", cwdFiles: "file list" },
   output: {
     nodeMajor: 24,

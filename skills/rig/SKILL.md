@@ -93,15 +93,12 @@ import { copilotEngine } from "rig/engines/copilot";
 useEngine(copilotEngine());
 ```
 
-## Compatibility bridge
+## API direction
 
-Still supported when migration is cheap:
+Use only the current API:
 
-- `agent("name", options)`
-- old exemplar shapes
-- `agent.enum([...])`
-- `agent.literal(value)`
-- `agent.nullable(shape)`
-- `agent.unknown()`
+- `agent({ name, ... })`
+- `rig/sh` for shell helpers
+- `s.*` for explicit schema helpers
 
-Do not use deprecated hooks or lifecycle middleware in new code.
+Do not add deprecated hooks, lifecycle middleware, or compatibility layers.

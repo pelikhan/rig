@@ -1,24 +1,28 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
 const Diagnosis = {
   rootCause: "Likely root cause",
   confidence: 0.8,
 };
 
-const diagnose = agent("diagnose", {
+const diagnose = agent({
+  name: "diagnose",
   input: { test: { ok: true, stdout: "", stderr: "", exitCode: 0 } },
   output: Diagnosis,
   instructions: `Diagnose the test failure.`,
 });
 
-const fix = agent("fix", {
+const fix = agent({
+  name: "fix",
   input: { diagnosis: Diagnosis },
   output: { changed: true, summary: "Patch summary" },
   instructions: `Make the smallest safe patch using engine capabilities.`,
   permissions: { shell: "ask", write: "workspace" },
 });
 
-const review = agent("review", {
+const review = agent({
+  name: "review",
   input: { diff: "git diff", diagnosis: Diagnosis },
   output: { approved: true, issues: ["issue"] },
   instructions: `Review the patch against the diagnosis.`,
