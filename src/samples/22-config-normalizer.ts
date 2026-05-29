@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig/sh";
+import { sh } from "rig";
 
 const ciDiagnosis = agent({
   name: "ciDiagnosis",

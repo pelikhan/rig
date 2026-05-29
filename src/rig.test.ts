@@ -287,8 +287,8 @@ describe("validate", () => {
 });
 
 describe("shell intents", () => {
-  it("keeps rig/sh as a compatibility import", async () => {
-    const compat = await import("rig/sh");
+  it("exports shell helpers from rig", async () => {
+    const compat = await import("rig");
     expect(compat.sh.read("README.md").mode).toBe("sh.read");
     expect(compat.sh.shell("git status --short").mode).toBe("sh.text");
     expect(typeof compat.p).toBe("function");

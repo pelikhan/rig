@@ -1,4 +1,4 @@
-import { collectIntents, sh } from "rig/sh";
+import { collectIntents, sh } from "rig";
 
 const input = {
   diff: sh.text("git diff -- ."),

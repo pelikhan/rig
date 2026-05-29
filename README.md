@@ -112,7 +112,6 @@ sh.read("README.md")
 sh.write("README.md", "# Updated\n")
 ```
 
-`"rig/sh"` remains as a compatibility import and re-exports core `sh` and `p`.
 ## Engines
 
 The core engine contract is tiny:
@@ -141,7 +140,7 @@ useEngine(copilotEngine());
 Rig only documents and supports the current API:
 
 - define agents with `agent({ name, ... })`
-- import shell helpers from `rig/sh`
+- import shell helpers from `rig`
 - use `s.*` for explicit schema helpers
 
 Deprecated hooks and lifecycle middleware are removed from the core path.

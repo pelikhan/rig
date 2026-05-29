@@ -71,7 +71,7 @@ const result = validate({ label: "bug" }, s.object({ label: s.string }));
 
 ## `sh` intents
 
-`sh` lives in core `rig` (with `rig/sh` compatibility re-export).
+`sh` lives in core `rig`.
 These are declarative placeholders, not real shell execution in the core harness.
 
 ```ts
@@ -98,7 +98,7 @@ useEngine(copilotEngine());
 Use only the current API:
 
 - `agent({ name, ... })`
-- `rig/sh` for shell helpers
+- `rig` for shell helpers
 - `s.*` for explicit schema helpers
 
 Do not add deprecated hooks, lifecycle middleware, or compatibility layers.
