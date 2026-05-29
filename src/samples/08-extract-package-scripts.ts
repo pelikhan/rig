@@ -1,13 +1,14 @@
-import { agent, s } from "rig";
+import { agent } from "rig";
+import type { SchemaLike } from "rig";
 import { sh } from "rig/sh";
 
-const FileSummary = s.object({
-  file: s.string,
-  title: s.string,
-  summary: s.string,
-  exports: s.array(s.string),
-  risks: s.array(s.string),
-});
+const FileSummary = {
+  file: "src/index.ts",
+  title: "Short title",
+  summary: "Concise summary",
+  exports: ["exported symbol"],
+  risks: ["Potential risk"],
+} as const satisfies SchemaLike;
 
 const listFiles = agent({
   name: "listFiles",
@@ -24,7 +25,7 @@ const summarizeFile = agent({
 
 const corpus = agent({
   name: "corpus",
-  input: { files: s.array(FileSummary) },
+  input: { files: [FileSummary] },
   output: {
     summary: "Repository summary",
     importantFiles: ["src/index.ts"],
