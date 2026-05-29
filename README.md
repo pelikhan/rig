@@ -50,6 +50,71 @@ const result = await releaseAgent({
 });
 ```
 
+## Representative examples from `src/samples`
+
+### 1) Typed issue classification (`src/samples/10-triage-pr.ts`)
+
+```ts
+import { agent } from "rig";
+
+const classifyIssue = agent("classifyIssue", {
+  input: { title: "Issue title", body: "Issue body" },
+  output: {
+    kind: agent.enum(["bug", "feature", "question", "chore"]),
+    priority: agent.enum(["p0", "p1", "p2", "p3"]),
+    rationale: "Short rationale",
+    labels: ["label"],
+  },
+});
+```
+
+### 2) Agent composition (`src/samples/37-output-with-nullable.ts`)
+
+```ts
+import { agent } from "rig";
+
+const summarizeDiff = agent("summarizeDiff", {
+  input: { diff: "git diff" },
+  output: { summary: "diff summary", files: ["file"] },
+});
+
+const reviewer = agent("reviewer", {
+  input: { diff: "git diff" },
+  output: { summary: "review summary", issues: ["issue"] },
+  agents: { summarizeDiff },
+});
+```
+
+### 3) Unknown/raw extraction (`src/samples/40-record-output.ts`)
+
+```ts
+import { agent } from "rig";
+
+const extractJson = agent("extractJson", {
+  input: { text: "raw command output" },
+  output: { raw: agent.unknown(), summary: "summary of raw object" },
+});
+```
+
+### 4) Middleware enrichment (`src/samples/51-middleware-enrichment.ts`)
+
+```ts
+import { agent } from "rig";
+
+const classify = agent("classify", {
+  output: {
+    text: "triage summary",
+  },
+});
+
+classify.use(async (ctx, next) => {
+  await next();
+  if (ctx.phase === "afterParse" && ctx.parsed && typeof ctx.parsed === "object") {
+    ctx.parsed = { ...ctx.parsed, text: `${ctx.parsed.text} [middleware]` };
+  }
+});
+```
+
 ## Core ideas
 
 - **Shapes as contracts**: `input` and `output` are runtime-validated shapes.
