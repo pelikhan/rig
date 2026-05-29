@@ -13,7 +13,7 @@ import { sh } from "rig";
 - `s.*` defines explicit schemas.
 - `useEngine(engine)` swaps the runtime engine.
 - `validate(value, schema)` validates JSON-like data.
-- `sh.*` builds declarative intents from the core runtime.
+- `sh.*` creates inline shell instructions in agent input.
 
 ## Quick start
 
@@ -73,9 +73,9 @@ const summarize = agent({
 If parsing or validation fails, rig sends an explicit repair prompt with the error and output schema.
 You can disable repair with `repair: false` or provide `repair(error) => string`.
 
-## Shell intents
+## Shell helpers
 
-Shell intents are part of the core API and are declarative placeholders, not in-process shell execution.
+Shell helpers are part of the core API. In generated prompts, they are embedded directly into the input payload as "run this bash command" instructions.
 
 ```ts
 import { agent, s } from "rig";
@@ -103,7 +103,7 @@ await reviewRepo({
 });
 ```
 
-RIG also supports explicit file intents aligned with PyAgent essentials:
+RIG also supports explicit file operations aligned with PyAgent essentials:
 
 ```ts
 sh.read("README.md")

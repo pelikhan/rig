@@ -368,11 +368,9 @@ function normalizeSchema(schemaLike: SchemaLike): Schema {
 }
 
 function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
-  const { value, intents } = collectIntents(input);
+  const value = inlineShellPrompts(input);
   const sections = [
-    `<agent name="${escapeAttribute(spec.name)}">`,
     tag("instructions", (spec.instructions ?? "Return only valid JSON matching the output schema.").trim()),
-    tag("input_schema", renderSchema(spec.input ?? s.object({ text: s.string }))),
     tag("output_schema", renderSchema(spec.output ?? s.object({ text: s.string }))),
     tag("input", json(value)),
   ];
@@ -392,14 +390,11 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
     ));
   }
 
-  sections.push(tag("intents", intents.length ? intents.map(renderIntent).join("\n") : "(none)"));
   sections.push(tag("rules", [
     "Return exactly one JSON object.",
     "Do not wrap the JSON in Markdown.",
     "Match the output schema exactly.",
-    "Shell intents are unresolved declarative placeholders unless the engine resolves them.",
   ].join("\n")));
-  sections.push("</agent>");
 
   return sections.join("\n\n");
 }
@@ -555,18 +550,54 @@ function renderSchemaNode(schema: Schema, indent: number): string {
   }
 }
 
-function renderIntent(intent: { id: string; mode: string; command?: string; path?: string; contents?: string; options?: unknown }): string {
-  const attributes = [
-    `id="${escapeAttribute(intent.id)}"`,
-    `mode="${escapeAttribute(intent.mode)}"`,
-  ];
-  if (intent.command) {
-    attributes.push(`command="${escapeAttribute(intent.command)}"`);
+function inlineShellPrompts<T>(value: T): T {
+  const seen = new WeakSet<object>();
+
+  const walk = (current: unknown): unknown => {
+    if (isShIntent(current)) {
+      return renderShellPrompt(current);
+    }
+    if (!current || typeof current !== "object") {
+      return current;
+    }
+    if (seen.has(current)) {
+      throw new Error("Cannot serialize circular input while preparing prompt.");
+    }
+    seen.add(current);
+    if (Array.isArray(current)) {
+      return current.map(walk);
+    }
+    return Object.fromEntries(Object.entries(current).map(([key, item]) => [key, walk(item)]));
+  };
+
+  return walk(value) as T;
+}
+
+function renderShellPrompt(intent: ShIntent): string {
+  const options = formatShellOptions(intent.options);
+  switch (intent.mode) {
+    case "sh.text":
+      return `Run bash command and return stdout as text: ${intent.command}${options}`;
+    case "sh.result":
+      return `Run bash command and return a structured result (stdout, stderr, exitCode): ${intent.command}${options}`;
+    case "sh.read":
+      return `Read file and return its contents as text: ${JSON.stringify(requiredPath(intent))}${options}`;
+    case "sh.write":
+      return `Write file at path ${JSON.stringify(requiredPath(intent))} with contents:\n${intent.contents ?? ""}${options}`;
+    default:
+      throw new Error(`Unsupported shell mode: ${(intent as { mode?: string }).mode ?? "unknown"}`);
   }
-  if (intent.path) {
-    attributes.push(`path="${escapeAttribute(intent.path)}"`);
+}
+
+function formatShellOptions(options: ShIntent["options"]): string {
+  return options ? `\nOptions: ${json(options)}` : "";
+}
+
+function requiredPath(intent: ShIntent): string {
+  if (!intent.path) {
+    throw new Error(`Shell mode ${intent.mode} requires a path.`);
   }
-  return `<intent ${attributes.join(" ")}>${intent.options ? `${json(intent.options)} ` : ""}${intent.contents ?? ""}</intent>`;
+  return intent.path;
 }
 
 function createIntent(

@@ -190,6 +190,40 @@ describe("agent invocation", () => {
     const slow = agent({ name: "timeout-test" });
     await expect(slow({ text: "go" }, { timeout: 50 })).rejects.toThrow(/Timed out/);
   });
+
+  it("inlines shell prompts and omits top-level prompt metadata", async () => {
+    const prompts: string[] = [];
+
+    useEngine({
+      createSession() {
+        return {
+          async send(prompt) {
+            prompts.push(prompt);
+            return JSON.stringify({ text: "ok" });
+          },
+        };
+      },
+    });
+
+    const inspect = agent({
+      name: "inspect",
+      input: s.object({ status: s.string, diff: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    await inspect({
+      status: sh.text("git status --short"),
+      diff: sh.result("git diff --stat", { cwd: "/tmp/workspace" }),
+    });
+
+    expect(prompts[0]).not.toContain("<intents>");
+    expect(prompts[0]).not.toContain("<input_schema>");
+    expect(prompts[0]).not.toContain('<agent name="inspect">');
+    expect(prompts[0]).toContain("Run bash command and return stdout as text: git status --short");
+    expect(prompts[0]).toContain("Run bash command and return a structured result (stdout, stderr, exitCode): git diff --stat");
+    expect(prompts[0]).toContain("Options:");
+    expect(prompts[0]).toContain("/tmp/workspace");
+  });
 });
 
 describe("validate", () => {
