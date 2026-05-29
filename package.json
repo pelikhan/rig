@@ -3,12 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run src/",
+    "sample": "vitest run scripts/run-sample.test.ts",
+    "sample:one": "RIG_SAMPLE=$1 vitest run scripts/run-sample.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@github/copilot-sdk": "^1.0.0-beta.9",
     "@types/debug": "^4.1.13",
+    "@types/node": "^25.9.1",
     "typescript": "^5.8.0",
     "vitest": "^4.1.7"
   },
