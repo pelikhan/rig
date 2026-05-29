@@ -35,9 +35,9 @@ export type SchemaLike = Schema | string | number | boolean | readonly [SchemaLi
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
 export type AgentInputValue<T> =
-  T extends readonly (infer Item)[] ? ShIntent | AgentInputValue<Item>[] :
-  T extends object ? ShIntent | { [K in keyof T]: AgentInputValue<T[K]> } :
-  T | ShIntent;
+  T extends readonly (infer Item)[] ? ShIntent | Intent | AgentInputValue<Item>[] :
+  T extends object ? ShIntent | Intent | { [K in keyof T]: AgentInputValue<T[K]> } :
+  T | ShIntent | Intent;
 
 export type InferSchema<T> =
   T extends { kind: "string" } ? string :
@@ -103,7 +103,62 @@ export type EngineSession = {
 
 export type RepairHandler = false | "default" | ((error: AgentError) => string);
 
-export type AgentSpec<Input extends SchemaLike = ObjectSchema<{ text: StringSchema }>, Output extends SchemaLike = ObjectSchema<{ text: StringSchema }>> = {
+export type Intent<Kind extends string = string, Payload = unknown> = {
+  __rig: "intent";
+  kind: Kind;
+  id: string;
+  payload: Payload;
+};
+
+export type Input<T = unknown> = {
+  __rig: "input";
+  schema: Schema;
+  render?: (value: T) => string;
+  __inferType?: T;
+};
+
+export type Output<T = unknown> = {
+  __rig: "output";
+  schema: Schema;
+  parse?: (response: string) => unknown;
+  repair?: RepairHandler;
+  __inferType?: T;
+};
+
+export type InputSpec = SchemaLike | Input<any>;
+export type OutputSpec = SchemaLike | Output<any>;
+
+export type InferInputSpec<T> =
+  T extends Input<infer V> ? V :
+  T extends SchemaLike ? InferSchema<T> :
+  unknown;
+
+export type InferOutputSpec<T> =
+  T extends Output<infer V> ? V :
+  T extends SchemaLike ? InferSchema<T> :
+  unknown;
+
+export type ExtensionEvent =
+  | { type: "call";   agent: string; turn: number; prompt: string }
+  | { type: "result"; agent: string; turn: number; value: unknown }
+  | { type: "error";  agent: string; turn: number; error: unknown };
+
+export type Extension<
+  Name extends string = string,
+  Sh extends Record<string, (...args: any[]) => Intent> = Record<string, (...args: any[]) => Intent>,
+  Inputs extends Record<string, Input<any>> = Record<string, Input<any>>,
+  Outputs extends Record<string, Output<any>> = Record<string, Output<any>>,
+> = {
+  name: Name;
+  sh?: Sh;
+  inputs?: Inputs;
+  outputs?: Outputs;
+  agents?: Record<string, AgentFn<any, any>>;
+  on?: (event: ExtensionEvent) => void | Promise<void>;
+  wrapEngine?: (next: Engine) => Engine;
+};
+
+export type AgentSpec<Input extends InputSpec = ObjectSchema<{ text: StringSchema }>, Output extends OutputSpec = ObjectSchema<{ text: StringSchema }>> = {
   name: string;
   instructions?: string;
   input?: Input;
@@ -114,6 +169,7 @@ export type AgentSpec<Input extends SchemaLike = ObjectSchema<{ text: StringSche
   repair?: RepairHandler;
   permissions?: { shell?: "deny" | "readonly" | "ask" | "allow"; write?: "deny" | "workspace" | "allow" };
   agents?: Record<string, AgentFn<any, any>>;
+  extensions?: Extension[];
 };
 
 export type CallOptions = {
@@ -121,6 +177,7 @@ export type CallOptions = {
   timeout?: number;
   model?: string;
   maxTurns?: number;
+  repair?: RepairHandler;
 };
 
 export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValue<Input>, options?: CallOptions) => Promise<Output>) & {
@@ -153,6 +210,85 @@ export type ShIntent = {
 
 let nextIntentId = 1;
 
+export function intent<K extends string, P>(kind: K, payload: P): Intent<K, P> {
+  return { __rig: "intent", kind, id: `intent_${nextIntentId++}`, payload };
+}
+
+export function input<S extends SchemaLike>(spec: { schema: S; render?: (value: InferSchema<S>) => string }): Input<InferSchema<S>> {
+  const wrapper: Input<InferSchema<S>> = { __rig: "input", schema: normalizeSchema(spec.schema) };
+  if (spec.render) wrapper.render = spec.render;
+  return wrapper;
+}
+
+export function output<S extends SchemaLike>(spec: { schema: S; parse?: (response: string) => unknown; repair?: RepairHandler }): Output<InferSchema<S>> {
+  const wrapper: Output<InferSchema<S>> = { __rig: "output", schema: normalizeSchema(spec.schema) };
+  if (spec.parse) wrapper.parse = spec.parse;
+  if (spec.repair !== undefined) wrapper.repair = spec.repair;
+  return wrapper;
+}
+
+export function defineExtension<
+  const Name extends string,
+  const Sh extends Record<string, (...args: any[]) => Intent>,
+  const Inputs extends Record<string, Input<any>>,
+  const Outputs extends Record<string, Output<any>>,
+>(ext: Extension<Name, Sh, Inputs, Outputs>): Extension<Name, Sh, Inputs, Outputs> {
+  return ext;
+}
+
+const globalExtensions: Extension[] = [];
+
+export function useExtension(ext: Extension): void {
+  if (!globalExtensions.includes(ext)) globalExtensions.push(ext);
+}
+
+export function listExtensions(): readonly Extension[] {
+  return globalExtensions;
+}
+
+export function __resetExtensions(): void {
+  globalExtensions.length = 0;
+}
+
+function collectExtensions(spec: AgentSpec<any, any>): Extension[] {
+  const seen = new Set<Extension>();
+  const out: Extension[] = [];
+  for (const e of globalExtensions) if (!seen.has(e)) { seen.add(e); out.push(e); }
+  for (const e of spec.extensions ?? []) if (!seen.has(e)) { seen.add(e); out.push(e); }
+  return out;
+}
+
+function isIntent(value: unknown): value is Intent {
+  return !!value && typeof value === "object" && (value as { __rig?: string }).__rig === "intent";
+}
+
+function isInput(value: unknown): value is Input {
+  return !!value && typeof value === "object" && (value as { __rig?: string }).__rig === "input";
+}
+
+function isOutput(value: unknown): value is Output {
+  return !!value && typeof value === "object" && (value as { __rig?: string }).__rig === "output";
+}
+
+function unwrapInput(value: InputSpec | undefined): { schema: Schema; render?: (value: unknown) => string } {
+  if (isInput(value)) {
+    const out: { schema: Schema; render?: (value: unknown) => string } = { schema: normalizeSchema(value.schema) };
+    if (value.render) out.render = value.render as (value: unknown) => string;
+    return out;
+  }
+  return { schema: normalizeSchema((value as SchemaLike | undefined) ?? s.object({ text: s.string })) };
+}
+
+function unwrapOutput(value: OutputSpec | undefined): { schema: Schema; parse?: (response: string) => unknown; repair?: RepairHandler } {
+  if (isOutput(value)) {
+    const out: { schema: Schema; parse?: (response: string) => unknown; repair?: RepairHandler } = { schema: normalizeSchema(value.schema) };
+    if (value.parse) out.parse = value.parse;
+    if (value.repair !== undefined) out.repair = value.repair;
+    return out;
+  }
+  return { schema: normalizeSchema((value as SchemaLike | undefined) ?? s.object({ text: s.string })) };
+}
+
 export const sh = {
   shell(command: string, options?: ShOptions): ShIntent {
     return createIntent("sh.text", withOptions({ command }, options));
@@ -175,18 +311,22 @@ export function p(strings: TemplateStringsArray, ...values: unknown[]): string {
   let result = strings[0] ?? "";
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
-    result += isShIntent(value) ? renderShellPrompt(value) : String(value);
+    result += isShIntent(value) ? renderShellPrompt(value) : isIntent(value) ? renderGenericIntent(value) : String(value);
     result += strings[index + 1] ?? "";
   }
   return result;
 }
 
-export function collectIntents<T>(value: T): { value: T; intents: ShIntent[] } {
-  const intents: ShIntent[] = [];
+export function collectIntents<T>(value: T): { value: T; intents: (ShIntent | Intent)[] } {
+  const intents: (ShIntent | Intent)[] = [];
   const seen = new WeakSet<object>();
 
   const walk = (current: unknown): unknown => {
     if (isShIntent(current)) {
+      intents.push(current);
+      return { $intent: current.id };
+    }
+    if (isIntent(current)) {
       intents.push(current);
       return { $intent: current.id };
     }
@@ -240,32 +380,69 @@ export function useEngine(engine: Engine): void {
 }
 
 export function agent<
-  const Input extends SchemaLike = ObjectSchema<{ text: StringSchema }>,
-  const Output extends SchemaLike = ObjectSchema<{ text: StringSchema }>
->(spec: AgentSpec<Input, Output>): AgentFn<InferSchema<Input>, InferSchema<Output>>;
+  const Input extends InputSpec = ObjectSchema<{ text: StringSchema }>,
+  const Output extends OutputSpec = ObjectSchema<{ text: StringSchema }>
+>(spec: AgentSpec<Input, Output>): AgentFn<InferInputSpec<Input>, InferOutputSpec<Output>>;
 export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const normalizedSpec = normalizeSpec(spec);
-  const inputSchema = normalizedSpec.input ?? s.object({ text: s.string });
-  const outputSchema = normalizedSpec.output ?? s.object({ text: s.string });
+  const inputResolved = unwrapInput(spec.input);
+  const outputResolved = unwrapOutput(spec.output);
+  const inputSchema = inputResolved.schema;
+  const outputSchema = outputResolved.schema;
 
   const fn = (async (input: unknown, options: CallOptions = {}) => {
     const model = options.model ?? normalizedSpec.model ?? "gpt-4.1";
     const maxTurns = options.maxTurns ?? normalizedSpec.maxTurns ?? 4;
     const signal = timeoutSignal(options.signal, options.timeout ?? normalizedSpec.timeout);
-    const repair = normalizedSpec.repair ?? "default";
-    const session = getEngine().createSession({ model });
+    const repair: RepairHandler = options.repair ?? normalizedSpec.repair ?? outputResolved.repair ?? "default";
+    const extensions = collectExtensions(normalizedSpec);
+    const engine = composeEngine(getEngine(), extensions);
+    const session = engine.createSession({ model });
     const normalizedInput = normalizeInput(input, inputSchema);
-    let prompt = renderPrompt(normalizedSpec, normalizedInput);
+    let prompt = renderPrompt(normalizedSpec, normalizedInput, inputResolved.render, outputSchema);
     let lastResponse = "";
 
-    for (let turn = 1; turn <= maxTurns; turn += 1) {
-      throwIfAborted(signal);
-      lastResponse = await session.send(prompt, signal ? { signal } : {});
+    const emit = async (event: ExtensionEvent) => {
+      for (const ext of extensions) {
+        if (ext.on) await ext.on(event);
+      }
+    };
 
-      const parsed = parseJson(lastResponse);
+    const fail = async (error: unknown): Promise<never> => {
+      await emit({ type: "error", agent: normalizedSpec.name, turn: 0, error });
+      throw error;
+    };
+
+    for (let turn = 1; turn <= maxTurns; turn += 1) {
+      try {
+        throwIfAborted(signal);
+      } catch (err) {
+        return fail(err);
+      }
+
+      await emit({ type: "call", agent: normalizedSpec.name, turn, prompt });
+
+      try {
+        lastResponse = await session.send(prompt, signal ? { signal } : {});
+      } catch (err) {
+        return fail(err);
+      }
+
+      let parsed: { ok: true; value: unknown } | { ok: false; error: string };
+      if (outputResolved.parse) {
+        try {
+          parsed = { ok: true, value: outputResolved.parse(lastResponse) };
+        } catch (err) {
+          parsed = { ok: false, error: err instanceof Error ? err.message : String(err) };
+        }
+      } else {
+        parsed = parseJson(lastResponse);
+      }
+
       if (parsed.ok) {
         const result = validate(parsed.value, outputSchema);
         if (result.ok) {
+          await emit({ type: "result", agent: normalizedSpec.name, turn, value: parsed.value });
           return parsed.value;
         }
 
@@ -279,10 +456,10 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
         });
 
         if (turn === maxTurns || repair === false) {
-          throw error;
+          return fail(error);
         }
 
-        prompt = repairPrompt(normalizedSpec, error);
+        prompt = applyRepair(repair, normalizedSpec, error);
         continue;
       }
 
@@ -296,13 +473,13 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
       });
 
       if (turn === maxTurns || repair === false) {
-        throw error;
+        return fail(error);
       }
 
-      prompt = repairPrompt(normalizedSpec, error);
+      prompt = applyRepair(repair, normalizedSpec, error);
     }
 
-    throw new Error(`Agent ${normalizedSpec.name} failed after ${maxTurns} turns. Last response:\n${lastResponse}`);
+    return fail(new Error(`Agent ${normalizedSpec.name} failed after ${maxTurns} turns. Last response:\n${lastResponse}`));
   }) as AgentFn<any, any>;
 
   fn.agentName = normalizedSpec.name;
@@ -313,6 +490,21 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   fn.spec = normalizedSpec;
   fn._namespace = normalizedSpec.name;
   return fn;
+}
+
+function composeEngine(base: Engine, extensions: readonly Extension[]): Engine {
+  // First registered = outermost. [A, B] -> A(B(base)).
+  let engine = base;
+  for (let i = extensions.length - 1; i >= 0; i -= 1) {
+    const wrap = extensions[i].wrapEngine;
+    if (wrap) engine = wrap(engine);
+  }
+  return engine;
+}
+
+function applyRepair(repair: Exclude<RepairHandler, false>, spec: AgentSpec<any, any>, error: AgentError): string {
+  if (typeof repair === "function") return repair(error);
+  return defaultRepairPrompt(spec, error);
 }
 
 export type AgentFactory = typeof agent;
@@ -326,14 +518,15 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
     name: specOrName.name,
   };
   if (specOrName.instructions !== undefined) spec.instructions = specOrName.instructions;
-  if (specOrName.input !== undefined) spec.input = normalizeSchema(specOrName.input);
-  if (specOrName.output !== undefined) spec.output = normalizeSchema(specOrName.output);
+  if (specOrName.input !== undefined) spec.input = specOrName.input;
+  if (specOrName.output !== undefined) spec.output = specOrName.output;
   if (specOrName.model !== undefined) spec.model = specOrName.model;
   if (specOrName.timeout !== undefined) spec.timeout = specOrName.timeout;
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
   if (specOrName.repair !== undefined) spec.repair = specOrName.repair;
   if (specOrName.permissions !== undefined) spec.permissions = specOrName.permissions;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
+  if (specOrName.extensions !== undefined) spec.extensions = specOrName.extensions;
   return spec;
 }
 
@@ -380,12 +573,13 @@ function normalizeSchema(schemaLike: SchemaLike): Schema {
   return s.unknown;
 }
 
-function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
-  const value = inlineShellPrompts(input);
+function renderPrompt(spec: AgentSpec<any, any>, input: unknown, customRender: ((value: unknown) => string) | undefined, outputSchema: Schema): string {
+  const inlined = inlineShellPrompts(input);
+  const inputSection = customRender ? customRender(inlined) : json(inlined);
   const sections = [
     tag("instructions", (spec.instructions ?? "Return only valid JSON matching the output schema.").trim()),
-    tag("output_schema", renderSchema(spec.output ?? s.object({ text: s.string }))),
-    tag("input", json(value)),
+    tag("output_schema", renderSchema(outputSchema)),
+    tag("input", inputSection),
   ];
 
   if (spec.permissions) {
@@ -412,10 +606,7 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
   return sections.join("\n\n");
 }
 
-function repairPrompt(spec: AgentSpec<any, any>, error: AgentError): string {
-  if (typeof spec.repair === "function") {
-    return spec.repair(error);
-  }
+function defaultRepairPrompt(spec: AgentSpec<any, any>, error: AgentError): string {
   return [
     `<repair agent="${escapeAttribute(spec.name)}" turn="${error.turn}">`,
     tag("instructions", "Your previous response was invalid. Return only corrected JSON."),
@@ -570,6 +761,9 @@ function inlineShellPrompts<T>(value: T): T {
     if (isShIntent(current)) {
       return renderShellPrompt(current);
     }
+    if (isIntent(current)) {
+      return renderGenericIntent(current);
+    }
     if (!current || typeof current !== "object") {
       return current;
     }
@@ -584,6 +778,12 @@ function inlineShellPrompts<T>(value: T): T {
   };
 
   return walk(value) as T;
+}
+
+function renderGenericIntent(intent: Intent): string {
+  // Annotation-only default: extensions describe the intent kind/payload to the
+  // model. Engines do not resolve generic intents in phase 1.
+  return `<intent kind="${escapeAttribute(intent.kind)}">${json(intent.payload)}</intent>`;
 }
 
 function renderShellPrompt(intent: ShIntent): string {

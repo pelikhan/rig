@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { AgentError, agent, collectIntents, p, s, sh, useEngine, validate } from "rig";
-import type { Engine } from "rig";
+import type { Engine, ShIntent } from "rig";
 
 function mockEngine(response: unknown): Engine {
   return {
@@ -303,9 +303,9 @@ describe("shell intents", () => {
 
     const { value, intents } = collectIntents(input);
     expect(intents).toHaveLength(3);
-    expect(intents[0]?.mode).toBe("sh.text");
-    expect(intents[1]?.mode).toBe("sh.result");
-    expect(intents[2]?.mode).toBe("sh.read");
+    expect((intents[0] as ShIntent)?.mode).toBe("sh.text");
+    expect((intents[1] as ShIntent)?.mode).toBe("sh.result");
+    expect((intents[2] as ShIntent)?.mode).toBe("sh.read");
     expect(value).toEqual({
       diff: { $intent: intents[0]?.id },
       result: { $intent: intents[1]?.id },
@@ -320,3 +320,268 @@ describe("shell intents", () => {
     expect(intent.options).toEqual({ cwd: "/tmp" });
   });
 });
+
+describe("intent / input / output primitives", () => {
+  it("intent() creates a generic intent with unique ids", async () => {
+    const { intent } = await import("rig");
+    const a = intent("github.issue", { number: 1 });
+    const b = intent("github.issue", { number: 2 });
+
+    expect(a.__rig).toBe("intent");
+    expect(a.kind).toBe("github.issue");
+    expect(a.payload).toEqual({ number: 1 });
+    expect(a.id).not.toBe(b.id);
+  });
+
+  it("collectIntents picks up generic intents", async () => {
+    const { intent } = await import("rig");
+    const issue = intent("github.issue", { number: 42 });
+    const { value, intents } = collectIntents({ a: issue, b: sh.text("ls") });
+
+    expect(intents).toHaveLength(2);
+    expect(value).toEqual({ a: { $intent: issue.id }, b: { $intent: (intents[1] as ShIntent).id } });
+  });
+
+  it("input() with custom render replaces the input section in the prompt", async () => {
+    const { input } = await import("rig");
+    const prompts: string[] = [];
+    useEngine({
+      createSession() {
+        return { async send(prompt) { prompts.push(prompt); return JSON.stringify({ text: "ok" }); } };
+      },
+    });
+
+    const Issue = input({
+      schema: s.object({ number: s.number, title: s.string }),
+      render: (v) => `<issue n="${v.number}">${v.title}</issue>`,
+    });
+
+    const fn = agent({ name: "uses-input", input: Issue, output: s.object({ text: s.string }) });
+    await fn({ number: 7, title: "boom" });
+
+    expect(prompts[0]).toContain('<issue n="7">boom</issue>');
+    expect(prompts[0]).not.toMatch(/"number":\s*7/);
+  });
+
+  it("output() with custom parse skips JSON parsing", async () => {
+    const { output } = await import("rig");
+    useEngine({
+      createSession() {
+        return { async send() { return "DIFF: hello"; } };
+      },
+    });
+
+    const Patch = output({
+      schema: s.object({ diff: s.string }),
+      parse: (response) => ({ diff: response.replace(/^DIFF:\s*/, "") }),
+    });
+
+    const fn = agent({ name: "patcher", output: Patch });
+    await expect(fn({ text: "go" })).resolves.toEqual({ diff: "hello" });
+  });
+
+  it("output.parse errors trigger the repair loop like JSON parse errors", async () => {
+    const { output } = await import("rig");
+    let calls = 0;
+    useEngine({
+      createSession() {
+        return {
+          async send() {
+            calls += 1;
+            return calls === 1 ? "garbage" : "VALUE:ok";
+          },
+        };
+      },
+    });
+
+    const Custom = output({
+      schema: s.object({ value: s.string }),
+      parse: (response) => {
+        const m = response.match(/^VALUE:(.+)$/);
+        if (!m) throw new Error("bad format");
+        return { value: m[1] };
+      },
+    });
+
+    const fn = agent({ name: "custom-parse", output: Custom, maxTurns: 2 });
+    await expect(fn({ text: "go" })).resolves.toEqual({ value: "ok" });
+    expect(calls).toBe(2);
+  });
+
+  it("repair precedence: CallOptions > AgentSpec > Output > default", async () => {
+    const { output } = await import("rig");
+    const prompts: string[] = [];
+    useEngine({
+      createSession() {
+        return {
+          async send(prompt) {
+            prompts.push(prompt);
+            return prompts.length === 1 ? "not json" : JSON.stringify({ text: "ok" });
+          },
+        };
+      },
+    });
+
+    const Out = output({ schema: s.object({ text: s.string }), repair: () => "OUT-REPAIR" });
+    const fn = agent({ name: "rp", output: Out, repair: () => "SPEC-REPAIR", maxTurns: 2 });
+
+    await fn({ text: "go" }, { repair: () => "OPT-REPAIR" });
+    expect(prompts[1]).toBe("OPT-REPAIR");
+  });
+
+  it("repair falls back from spec to output when spec absent", async () => {
+    const { output } = await import("rig");
+    const prompts: string[] = [];
+    useEngine({
+      createSession() {
+        return {
+          async send(prompt) {
+            prompts.push(prompt);
+            return prompts.length === 1 ? "not json" : JSON.stringify({ text: "ok" });
+          },
+        };
+      },
+    });
+
+    const Out = output({ schema: s.object({ text: s.string }), repair: () => "OUT-REPAIR" });
+    const fn = agent({ name: "rp2", output: Out, maxTurns: 2 });
+    await fn({ text: "go" });
+    expect(prompts[1]).toBe("OUT-REPAIR");
+  });
+});
+
+describe("extensions", () => {
+  it("defineExtension is identity and preserves inference", async () => {
+    const { defineExtension, intent, input, output } = await import("rig");
+    const ext = defineExtension({
+      name: "x",
+      sh: { hello: (n: string) => intent("x.hello", { n }) },
+      inputs: { I: input({ schema: s.object({ a: s.number }) }) },
+      outputs: { O: output({ schema: s.object({ b: s.string }) }) },
+    });
+
+    expect(ext.name).toBe("x");
+    expect(ext.sh!.hello("y").kind).toBe("x.hello");
+    expect(ext.inputs!.I.__rig).toBe("input");
+    expect(ext.outputs!.O.__rig).toBe("output");
+  });
+
+  it("on() fires call/result events in order", async () => {
+    const { defineExtension, useExtension, __resetExtensions } = await import("rig");
+    __resetExtensions();
+    useEngine({ createSession() { return { async send() { return JSON.stringify({ text: "ok" }); } }; } });
+
+    const events: string[] = [];
+    useExtension(defineExtension({
+      name: "obs",
+      on: (e) => { events.push(`${e.type}@${e.turn}`); },
+    }));
+
+    const fn = agent({ name: "observed", output: s.object({ text: s.string }) });
+    await fn({ text: "go" });
+
+    expect(events).toEqual(["call@1", "result@1"]);
+    __resetExtensions();
+  });
+
+  it("on() fires error event when validation fails terminally", async () => {
+    const { defineExtension, useExtension, __resetExtensions } = await import("rig");
+    __resetExtensions();
+    useEngine({ createSession() { return { async send() { return JSON.stringify({ wrong: true }); } }; } });
+
+    const events: string[] = [];
+    useExtension(defineExtension({
+      name: "err",
+      on: (e) => { events.push(e.type); },
+    }));
+
+    const fn = agent({ name: "bad", output: s.object({ text: s.string }), repair: false });
+    await expect(fn({ text: "go" })).rejects.toBeInstanceOf(AgentError);
+
+    expect(events).toContain("call");
+    expect(events).toContain("error");
+    __resetExtensions();
+  });
+
+  it("throwing from on() aborts the call", async () => {
+    const { defineExtension, useExtension, __resetExtensions } = await import("rig");
+    __resetExtensions();
+    useEngine({ createSession() { return { async send() { return JSON.stringify({ text: "ok" }); } }; } });
+
+    useExtension(defineExtension({
+      name: "blocker",
+      on: (e) => { if (e.type === "call") throw new Error("blocked"); },
+    }));
+
+    const fn = agent({ name: "blocked", output: s.object({ text: s.string }) });
+    await expect(fn({ text: "go" })).rejects.toThrow("blocked");
+    __resetExtensions();
+  });
+
+  it("wrapEngine composes first-registered as outermost", async () => {
+    const { defineExtension, useExtension, __resetExtensions } = await import("rig");
+    __resetExtensions();
+    const order: string[] = [];
+
+    useEngine({
+      createSession() {
+        return { async send() { order.push("base"); return JSON.stringify({ text: "ok" }); } };
+      },
+    });
+
+    useExtension(defineExtension({
+      name: "outer",
+      wrapEngine: (next) => ({
+        createSession(opts) {
+          const inner = next.createSession(opts);
+          return { async send(p, o) { order.push("outer-in"); const r = await inner.send(p, o); order.push("outer-out"); return r; } };
+        },
+      }),
+    }));
+    useExtension(defineExtension({
+      name: "inner",
+      wrapEngine: (next) => ({
+        createSession(opts) {
+          const inner = next.createSession(opts);
+          return { async send(p, o) { order.push("inner-in"); const r = await inner.send(p, o); order.push("inner-out"); return r; } };
+        },
+      }),
+    }));
+
+    const fn = agent({ name: "wrap", output: s.object({ text: s.string }) });
+    await fn({ text: "go" });
+
+    expect(order).toEqual(["outer-in", "inner-in", "base", "inner-out", "outer-out"]);
+    __resetExtensions();
+  });
+
+  it("per-agent extensions scope only to that agent", async () => {
+    const { defineExtension, __resetExtensions } = await import("rig");
+    __resetExtensions();
+    useEngine({ createSession() { return { async send() { return JSON.stringify({ text: "ok" }); } }; } });
+
+    const seen: string[] = [];
+    const scoped = defineExtension({
+      name: "scoped",
+      on: (e) => { if (e.type === "call") seen.push("scoped"); },
+    });
+
+    const a = agent({ name: "scoped-agent", extensions: [scoped], output: s.object({ text: s.string }) });
+    const b = agent({ name: "plain-agent", output: s.object({ text: s.string }) });
+
+    await a({ text: "1" });
+    await b({ text: "2" });
+    expect(seen).toEqual(["scoped"]);
+  });
+
+  it("useExtension dedupes by identity", async () => {
+    const { defineExtension, useExtension, listExtensions, __resetExtensions } = await import("rig");
+    __resetExtensions();
+    const ext = defineExtension({ name: "dup" });
+    useExtension(ext);
+    useExtension(ext);
+    expect(listExtensions()).toHaveLength(1);
+    __resetExtensions();
+  });
+});
+

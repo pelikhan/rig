@@ -100,5 +100,82 @@ Use only the current API:
 - `agent({ name, ... })`
 - `rig` for shell helpers
 - `s.*` for explicit schema helpers
+- `intent()`, `input()`, `output()`, `defineExtension()`, `useExtension()` for extensions
 
 Do not add deprecated hooks, lifecycle middleware, or compatibility layers.
+
+## Extensions
+
+Rig has a small extension system inspired by `@earendil-works/pi-agent-core`.
+Three slots, all optional:
+
+- `sh` — named `Intent` factories (declarative placeholders)
+- `inputs` — named `Input<T>` (schema + optional prompt rendering)
+- `outputs` — named `Output<T>` (schema + optional custom parser + optional repair)
+
+Plus optional `agents`, single `on(event)` observer, and `wrapEngine(next)`.
+
+### Authoring
+
+```ts
+import { defineExtension, intent, input, output, s, agent } from "rig";
+
+export const github = defineExtension({
+  name: "github",
+  sh: {
+    issue: (n: number) => intent("github.issue", { number: n }),
+  },
+  inputs: {
+    Issue: input({
+      schema: s.object({ number: s.number, title: s.string }),
+      render: (i) => `<issue number="${i.number}">${i.title}</issue>`,
+    }),
+  },
+  outputs: {
+    Patch: output({
+      schema: s.object({ diff: s.string }),
+      parse: (response) => ({ diff: response.replace(/^DIFF:\s*/, "") }),
+    }),
+  },
+  on:         (event) => { /* { type: "call" | "result" | "error", ... } */ },
+  wrapEngine: (next)  => withRetry(next),
+});
+```
+
+### Installing
+
+```ts
+import { useExtension } from "rig";
+useExtension(github);                                   // global
+agent({ name: "x", extensions: [github], output: ... }); // scoped
+```
+
+`inputs` and `outputs` are reached through the typed extension value
+(`github.inputs.Issue`) — never by global string name. `useExtension` is
+idempotent by object identity.
+
+### `Input<T>` and `Output<T>`
+
+```ts
+input({ schema, render? })
+output({ schema, parse?, repair? })
+```
+
+`agent({ input, output })` accepts either a bare schema or an `Input<T>` /
+`Output<T>` wrapper. Custom `parse` errors participate in the repair loop
+the same way invalid JSON does.
+
+### Repair precedence
+
+`CallOptions.repair` > `AgentSpec.repair` > `Output.repair` > built-in default.
+
+### `wrapEngine` composition
+
+First registered = outermost. `[A, B]` composes as `A(B(engine))`.
+
+### Hooks
+
+Single observer: `on(event)`. Event is a discriminated union of
+`{ type: "call" | "result" | "error", agent, turn, ... }`. Throwing from
+`on` aborts the call.
+
