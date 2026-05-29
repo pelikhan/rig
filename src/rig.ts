@@ -360,8 +360,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
         prompt = repairPrompt(normalizedSpec, error);
       }
 
-      const exhausted = new Error(`Agent ${normalizedSpec.name} failed after ${maxTurns} turns. Last response:\n${lastResponse}`);
-      throw exhausted;
+      throw new Error(`Agent ${normalizedSpec.name} failed after ${maxTurns} turns. Last response:\n${lastResponse}`);
     } catch (error) {
       await emitEvent(listeners, { type: "error", agent: normalizedSpec.name, error });
       throw error;
