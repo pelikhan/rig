@@ -1,21 +1,29 @@
 import { CopilotClient } from "@github/copilot-sdk";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const debug: typeof import("debug") = require("debug");
+import { format } from "node:util";
+
+const logEnabled = !!(process.env["RIG_LOG"] || process.env["RIG_DEBUG"]);
+type Logger = (msg: string, ...args: unknown[]) => void;
+function createLogger(namespace: string): Logger {
+  if (!logEnabled) return () => {};
+  return (msg, ...args) => {
+    const line = JSON.stringify({ ts: Date.now(), ns: namespace, msg: format(msg, ...args) });
+    process.stderr.write(line + "\n");
+  };
+}
 
 type Log = {
-  agent: debug.Debugger;
-  engine: debug.Debugger;
-  hook: debug.Debugger;
-  validate: debug.Debugger;
+  agent: Logger;
+  engine: Logger;
+  hook: Logger;
+  validate: Logger;
 };
 
 function createLog(namespace: string): Log {
   return {
-    agent: debug(`rig:${namespace}:agent`),
-    engine: debug(`rig:${namespace}:engine`),
-    hook: debug(`rig:${namespace}:hook`),
-    validate: debug(`rig:${namespace}:validate`),
+    agent: createLogger(`rig:${namespace}:agent`),
+    engine: createLogger(`rig:${namespace}:engine`),
+    hook: createLogger(`rig:${namespace}:hook`),
+    validate: createLogger(`rig:${namespace}:validate`),
   };
 }
 
@@ -219,7 +227,7 @@ function allHooks(local?: Hooks): Hooks[] {
   return local ? [...globalHooks, local] : globalHooks;
 }
 
-const hookLog = debug("rig:hook");
+const hookLog = createLogger("rig:hook");
 
 async function runHook(hooks: Hooks[], name: keyof Hooks, ctx: any): Promise<any> {
   let result: any;
@@ -254,7 +262,7 @@ class CopilotEngine implements Engine {
         const response = await session.sendAndWait({ prompt, signal: opts.signal } as any);
         if (typeof response === "string") return response;
         const r = response as any;
-        return r?.text ?? r?.content ?? JSON.stringify(response);
+        return r?.text ?? r?.content ?? r?.data?.text ?? r?.data?.content ?? JSON.stringify(response);
       },
     };
   }
