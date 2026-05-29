@@ -1,4 +1,4 @@
-import { agent, s } from "rig";
+import { agent } from "rig";
 import { sh } from "rig/sh";
 
 const licenseCheck = agent({

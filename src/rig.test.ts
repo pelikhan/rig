@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { AgentError, agent, collectIntents, s, useEngine, validate } from "rig";
-import { sh } from "rig/sh";
+import { AgentError, agent, s, useEngine, validate } from "rig";
+import { collectIntents, sh } from "rig/sh";
 import type { Engine } from "rig";
 
 function mockEngine(response: unknown): Engine {

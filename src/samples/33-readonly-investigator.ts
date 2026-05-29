@@ -1,4 +1,4 @@
-import { agent, s } from "rig";
+import { agent } from "rig";
 
 const commandPlanner = agent({
   name: "commandPlanner",
