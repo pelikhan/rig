@@ -266,37 +266,56 @@ function renderPrompt<I, O>(name: string, options: AgentOptions<I, O>, inputShap
     output: typeText(a.outputShape),
   }));
   return [
-    `You are rig agent: ${name}.`,
+    `<agent name="${name}">`,
     "",
+    "<instructions>",
     options.instructions?.trim() || "Complete the task. Return only the declared output shape.",
+    "</instructions>",
     "",
-    "Input schema:",
+    "<input_schema>",
     typeText(inputShape),
+    "</input_schema>",
     "",
-    "Output schema:",
+    "<output_schema>",
     typeText(outputShape),
+    "</output_schema>",
     "",
-    "Permissions declaration:",
+    "<permissions>",
     json(options.permissions ?? { shell: "readonly", write: "deny" }),
+    "</permissions>",
     "",
-    subagents.length ? `Available subagents:\n${json(subagents)}` : "Available subagents: []",
+    subagents.length ? `<subagents>\n${json(subagents)}\n</subagents>` : "<subagents/>",
     "",
-    "Input object. Values like {\"$intent\":\"intent_1\"} are not literal input; they reference engine intents below:",
+    "<input>",
     json(value),
+    "</input>",
     "",
-    "Engine intents:",
-    json(intents),
+    "<intents>",
+    intents.length ? intents.map(renderIntent).join("\n") : "(none)",
+    "</intents>",
     "",
+    "<rules>",
     "Resolve each intent using the underlying agentic engine's native execution capabilities:",
-    "- mode sh.text: obtain stdout text for the command and substitute that string.",
-    "- mode sh.result: obtain { ok, stdout, stderr, exitCode } for the command and substitute that object.",
-    "- mode sh.write: write the requested contents to the path and substitute operation status { ok, stdout, stderr, exitCode }.",
-    "These intents are declarative prompt intents. They are not framework-level tools, host JavaScript calls, or promises.",
+    "- mode `sh.text`: run the command and substitute its stdout as a string.",
+    "- mode `sh.result`: run the command and substitute `{ ok, stdout, stderr, exitCode }`.",
+    "- mode `sh.write`: write contents to path and substitute `{ ok, stdout, stderr, exitCode }`.",
+    "These intents are declarative. They are not framework-level tools, host JavaScript calls, or promises.",
     "Respect the permissions declaration when deciding whether an intent may be resolved.",
-    "Do not fabricate intent results. Resolve them through the engine or report failure in the declared output shape if appropriate.",
-    "",
+    "Do not fabricate intent results. Resolve them through the engine or report failure in the output.",
     "Return only one valid JSON object matching the output schema. No Markdown. No prose outside JSON.",
+    "</rules>",
+    "",
+    "</agent>",
   ].join("\n");
+}
+
+function renderIntent(i: ShIntent): string {
+  if (i.mode === "sh.write") {
+    const opts = i.options ? ` ${json(i.options)}` : "";
+    return `<intent id="${i.id}" mode="${i.mode}" path="${i.path}"${opts}>\n${i.contents}\n</intent>`;
+  }
+  const opts = i.options ? ` ${json(i.options)}` : "";
+  return `<intent id="${i.id}" mode="${i.mode}"${opts}>\`${i.command}\`</intent>`;
 }
 
 export function collectIntents(value: any): { value: any; intents: ShIntent[] } {
