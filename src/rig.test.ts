@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { AgentError, agent, collectIntents, s, sh, useEngine, validate } from "rig";
+import { AgentError, agent, collectIntents, p, s, sh, useEngine, validate } from "rig";
 import type { Engine } from "rig";
 
 function mockEngine(response: unknown): Engine {
@@ -224,6 +224,34 @@ describe("agent invocation", () => {
     expect(prompts[0]).toContain("Options:");
     expect(prompts[0]).toContain("/tmp/workspace");
   });
+
+  it("supports shell helpers inside instruction templates", async () => {
+    const prompts: string[] = [];
+
+    useEngine({
+      createSession() {
+        return {
+          async send(prompt) {
+            prompts.push(prompt);
+            return JSON.stringify({ text: "ok" });
+          },
+        };
+      },
+    });
+
+    const inspect = agent({
+      name: "inspect",
+      instructions: p`Review the repo using ${sh.shell("git status --short", { cwd: "/tmp/workspace" })} before answering.`,
+      output: s.object({ text: s.string }),
+    });
+
+    await inspect({ text: "go" });
+
+    expect(prompts[0]).toContain("Review the repo using Run bash command and return stdout as text: git status --short");
+    expect(prompts[0]).toContain("Options:");
+    expect(prompts[0]).toContain("/tmp/workspace");
+    expect(prompts[0]).toContain("before answering.");
+  });
 });
 
 describe("validate", () => {
@@ -262,6 +290,7 @@ describe("shell intents", () => {
   it("keeps rig/sh as a compatibility import", async () => {
     const compat = await import("rig/sh");
     expect(compat.sh.read("README.md").mode).toBe("sh.read");
+    expect(typeof compat.p).toBe("function");
   });
 
   it("collects intents from nested input", () => {

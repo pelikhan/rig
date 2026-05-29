@@ -154,6 +154,9 @@ export type ShIntent = {
 let nextIntentId = 1;
 
 export const sh = {
+  shell(command: string, options?: ShOptions): ShIntent {
+    return createIntent("sh.text", withOptions({ command }, options));
+  },
   text(command: string, options?: ShOptions): ShIntent {
     return createIntent("sh.text", withOptions({ command }, options));
   },
@@ -167,6 +170,16 @@ export const sh = {
     return createIntent("sh.write", withOptions({ path, contents }, options));
   },
 };
+
+export function p(strings: TemplateStringsArray, ...values: unknown[]): string {
+  let prompt = strings[0] ?? "";
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    prompt += isShIntent(value) ? renderShellPrompt(value) : String(value);
+    prompt += strings[index + 1] ?? "";
+  }
+  return prompt;
+}
 
 export function collectIntents<T>(value: T): { value: T; intents: ShIntent[] } {
   const intents: ShIntent[] = [];
