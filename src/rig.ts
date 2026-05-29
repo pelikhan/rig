@@ -550,55 +550,41 @@ function renderSchemaNode(schema: Schema, indent: number): string {
   }
 }
 
-function renderIntent(intent: { id: string; mode: string; command?: string; path?: string; contents?: string; options?: unknown }): string {
-  const attributes = [
-    `id="${escapeAttribute(intent.id)}"`,
-    `mode="${escapeAttribute(intent.mode)}"`,
-  ];
-  if (intent.command) {
-    attributes.push(`command="${escapeAttribute(intent.command)}"`);
-  }
+function inlineShellPrompts<T>(value: T): T {
+  const seen = new WeakSet<object>();
 
-  function inlineShellPrompts<T>(value: T): T {
-    const seen = new WeakSet<object>();
-
-    const walk = (current: unknown): unknown => {
-      if (isShIntent(current)) {
-        return renderShellPrompt(current);
-      }
-      if (!current || typeof current !== "object") {
-        return current;
-      }
-      if (seen.has(current)) {
-        throw new Error("Cannot serialize circular input.");
-      }
-      seen.add(current);
-      if (Array.isArray(current)) {
-        return current.map(walk);
-      }
-      return Object.fromEntries(Object.entries(current).map(([key, item]) => [key, walk(item)]));
-    };
-
-    return walk(value) as T;
-  }
-
-  function renderShellPrompt(intent: ShIntent): string {
-    const options = intent.options ? ` (options: ${json(intent.options)})` : "";
-    switch (intent.mode) {
-      case "sh.text":
-        return `Run bash command and return stdout as text: ${intent.command}${options}`;
-      case "sh.result":
-        return `Run bash command and return a structured result (stdout, stderr, exitCode): ${intent.command}${options}`;
-      case "sh.read":
-        return `Read file and return its contents as text: ${intent.path}${options}`;
-      case "sh.write":
-        return `Write file at path ${JSON.stringify(intent.path)} with contents ${JSON.stringify(intent.contents ?? "")}${options}`;
+  const walk = (current: unknown): unknown => {
+    if (isShIntent(current)) {
+      return renderShellPrompt(current);
     }
+    if (!current || typeof current !== "object") {
+      return current;
+    }
+    if (seen.has(current)) {
+      throw new Error("Cannot serialize circular input.");
+    }
+    seen.add(current);
+    if (Array.isArray(current)) {
+      return current.map(walk);
+    }
+    return Object.fromEntries(Object.entries(current).map(([key, item]) => [key, walk(item)]));
+  };
+
+  return walk(value) as T;
+}
+
+function renderShellPrompt(intent: ShIntent): string {
+  const options = intent.options ? ` (options: ${json(intent.options)})` : "";
+  switch (intent.mode) {
+    case "sh.text":
+      return `Run bash command and return stdout as text: ${intent.command}${options}`;
+    case "sh.result":
+      return `Run bash command and return a structured result (stdout, stderr, exitCode): ${intent.command}${options}`;
+    case "sh.read":
+      return `Read file and return its contents as text: ${intent.path}${options}`;
+    case "sh.write":
+      return `Write file at path ${JSON.stringify(intent.path)} with contents ${JSON.stringify(intent.contents ?? "")}${options}`;
   }
-  if (intent.path) {
-    attributes.push(`path="${escapeAttribute(intent.path)}"`);
-  }
-  return `<intent ${attributes.join(" ")}>${intent.options ? `${json(intent.options)} ` : ""}${intent.contents ?? ""}</intent>`;
 }
 
 function createIntent(
