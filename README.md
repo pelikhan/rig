@@ -109,6 +109,10 @@ const classify = agent("classify", {
 });
 
 classify.use(async (ctx, next) => {
+  if (ctx.phase === "beforeSend") {
+    ctx.prompt += "\nAlways reply with strict JSON matching the schema.";
+  }
+
   await next();
   if (ctx.phase === "afterParse" && ctx.parsed && typeof ctx.parsed === "object") {
     const text = "text" in ctx.parsed && typeof ctx.parsed.text === "string"
