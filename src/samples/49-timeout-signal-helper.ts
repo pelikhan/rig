@@ -1,10 +1,14 @@
 import { agent, useEngine } from "rig";
 
 useEngine({
-  async send(prompt, options) {
-    console.log("model", options.model);
-    console.log(prompt.slice(0, 200));
-    return JSON.stringify({ text: "custom engine response" });
+  createSession(opts) {
+    console.log("model", opts.model);
+    return {
+      async send(prompt: string) {
+        console.log(prompt.slice(0, 200));
+        return JSON.stringify({ text: "custom engine response" });
+      },
+    };
   },
 });
 

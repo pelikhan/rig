@@ -5,6 +5,14 @@ export type Permissions = {
   shell?: "deny" | "readonly" | "ask" | "allow";
   write?: "deny" | "workspace" | "allow";
 };
+export type Hooks = {
+  beforeCall?(ctx: { agent: string; input: any }): any;
+  beforeSend?(ctx: { agent: string; prompt: string; turn: number }): string | void;
+  afterSend?(ctx: { agent: string; response: string; turn: number }): string | void;
+  afterParse?(ctx: { agent: string; parsed: any; turn: number }): any;
+  onError?(ctx: { agent: string; error: string; response: string; turn: number }): string | void;
+  afterCall?(ctx: { agent: string; input: any; output: any }): void;
+};
 export type AgentOptions<I = any, O = any> = {
   model?: string;
   timeout?: number;
@@ -14,6 +22,7 @@ export type AgentOptions<I = any, O = any> = {
   instructions?: string;
   permissions?: Permissions;
   agents?: Record<string, AgentFn<any, any>>;
+  hooks?: Hooks;
 };
 export type CallOptions = {
   signal?: AbortSignal;
@@ -60,23 +69,28 @@ type Infer<T> = T extends { __rig: "enum"; values: readonly (infer U)[] } ? U :
   T extends object ? { [K in keyof T as K extends `${infer P}_` ? P : K]: Infer<T[K]> } : any;
 
 export type Engine = {
-  send(prompt: string, options: { model: string; signal?: AbortSignal }): Promise<string>;
+  createSession(options: { model: string }): EngineSession;
+};
+
+export type EngineSession = {
+  send(prompt: string, options: { signal?: AbortSignal }): Promise<string>;
 };
 
 let engine: Engine | undefined;
 let nextIntentId = 1;
+const globalHooks: Hooks[] = [];
 
 export function useEngine(next: Engine): void { engine = next; }
 
 export const sh = {
   text(command: string, options?: ShOptions): any {
-    return intent("sh.text", { command, options });
+    return intent("sh.text", options ? { command, options: stripSignal(options)! } : { command });
   },
   result(command: string, options?: ShOptions): any {
-    return intent("sh.result", { command, options });
+    return intent("sh.result", options ? { command, options: stripSignal(options)! } : { command });
   },
   write(path: string, contents: string, options?: ShOptions): any {
-    return intent("sh.write", { path, contents, options });
+    return intent("sh.write", options ? { path, contents, options: stripSignal(options)! } : { path, contents });
   },
 };
 
@@ -90,19 +104,36 @@ export function agent<I = { text: string }, O = { text: string }>(
     const signal = timeoutSignal(call.signal, call.timeout ?? options.timeout);
     const maxTurns = call.max_turns ?? options.max_turns ?? 4;
     const model = call.model ?? options.model ?? "gpt-4.1";
-    const actualInput = input ?? ({ text: "" } as Infer<I>);
+    const hooks = allHooks(options.hooks);
+    let actualInput: any = input ?? ({ text: "" } as Infer<I>);
+
+    actualInput = runHook(hooks, "beforeCall", { agent: name, input: actualInput }) ?? actualInput;
+
+    const session = getEngine().createSession({ model });
     let prompt = renderPrompt(name, options, inputShape, outputShape, actualInput);
     let last = "";
     for (let turn = 1; turn <= maxTurns; turn++) {
       throwIfAborted(signal);
-      last = await getEngine().send(prompt, { model, signal });
+      prompt = runHook(hooks, "beforeSend", { agent: name, prompt, turn }) ?? prompt;
+      last = await session.send(prompt, signal ? { signal } : {});
+      last = runHook(hooks, "afterSend", { agent: name, response: last, turn }) ?? last;
       const parsed = tryParseJson(last);
       if (parsed.ok) {
-        const v = validate(parsed.value, outputShape);
-        if (v.ok) return stripOptionalKeys(parsed.value) as Infer<O>;
-        prompt = repairPrompt(prompt, last, `Output validation failed: ${v.error}`);
+        const transformed = runHook(hooks, "afterParse", { agent: name, parsed: parsed.value, turn });
+        const value = transformed !== undefined ? transformed : parsed.value;
+        const v = validate(value, outputShape);
+        if (v.ok) {
+          const output = stripOptionalKeys(value) as Infer<O>;
+          runHook(hooks, "afterCall", { agent: name, input: actualInput, output });
+          return output;
+        }
+        const retry = runHook(hooks, "onError", { agent: name, error: `Output validation failed: ${v.error}`, response: last, turn });
+        if (typeof retry === "string") { prompt = retry; continue; }
+        throw new Error(`Agent ${name} output validation failed: ${v.error}\nResponse:\n${last}`);
       } else {
-        prompt = repairPrompt(prompt, last, `Response was not valid JSON: ${parsed.error}`);
+        const retry = runHook(hooks, "onError", { agent: name, error: `Response was not valid JSON: ${parsed.error}`, response: last, turn });
+        if (typeof retry === "string") { prompt = retry; continue; }
+        throw new Error(`Agent ${name} returned invalid JSON: ${parsed.error}\nResponse:\n${last}`);
       }
     }
     throw new Error(`Agent ${name} failed to produce valid output after ${maxTurns} turn(s). Last response:\n${last}`);
@@ -112,6 +143,11 @@ export function agent<I = { text: string }, O = { text: string }>(
   (fn as AgentFn<I, O>).outputShape = outputShape;
   return fn as AgentFn<I, O>;
 }
+
+agent.on = function on(hooks: Hooks): () => void {
+  globalHooks.push(hooks);
+  return () => { const i = globalHooks.indexOf(hooks); if (i >= 0) globalHooks.splice(i, 1); };
+};
 
 agent.enum = function values<T extends readonly Json[]>(values: T): { __rig: "enum"; values: T } {
   return { __rig: "enum", values };
@@ -127,15 +163,31 @@ agent.unknown = function unknown(): { __rig: "unknown" } {
 };
 
 export type AgentFactory = typeof agent & {
+  on(hooks: Hooks): () => void;
   enum<T extends readonly Json[]>(values: T): { __rig: "enum"; values: T };
   literal<T extends Json>(value: T): { __rig: "literal"; value: T };
   nullable<T>(shape: T): { __rig: "nullable"; shape: T };
   unknown(): { __rig: "unknown" };
 };
 
-function intent(mode: ShIntent["mode"], args: Partial<ShIntent>): ShIntent {
-  const options = stripSignal(args.options as ShOptions | undefined);
-  return { __rig: "sh", id: `intent_${nextIntentId++}`, mode, ...args, options } as ShIntent;
+function allHooks(local?: Hooks): Hooks[] {
+  return local ? [...globalHooks, local] : globalHooks;
+}
+
+function runHook(hooks: Hooks[], name: keyof Hooks, ctx: any): any {
+  let result: any;
+  for (const h of hooks) {
+    const fn = h[name] as ((ctx: any) => any) | undefined;
+    if (fn) {
+      const r = fn(ctx);
+      if (r !== undefined) { result = r; ctx = { ...ctx, ...( typeof r === "string" ? (name === "beforeSend" ? { prompt: r } : name === "afterSend" ? { response: r } : {}) : {}) }; }
+    }
+  }
+  return result;
+}
+
+function intent(mode: ShIntent["mode"], args: Omit<Partial<ShIntent>, "__rig" | "id" | "mode">): ShIntent {
+  return { __rig: "sh", id: `intent_${nextIntentId++}`, mode, ...args } as ShIntent;
 }
 
 function getEngine(): Engine {
@@ -144,13 +196,19 @@ function getEngine(): Engine {
 }
 
 class CopilotEngine implements Engine {
-  private client = new CopilotClient();
-  async send(prompt: string, options: { model: string; signal?: AbortSignal }): Promise<string> {
-    const session = await this.client.createSession({ model: options.model, streaming: false });
-    const response = await session.sendAndWait({ prompt, signal: options.signal } as any);
-    if (typeof response === "string") return response;
-    const r = response as any;
-    return r?.text ?? r?.content ?? JSON.stringify(response);
+  createSession(options: { model: string }): EngineSession {
+    let session: any;
+    return {
+      async send(prompt: string, opts: { signal?: AbortSignal }): Promise<string> {
+        if (!session) {
+          session = await new CopilotClient().createSession({ model: options.model, streaming: false });
+        }
+        const response = await session.sendAndWait({ prompt, signal: opts.signal } as any);
+        if (typeof response === "string") return response;
+        const r = response as any;
+        return r?.text ?? r?.content ?? JSON.stringify(response);
+      },
+    };
   }
 }
 
@@ -192,18 +250,6 @@ function renderPrompt<I, O>(name: string, options: AgentOptions<I, O>, inputShap
     "Do not fabricate intent results. Resolve them through the engine or report failure in the declared output shape if appropriate.",
     "",
     "Return only one valid JSON object matching the output schema. No Markdown. No prose outside JSON.",
-  ].join("\n");
-}
-
-function repairPrompt(original: string, previous: string, error: string): string {
-  return [
-    original,
-    "",
-    "The previous response was invalid.",
-    error,
-    "Previous response:",
-    previous,
-    "Return only corrected valid JSON matching the output schema.",
   ].join("\n");
 }
 
