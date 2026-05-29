@@ -1,12 +1,21 @@
 import { CopilotClient } from "@github/copilot-sdk";
 import debug = require("debug");
 
-const log = {
-  agent: debug("rig:agent"),
-  engine: debug("rig:engine"),
-  hook: debug("rig:hook"),
-  validate: debug("rig:validate"),
+type Log = {
+  agent: debug.Debugger;
+  engine: debug.Debugger;
+  hook: debug.Debugger;
+  validate: debug.Debugger;
 };
+
+function createLog(namespace: string): Log {
+  return {
+    agent: debug(`rig:${namespace}:agent`),
+    engine: debug(`rig:${namespace}:engine`),
+    hook: debug(`rig:${namespace}:hook`),
+    validate: debug(`rig:${namespace}:validate`),
+  };
+}
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type Permissions = {
@@ -43,6 +52,7 @@ export type AgentFn<I = any, O = any> = ((input?: Infer<I>, options?: CallOption
   agentName: string;
   inputShape: I;
   outputShape: O;
+  _namespace: string;
 };
 export type ShOptions = {
   cwd?: string;
@@ -107,9 +117,20 @@ export function agent<I = { text: string }, O = { text: string }>(
   name: string,
   options: AgentOptions<I, O> = {},
 ): AgentFn<I, O> {
+  const namespace = name;
+  const lg = createLog(namespace);
   const inputShape = (options.input ?? { text: "input text" }) as I;
   const outputShape = (options.output ?? { text: "output text" }) as O;
-  log.agent("define %s model=%s max_turns=%d", name, options.model ?? "gpt-4.1", options.max_turns ?? 4);
+  lg.agent("define model=%s max_turns=%d", options.model ?? "gpt-4.1", options.max_turns ?? 4);
+
+  // Re-namespace subagents under this agent's path
+  if (options.agents) {
+    for (const [key, sub] of Object.entries(options.agents)) {
+      const childNs = `${namespace}:${sub._namespace ?? sub.agentName ?? key}`;
+      (sub as AgentFn)._namespace = childNs;
+    }
+  }
+
   const fn = async (input?: Infer<I>, call: CallOptions = {}) => {
     const signal = timeoutSignal(call.signal, call.timeout ?? options.timeout);
     const maxTurns = call.max_turns ?? options.max_turns ?? 4;
@@ -117,19 +138,23 @@ export function agent<I = { text: string }, O = { text: string }>(
     const hooks = allHooks(options.hooks);
     let actualInput: any = input ?? ({ text: "" } as Infer<I>);
 
-    log.agent("call %s model=%s", name, model);
+    // Use the runtime namespace (may have been nested by a parent)
+    const runtimeNs = (fn as AgentFn)._namespace;
+    const l = runtimeNs !== namespace ? createLog(runtimeNs) : lg;
+
+    l.agent("call model=%s", model);
     actualInput = (await runHook(hooks, "beforeCall", { agent: name, input: actualInput })) ?? actualInput;
 
     const session = getEngine().createSession({ model });
-    log.engine("session created for %s", name);
+    l.engine("session created");
     let prompt = renderPrompt(name, options, inputShape, outputShape, actualInput);
     let last = "";
     for (let turn = 1; turn <= maxTurns; turn++) {
       throwIfAborted(signal);
       prompt = (await runHook(hooks, "beforeSend", { agent: name, prompt, turn })) ?? prompt;
-      log.engine("send %s turn=%d prompt_len=%d", name, turn, prompt.length);
+      l.engine("send turn=%d prompt_len=%d", turn, prompt.length);
       last = await session.send(prompt, signal ? { signal } : {});
-      log.engine("recv %s turn=%d response_len=%d", name, turn, last.length);
+      l.engine("recv turn=%d response_len=%d", turn, last.length);
       last = (await runHook(hooks, "afterSend", { agent: name, response: last, turn })) ?? last;
       const parsed = tryParseJson(last);
       if (parsed.ok) {
@@ -137,17 +162,17 @@ export function agent<I = { text: string }, O = { text: string }>(
         const value = transformed !== undefined ? transformed : parsed.value;
         const v = validate(value, outputShape);
         if (v.ok) {
-          log.agent("ok %s turn=%d", name, turn);
+          l.agent("ok turn=%d", turn);
           const output = stripOptionalKeys(value) as Infer<O>;
           await runHook(hooks, "afterCall", { agent: name, input: actualInput, output });
           return output;
         }
-        log.validate("fail %s turn=%d %s", name, turn, v.error);
+        l.validate("fail turn=%d %s", turn, v.error);
         const retry = await runHook(hooks, "onError", { agent: name, error: `Output validation failed: ${v.error}`, response: last, turn });
         if (typeof retry === "string") { prompt = retry; continue; }
         throw new Error(`Agent ${name} output validation failed: ${v.error}\nResponse:\n${last}`);
       } else {
-        log.validate("parse_fail %s turn=%d %s", name, turn, parsed.error);
+        l.validate("parse_fail turn=%d %s", turn, parsed.error);
         const retry = await runHook(hooks, "onError", { agent: name, error: `Response was not valid JSON: ${parsed.error}`, response: last, turn });
         if (typeof retry === "string") { prompt = retry; continue; }
         throw new Error(`Agent ${name} returned invalid JSON: ${parsed.error}\nResponse:\n${last}`);
@@ -158,6 +183,7 @@ export function agent<I = { text: string }, O = { text: string }>(
   (fn as AgentFn<I, O>).agentName = name;
   (fn as AgentFn<I, O>).inputShape = inputShape;
   (fn as AgentFn<I, O>).outputShape = outputShape;
+  (fn as AgentFn<I, O>)._namespace = namespace;
   return fn as AgentFn<I, O>;
 }
 
@@ -191,12 +217,14 @@ function allHooks(local?: Hooks): Hooks[] {
   return local ? [...globalHooks, local] : globalHooks;
 }
 
+const hookLog = debug("rig:hook");
+
 async function runHook(hooks: Hooks[], name: keyof Hooks, ctx: any): Promise<any> {
   let result: any;
   for (const h of hooks) {
     const fn = h[name] as ((ctx: any) => any) | undefined;
     if (fn) {
-      log.hook("%s %s", name, ctx.agent ?? "");
+      hookLog("%s %s", name, ctx.agent ?? "");
       const r = await fn(ctx);
       if (r !== undefined) { result = r; ctx = { ...ctx, ...(typeof r === "string" ? (name === "beforeSend" ? { prompt: r } : name === "afterSend" ? { response: r } : {}) : {}) }; }
     }
