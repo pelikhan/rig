@@ -114,6 +114,7 @@ classify.use(async (ctx, next) => {
   }
 
   await next();
+
   if (ctx.phase === "afterParse" && ctx.parsed && typeof ctx.parsed === "object") {
     const text = "text" in ctx.parsed && typeof ctx.parsed.text === "string"
       ? ctx.parsed.text
