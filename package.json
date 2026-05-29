@@ -5,7 +5,7 @@
   "scripts": {
     "test": "vitest run src/",
     "sample": "vitest run scripts/run-sample.test.ts",
-    "sample:one": "RIG_SAMPLE=$1 vitest run scripts/run-sample.test.ts",
+    "sample:run": "npx tsx scripts/run.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -13,9 +13,7 @@
     "@types/debug": "^4.1.13",
     "@types/node": "^25.9.1",
     "typescript": "^5.8.0",
-    "vitest": "^4.1.7"
-  },
-  "dependencies": {
+    "vitest": "^4.1.7",
     "debug": "^4.4.3"
   }
 }

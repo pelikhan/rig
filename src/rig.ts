@@ -1,5 +1,7 @@
 import { CopilotClient } from "@github/copilot-sdk";
-import debug = require("debug");
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const debug: typeof import("debug") = require("debug");
 
 type Log = {
   agent: debug.Debugger;
