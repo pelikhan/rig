@@ -1,5 +1,5 @@
 import { agent, s } from "rig";
-import { sh } from "rig/sh";
+import { sh } from "rig";
 
 const normalize = agent({
   name: "normalizeConfig",
