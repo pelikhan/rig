@@ -1,3 +1,25 @@
+# rig
+
+`rig` is a minimal harness for building reliable AI agents with a **genuinely intuitive syntax on top of JavaScript**.
+
+It gives you:
+- a tiny `agent(name, options)` API
+- schema-first input/output definitions
+- strict JSON output validation
+- declarative shell intents (`sh.text`, `sh.result`, `sh.write`)
+- hooks for observability and control
+
+## Goal
+
+Make agent workflows feel like normal JavaScript:
+- define input/output shapes inline
+- call agents like regular async functions
+- keep outputs structured and machine-safe
+- avoid framework-heavy ceremony
+
+## Quick example
+
+```ts
 import { agent, sh } from "rig";
 
 const releaseAgent = agent("releaseAgent", {
@@ -19,9 +41,35 @@ const releaseAgent = agent("releaseAgent", {
   `,
 });
 
-console.log(await releaseAgent({
+const result = await releaseAgent({
   status: sh.text("git status --short"),
   tests: sh.result("npm test"),
   commits: sh.text("git log --oneline -30"),
   packageJson: sh.text("cat package.json"),
-}));
+});
+```
+
+## Core ideas
+
+- **Shapes as contracts**: `input` and `output` are runtime-validated shapes.
+- **Typed helpers**:
+  - `agent.enum([...])`
+  - `agent.literal(value)`
+  - `agent.nullable(shape)`
+  - `agent.unknown()`
+- **Intents, not side effects**: shell work is declared in input and resolved by the engine.
+- **Composable agents**: pass subagents with `agents: { ... }`.
+- **Hooks**: `beforeCall`, `beforeSend`, `afterSend`, `afterParse`, `onError`, `afterCall`.
+
+## Local development
+
+```bash
+npm install
+npm test
+npm run typecheck
+npm run sample
+```
+
+## Project status
+
+`rig` is intentionally small and experimental. The focus is a clean, practical API for structured agent calls in JavaScript/TypeScript.
