@@ -1,4 +1,12 @@
 import { CopilotClient } from "@github/copilot-sdk";
+import debug = require("debug");
+
+const log = {
+  agent: debug("rig:agent"),
+  engine: debug("rig:engine"),
+  hook: debug("rig:hook"),
+  validate: debug("rig:validate"),
+};
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type Permissions = {
@@ -101,6 +109,7 @@ export function agent<I = { text: string }, O = { text: string }>(
 ): AgentFn<I, O> {
   const inputShape = (options.input ?? { text: "input text" }) as I;
   const outputShape = (options.output ?? { text: "output text" }) as O;
+  log.agent("define %s model=%s max_turns=%d", name, options.model ?? "gpt-4.1", options.max_turns ?? 4);
   const fn = async (input?: Infer<I>, call: CallOptions = {}) => {
     const signal = timeoutSignal(call.signal, call.timeout ?? options.timeout);
     const maxTurns = call.max_turns ?? options.max_turns ?? 4;
@@ -108,15 +117,19 @@ export function agent<I = { text: string }, O = { text: string }>(
     const hooks = allHooks(options.hooks);
     let actualInput: any = input ?? ({ text: "" } as Infer<I>);
 
+    log.agent("call %s model=%s", name, model);
     actualInput = (await runHook(hooks, "beforeCall", { agent: name, input: actualInput })) ?? actualInput;
 
     const session = getEngine().createSession({ model });
+    log.engine("session created for %s", name);
     let prompt = renderPrompt(name, options, inputShape, outputShape, actualInput);
     let last = "";
     for (let turn = 1; turn <= maxTurns; turn++) {
       throwIfAborted(signal);
       prompt = (await runHook(hooks, "beforeSend", { agent: name, prompt, turn })) ?? prompt;
+      log.engine("send %s turn=%d prompt_len=%d", name, turn, prompt.length);
       last = await session.send(prompt, signal ? { signal } : {});
+      log.engine("recv %s turn=%d response_len=%d", name, turn, last.length);
       last = (await runHook(hooks, "afterSend", { agent: name, response: last, turn })) ?? last;
       const parsed = tryParseJson(last);
       if (parsed.ok) {
@@ -124,14 +137,17 @@ export function agent<I = { text: string }, O = { text: string }>(
         const value = transformed !== undefined ? transformed : parsed.value;
         const v = validate(value, outputShape);
         if (v.ok) {
+          log.agent("ok %s turn=%d", name, turn);
           const output = stripOptionalKeys(value) as Infer<O>;
           await runHook(hooks, "afterCall", { agent: name, input: actualInput, output });
           return output;
         }
+        log.validate("fail %s turn=%d %s", name, turn, v.error);
         const retry = await runHook(hooks, "onError", { agent: name, error: `Output validation failed: ${v.error}`, response: last, turn });
         if (typeof retry === "string") { prompt = retry; continue; }
         throw new Error(`Agent ${name} output validation failed: ${v.error}\nResponse:\n${last}`);
       } else {
+        log.validate("parse_fail %s turn=%d %s", name, turn, parsed.error);
         const retry = await runHook(hooks, "onError", { agent: name, error: `Response was not valid JSON: ${parsed.error}`, response: last, turn });
         if (typeof retry === "string") { prompt = retry; continue; }
         throw new Error(`Agent ${name} returned invalid JSON: ${parsed.error}\nResponse:\n${last}`);
@@ -180,6 +196,7 @@ async function runHook(hooks: Hooks[], name: keyof Hooks, ctx: any): Promise<any
   for (const h of hooks) {
     const fn = h[name] as ((ctx: any) => any) | undefined;
     if (fn) {
+      log.hook("%s %s", name, ctx.agent ?? "");
       const r = await fn(ctx);
       if (r !== undefined) { result = r; ctx = { ...ctx, ...(typeof r === "string" ? (name === "beforeSend" ? { prompt: r } : name === "afterSend" ? { response: r } : {}) : {}) }; }
     }
