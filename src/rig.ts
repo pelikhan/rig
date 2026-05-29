@@ -5,13 +5,14 @@ export type Permissions = {
   shell?: "deny" | "readonly" | "ask" | "allow";
   write?: "deny" | "workspace" | "allow";
 };
+type MaybePromise<T> = T | Promise<T>;
 export type Hooks = {
-  beforeCall?(ctx: { agent: string; input: any }): any;
-  beforeSend?(ctx: { agent: string; prompt: string; turn: number }): string | void;
-  afterSend?(ctx: { agent: string; response: string; turn: number }): string | void;
-  afterParse?(ctx: { agent: string; parsed: any; turn: number }): any;
-  onError?(ctx: { agent: string; error: string; response: string; turn: number }): string | void;
-  afterCall?(ctx: { agent: string; input: any; output: any }): void;
+  beforeCall?(ctx: { agent: string; input: any }): MaybePromise<any>;
+  beforeSend?(ctx: { agent: string; prompt: string; turn: number }): MaybePromise<string | void>;
+  afterSend?(ctx: { agent: string; response: string; turn: number }): MaybePromise<string | void>;
+  afterParse?(ctx: { agent: string; parsed: any; turn: number }): MaybePromise<any>;
+  onError?(ctx: { agent: string; error: string; response: string; turn: number }): MaybePromise<string | void>;
+  afterCall?(ctx: { agent: string; input: any; output: any }): MaybePromise<void>;
 };
 export type AgentOptions<I = any, O = any> = {
   model?: string;
@@ -107,31 +108,31 @@ export function agent<I = { text: string }, O = { text: string }>(
     const hooks = allHooks(options.hooks);
     let actualInput: any = input ?? ({ text: "" } as Infer<I>);
 
-    actualInput = runHook(hooks, "beforeCall", { agent: name, input: actualInput }) ?? actualInput;
+    actualInput = (await runHook(hooks, "beforeCall", { agent: name, input: actualInput })) ?? actualInput;
 
     const session = getEngine().createSession({ model });
     let prompt = renderPrompt(name, options, inputShape, outputShape, actualInput);
     let last = "";
     for (let turn = 1; turn <= maxTurns; turn++) {
       throwIfAborted(signal);
-      prompt = runHook(hooks, "beforeSend", { agent: name, prompt, turn }) ?? prompt;
+      prompt = (await runHook(hooks, "beforeSend", { agent: name, prompt, turn })) ?? prompt;
       last = await session.send(prompt, signal ? { signal } : {});
-      last = runHook(hooks, "afterSend", { agent: name, response: last, turn }) ?? last;
+      last = (await runHook(hooks, "afterSend", { agent: name, response: last, turn })) ?? last;
       const parsed = tryParseJson(last);
       if (parsed.ok) {
-        const transformed = runHook(hooks, "afterParse", { agent: name, parsed: parsed.value, turn });
+        const transformed = await runHook(hooks, "afterParse", { agent: name, parsed: parsed.value, turn });
         const value = transformed !== undefined ? transformed : parsed.value;
         const v = validate(value, outputShape);
         if (v.ok) {
           const output = stripOptionalKeys(value) as Infer<O>;
-          runHook(hooks, "afterCall", { agent: name, input: actualInput, output });
+          await runHook(hooks, "afterCall", { agent: name, input: actualInput, output });
           return output;
         }
-        const retry = runHook(hooks, "onError", { agent: name, error: `Output validation failed: ${v.error}`, response: last, turn });
+        const retry = await runHook(hooks, "onError", { agent: name, error: `Output validation failed: ${v.error}`, response: last, turn });
         if (typeof retry === "string") { prompt = retry; continue; }
         throw new Error(`Agent ${name} output validation failed: ${v.error}\nResponse:\n${last}`);
       } else {
-        const retry = runHook(hooks, "onError", { agent: name, error: `Response was not valid JSON: ${parsed.error}`, response: last, turn });
+        const retry = await runHook(hooks, "onError", { agent: name, error: `Response was not valid JSON: ${parsed.error}`, response: last, turn });
         if (typeof retry === "string") { prompt = retry; continue; }
         throw new Error(`Agent ${name} returned invalid JSON: ${parsed.error}\nResponse:\n${last}`);
       }
@@ -174,13 +175,13 @@ function allHooks(local?: Hooks): Hooks[] {
   return local ? [...globalHooks, local] : globalHooks;
 }
 
-function runHook(hooks: Hooks[], name: keyof Hooks, ctx: any): any {
+async function runHook(hooks: Hooks[], name: keyof Hooks, ctx: any): Promise<any> {
   let result: any;
   for (const h of hooks) {
     const fn = h[name] as ((ctx: any) => any) | undefined;
     if (fn) {
-      const r = fn(ctx);
-      if (r !== undefined) { result = r; ctx = { ...ctx, ...( typeof r === "string" ? (name === "beforeSend" ? { prompt: r } : name === "afterSend" ? { response: r } : {}) : {}) }; }
+      const r = await fn(ctx);
+      if (r !== undefined) { result = r; ctx = { ...ctx, ...(typeof r === "string" ? (name === "beforeSend" ? { prompt: r } : name === "afterSend" ? { response: r } : {}) : {}) }; }
     }
   }
   return result;
