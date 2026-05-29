@@ -60,7 +60,7 @@ const result = await releaseAgent({
   - `agent.unknown()`
 - **Intents, not side effects**: shell work is declared in input and resolved by the engine.
 - **Composable agents**: pass subagents with `agents: { ... }`.
-- **Middleware**: intercept `beforeCall`, `beforeSend`, `afterSend`, `afterParse`, `afterValidate`, `afterCall`, and `error`.
+- **Middleware**: intercept `beforeCall`, `beforeSend`, `afterSend`, `afterParse`, `afterValidate`, `afterCall`, and `error` (`onError` in the legacy hooks API).
 
 ## Middleware
 
@@ -89,7 +89,7 @@ const supportAgent = agent("supportAgent", {
 - Register global middleware with `agent.use(...)`.
 - Register per-agent middleware with `middleware: [...]` or `myAgent.use(...)`.
 - Each registration returns an unsubscribe function.
-- Legacy `hooks` remain available for compatibility, but middleware is the preferred API.
+- Legacy `hooks` remain available for compatibility. `onError` maps to the middleware `error` phase, and `afterValidate` is available only in middleware.
 
 ## Local development
 
