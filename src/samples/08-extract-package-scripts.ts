@@ -1,5 +1,4 @@
 import { agent } from "rig";
-import type { SchemaLike } from "rig";
 import { sh } from "rig/sh";
 
 const FileSummary = {
@@ -8,7 +7,7 @@ const FileSummary = {
   summary: "Concise summary",
   exports: ["exported symbol"],
   risks: ["Potential risk"],
-} as const satisfies SchemaLike;
+} as const;
 
 const listFiles = agent({
   name: "listFiles",
