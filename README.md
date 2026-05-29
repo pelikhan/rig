@@ -1,6 +1,6 @@
 # rig
 
-`rig` is a minimal harness for building reliable AI agents with a **genetically intuitive syntax on top of JavaScript**.
+`rig` is a minimal harness for building reliable AI agents with a **genuinely intuitive syntax on top of JavaScript**.
 
 It gives you:
 - a tiny `agent(name, options)` API
