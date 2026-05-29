@@ -77,6 +77,7 @@ You can disable repair with `repair: false` or provide `repair(error) => string`
 ## Shell helpers
 
 Shell helpers are part of the core API. In generated prompts, they are embedded directly into the input payload as "run this bash command" instructions.
+`sh.shell(...)` is an alias for `sh.text(...)` when you want a more natural name inside `p\`\`` instruction templates.
 
 ```ts
 import { agent, p, s } from "rig";

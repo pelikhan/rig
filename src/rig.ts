@@ -172,13 +172,13 @@ export const sh = {
 };
 
 export function p(strings: TemplateStringsArray, ...values: unknown[]): string {
-  let prompt = strings[0] ?? "";
+  let result = strings[0] ?? "";
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
-    prompt += isShIntent(value) ? renderShellPrompt(value) : String(value);
-    prompt += strings[index + 1] ?? "";
+    result += isShIntent(value) ? renderShellPrompt(value) : String(value);
+    result += strings[index + 1] ?? "";
   }
-  return prompt;
+  return result;
 }
 
 export function collectIntents<T>(value: T): { value: T; intents: ShIntent[] } {
