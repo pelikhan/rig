@@ -1,33 +1,83 @@
 # rig
 
-Minimal TypeScript agent harness. Source: `src/rig.ts`. Samples: `src/samples/`.
+Minimal TypeScript agent harness. All imports come from `"rig"`.
 
 ```ts
 import { agent, sh } from "rig";
 ```
 
-## API
+## `agent(name, opts?)`
 
-- `agent(name, opts?)` — declare an agent with typed input/output shapes, instructions, permissions, subagents.
-- `sh.text(cmd)` / `sh.result(cmd)` / `sh.write(path, contents)` — declarative shell intents resolved by the engine.
-- `agent.enum(values)` / `agent.literal(v)` / `agent.nullable(shape)` / `agent.unknown()` — output type markers.
-- `validate(value, shape)` — runtime shape validation.
-- `collectIntents(input)` — extract `sh` intents from nested input for prompt rendering.
-- `useEngine(engine)` — inject a custom `Engine` (default: Copilot SDK).
+Declare a typed agent. The engine validates output against the shape at runtime.
 
-## Project layout
-
-```
-src/rig.ts          — library (single file)
-src/samples/*.ts    — 50 usage examples
-src/rig.test.ts     — vitest tests
-tsconfig.json       — paths: { "rig": ["./src/rig.ts"] }
-vitest.config.ts    — alias: { rig: "src/rig.ts" }
+```ts
+const classify = agent("classify", {
+  input: { title: "", body: "" },
+  output: {
+    label: agent.enum(["bug", "feature", "question"]),
+    confidence: agent.enum(["low", "medium", "high"]),
+  },
+  instructions: `Classify the issue.`,
+});
+const result = await classify({ title: "Crash on start", body: "segfault" });
 ```
 
-## Commands
+### Options
 
-```sh
-npm test        # vitest run
-npm run typecheck  # tsc --noEmit
+| Field | Purpose |
+|-------|---------|
+| `input` | Shape descriptor (values are type exemplars, not defaults) |
+| `output` | Shape descriptor for validated return value |
+| `instructions` | System prompt text |
+| `model` | Model name (default `"gpt-4.1"`) |
+| `timeout` | ms before abort |
+| `max_turns` | Retry budget for invalid output (default 4) |
+| `permissions` | `{ shell?: "deny"|"readonly"|"ask"|"allow", write?: "deny"|"workspace"|"allow" }` |
+| `agents` | `Record<string, AgentFn>` — subagents available to this agent |
+
+### Shape markers
+
+| Marker | Meaning |
+|--------|---------|
+| `agent.enum(["a","b"])` | Value must be one of the literals |
+| `agent.literal(true)` | Exact value |
+| `agent.nullable("text")` | The inner type or `null` |
+| `agent.unknown()` | Any JSON value |
+| `{ "*": "v" }` | Record/map with string keys |
+| `key_: type` | Trailing `_` = optional field (key emitted without `_`) |
+
+## `sh` — declarative shell intents
+
+Intents are placeholders resolved by the engine, not executed in-process.
+
+```ts
+sh.text("git diff")                       // resolves to stdout string
+sh.result("npm test")                     // resolves to { ok, stdout, stderr, exitCode }
+sh.write("README.md", "# Hello\n")       // resolves to write status object
+```
+
+Options: `{ cwd?, env?, timeout?, purpose?, signal? }`
+
+## Call options
+
+Override per-call:
+
+```ts
+await myAgent({ text: "go" }, { model: "o3-mini", timeout: 5000, max_turns: 2, signal });
+```
+
+## Patterns
+
+**Subagent delegation:**
+```ts
+const sub = agent("sub", { input: { q: "" }, output: { a: "" } });
+const parent = agent("parent", { agents: { sub }, output: { result: "" } });
+```
+
+**Passing shell context as input:**
+```ts
+await investigator({
+  tree: sh.text("find . -type f"),
+  config: sh.text("cat package.json"),
+});
 ```
