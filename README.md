@@ -102,6 +102,7 @@ const extractJson = agent("extractJson", {
 import { agent } from "rig";
 
 const classify = agent("classify", {
+  input: { text: "issue description" },
   output: {
     text: "triage summary",
   },
@@ -110,7 +111,10 @@ const classify = agent("classify", {
 classify.use(async (ctx, next) => {
   await next();
   if (ctx.phase === "afterParse" && ctx.parsed && typeof ctx.parsed === "object") {
-    ctx.parsed = { ...ctx.parsed, text: `${ctx.parsed.text} [middleware]` };
+    const text = "text" in ctx.parsed && typeof ctx.parsed.text === "string"
+      ? ctx.parsed.text
+      : "middleware summary";
+    ctx.parsed = { ...ctx.parsed, text: `${text} [middleware]` };
   }
 });
 ```
