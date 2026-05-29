@@ -5,7 +5,7 @@ const classify = agent("classify", {
   output: {
     triageSummary: "triage summary",
   },
-  instructions: `Classify the issue text and summarize the reasoning in one sentence.`,
+  instructions: `Classify input.issueDescription and summarize the reasoning in one sentence.`,
 });
 
 classify.use(async (ctx, next) => {
