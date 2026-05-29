@@ -96,7 +96,14 @@ function wrapAgent<I, O>(target: AgentFn<I, O>, middleware: Middleware[]): Agent
     }
   }) as AgentFn<I, O>;
 
-  return Object.assign(wrapped, target);
+  wrapped.agentName = target.agentName;
+  wrapped.inputSchema = target.inputSchema;
+  wrapped.outputSchema = target.outputSchema;
+  wrapped.inputShape = target.inputShape;
+  wrapped.outputShape = target.outputShape;
+  wrapped.spec = target.spec;
+  wrapped._namespace = target._namespace;
+  return wrapped;
 }
 
 function wrapEngine(target: Engine, middleware: Middleware[]): Engine {

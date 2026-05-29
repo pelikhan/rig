@@ -76,6 +76,7 @@ describe("agent", () => {
     const result = await review({ diff: "..." });
     expect(risk).toBe("low");
     expect(line).toBeUndefined();
+    expect(result.risk).toBe("low");
     expect(result.findings[0]?.line).toBeUndefined();
   });
 

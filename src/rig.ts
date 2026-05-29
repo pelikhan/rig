@@ -355,6 +355,8 @@ function normalizeSchema(schemaLike: SchemaLike): Schema {
         return s.nullable(normalizeSchema(schemaLike.shape));
       case "unknown":
         return s.unknown;
+      default:
+        throw new Error(`Unknown legacy schema marker: ${(schemaLike as { __rig: string }).__rig}`);
     }
   }
   if (typeof schemaLike === "string") {

@@ -20,13 +20,13 @@ let nextIntentId = 1;
 
 export const sh = {
   text(command: string, options?: ShOptions): ShIntent {
-    return createIntent("sh.text", options ? { command, options: stripSignal(options) } : { command });
+    return createIntent("sh.text", withOptions({ command }, options));
   },
   result(command: string, options?: ShOptions): ShIntent {
-    return createIntent("sh.result", options ? { command, options: stripSignal(options) } : { command });
+    return createIntent("sh.result", withOptions({ command }, options));
   },
   write(path: string, contents: string, options?: ShOptions): ShIntent {
-    return createIntent("sh.write", options ? { path, contents, options: stripSignal(options) } : { path, contents });
+    return createIntent("sh.write", withOptions({ path, contents }, options));
   },
 };
 
@@ -65,6 +65,13 @@ function createIntent(
 function stripSignal(options: ShOptions): Omit<ShOptions, "signal"> {
   const { signal: _signal, ...rest } = options;
   return rest;
+}
+
+function withOptions<T extends Omit<Partial<ShIntent>, "__rig" | "id" | "mode">>(
+  value: T,
+  options?: ShOptions,
+): T | (T & { options: Omit<ShOptions, "signal"> }) {
+  return options ? { ...value, options: stripSignal(options) } : value;
 }
 
 function isShIntent(value: unknown): value is ShIntent {
