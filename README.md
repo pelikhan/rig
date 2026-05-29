@@ -1,95 +1,144 @@
 # rig
 
-`rig` is a minimal harness for building reliable AI agents with a **genuinely intuitive syntax on top of JavaScript**.
+`rig` is a small TypeScript harness for structured agent calls.
 
-It gives you:
-- a tiny `agent(name, options)` API
-- schema-first input/output definitions
-- strict JSON output validation
-- composable middleware for request/response lifecycle control
-- declarative shell intents (`sh.text`, `sh.result`, `sh.write`)
-- hooks for observability and control
-
-## Goal
-
-Make agent workflows feel like normal JavaScript:
-- define input/output shapes inline
-- call agents like regular async functions
-- keep outputs structured and machine-safe
-- avoid framework-heavy ceremony
-
-## Quick example
+## Core API
 
 ```ts
-import { agent, sh } from "rig";
+import { agent, s, useEngine, validate } from "rig";
+import { sh } from "rig/sh";
+```
 
-const releaseAgent = agent("releaseAgent", {
-  input: {
-    status: "git status",
-    tests: { ok: true, stdout: "", stderr: "", exitCode: 0 },
-    commits: "recent commits",
-    packageJson: "package metadata",
-  },
-  output: {
-    ready: true,
-    versionBump: agent.enum(["none", "patch", "minor", "major"]),
-    notes: "release notes markdown",
-    blockers: ["blocker"],
-  },
-  instructions: `
-    Decide whether the repository is ready for release.
-    Use test result, working tree status, commits, and package metadata.
-  `,
+- `agent(spec)` defines a typed structured agent.
+- `s.*` defines explicit schemas.
+- `useEngine(engine)` swaps the runtime engine.
+- `validate(value, schema)` validates JSON-like data.
+- `sh.*` builds declarative shell intents from the optional shell module.
+
+## Quick start
+
+```ts
+import { agent, s } from "rig";
+
+const classify = agent({
+  name: "classify",
+  instructions: "Classify the issue.",
+  input: s.object({
+    title: s.string,
+    body: s.string,
+  }),
+  output: s.object({
+    label: s.enum("bug", "feature", "question", "docs"),
+    confidence: s.enum("low", "medium", "high"),
+  }),
 });
 
-const result = await releaseAgent({
+const result = await classify({
+  title: "Crash on start",
+  body: "segfault",
+});
+```
+
+## Schemas
+
+```ts
+s.string
+s.number
+s.boolean
+s.unknown
+s.array(item)
+s.object(fields)
+s.record(value)
+s.enum(...values)
+s.literal(value)
+s.nullable(shape)
+s.optional(shape)
+```
+
+## Repair and retries
+
+Agents retry invalid output up to `maxTurns`.
+
+```ts
+const summarize = agent({
+  name: "summarize",
+  instructions: "Summarize the diff.",
+  input: s.object({ diff: s.string }),
+  output: s.object({ summary: s.string }),
+  maxTurns: 3,
+  repair: "default",
+});
+```
+
+If parsing or validation fails, rig sends an explicit repair prompt with the error and output schema.
+You can disable repair with `repair: false` or provide `repair(error) => string`.
+
+## Shell intents
+
+Shell intents are optional and live outside the core API.
+They are declarative placeholders, not in-process shell execution.
+
+```ts
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
+
+const reviewRepo = agent({
+  name: "reviewRepo",
+  instructions: "Review the repository status.",
+  input: s.object({
+    status: s.string,
+    diff: s.string,
+  }),
+  output: s.object({
+    summary: s.string,
+    findings: s.array(s.object({
+      file: s.string,
+      message: s.string,
+    })),
+  }),
+});
+
+await reviewRepo({
   status: sh.text("git status --short"),
-  tests: sh.result("npm test"),
-  commits: sh.text("git log --oneline -30"),
-  packageJson: sh.text("cat package.json"),
+  diff: sh.text("git diff --stat"),
 });
 ```
 
-## Core ideas
+`sh.*` is still re-exported from `"rig"` as a transitional compatibility bridge.
 
-- **Shapes as contracts**: `input` and `output` are runtime-validated shapes.
-- **Typed helpers**:
-  - `agent.enum([...])`
-  - `agent.literal(value)`
-  - `agent.nullable(shape)`
-  - `agent.unknown()`
-- **Intents, not side effects**: shell work is declared in input and resolved by the engine.
-- **Composable agents**: pass subagents with `agents: { ... }`.
-- **Middleware**: intercept `beforeCall`, `beforeSend`, `afterSend`, `afterParse`, `afterValidate`, `afterCall`, and `error` (`onError` in the legacy hooks API).
+## Engines
 
-## Middleware
-
-Middleware lets you inspect or modify agent state at each phase of a call.
+The core engine contract is tiny:
 
 ```ts
-import { agent } from "rig";
+type Engine = {
+  createSession(options: { model: string }): EngineSession;
+};
 
-agent.use(async (ctx, next) => {
-  if (ctx.phase === "beforeSend") {
-    ctx.prompt += "\nRespond with valid JSON only.";
-  }
-  await next();
-});
-
-const supportAgent = agent("supportAgent", {
-  middleware: [async (ctx, next) => {
-    if (ctx.phase === "afterParse") {
-      ctx.parsed = { ...ctx.parsed, handledBy: "middleware" };
-    }
-    await next();
-  }],
-});
+type EngineSession = {
+  send(prompt: string, options: { signal?: AbortSignal }): Promise<string>;
+};
 ```
 
-- Register global middleware with `agent.use(...)`.
-- Register per-agent middleware with `middleware: [...]` or `myAgent.use(...)`.
-- Each registration returns an unsubscribe function.
-- Legacy `hooks` remain available for compatibility. `onError` maps to the middleware `error` phase, and `afterValidate` is available only in middleware.
+The default Copilot SDK engine lives in a separate module:
+
+```ts
+import { useEngine } from "rig";
+import { copilotEngine } from "rig/engines/copilot";
+
+useEngine(copilotEngine());
+```
+
+## Compatibility bridge
+
+Rig keeps a small migration bridge where it stays simple:
+
+- `agent("name", options)` forwards to `agent({ name, ...options })`
+- old exemplar shapes are normalized into explicit schemas
+- `agent.enum([...])`, `agent.literal(value)`, `agent.nullable(shape)`, and `agent.unknown()` forward to `s.*`
+
+Deprecated hooks and lifecycle middleware are removed from the core path.
+Optional wrappers live in `rig/middleware`.
 
 ## Local development
 
@@ -99,7 +148,3 @@ npm test
 npm run typecheck
 npm run sample
 ```
-
-## Project status
-
-`rig` is intentionally small and experimental. The focus is a clean, practical API for structured agent calls in JavaScript/TypeScript.

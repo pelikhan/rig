@@ -1,83 +1,106 @@
 # rig
 
-Minimal TypeScript agent harness. All imports come from `"rig"`.
+Minimal TypeScript harness for structured agent calls.
+
+## Imports
 
 ```ts
-import { agent, sh } from "rig";
+import { agent, s, useEngine, validate } from "rig";
+import { sh } from "rig/sh";
 ```
 
-## `agent(name, opts?)`
+## `agent(spec)`
 
-Declare a typed agent. The engine validates output against the shape at runtime.
+Declare a typed structured agent.
 
 ```ts
-const classify = agent("classify", {
-  input: { title: "", body: "" },
-  output: {
-    label: agent.enum(["bug", "feature", "question"]),
-    confidence: agent.enum(["low", "medium", "high"]),
-  },
-  instructions: `Classify the issue.`,
+const classify = agent({
+  name: "classify",
+  instructions: "Classify the issue.",
+  input: s.object({
+    title: s.string,
+    body: s.string,
+  }),
+  output: s.object({
+    label: s.enum("bug", "feature", "question", "docs"),
+    confidence: s.enum("low", "medium", "high"),
+  }),
 });
-const result = await classify({ title: "Crash on start", body: "segfault" });
+
+const result = await classify({
+  title: "Crash on start",
+  body: "segfault",
+});
 ```
 
-### Options
+### Spec fields
 
 | Field | Purpose |
 |-------|---------|
-| `input` | Shape descriptor (values are type exemplars, not defaults) |
-| `output` | Shape descriptor for validated return value |
-| `instructions` | System prompt text |
-| `model` | Model name (default `"gpt-4.1"`) |
-| `timeout` | ms before abort |
-| `max_turns` | Retry budget for invalid output (default 4) |
-| `permissions` | `{ shell?: "deny"|"readonly"|"ask"|"allow", write?: "deny"|"workspace"|"allow" }` |
-| `agents` | `Record<string, AgentFn>` — subagents available to this agent |
+| `name` | Agent name used in the prompt |
+| `instructions` | Prompt instructions |
+| `input` | Input schema |
+| `output` | Output schema |
+| `model` | Model name, default `"gpt-4.1"` |
+| `maxTurns` | Retry budget for invalid JSON or invalid output |
+| `repair` | `false`, `"default"`, or `(error) => string` |
 
-### Shape markers
-
-| Marker | Meaning |
-|--------|---------|
-| `agent.enum(["a","b"])` | Value must be one of the literals |
-| `agent.literal(true)` | Exact value |
-| `agent.nullable("text")` | The inner type or `null` |
-| `agent.unknown()` | Any JSON value |
-| `{ "*": "v" }` | Record/map with string keys |
-| `key_: type` | Trailing `_` = optional field (key emitted without `_`) |
-
-## `sh` — declarative shell intents
-
-Intents are placeholders resolved by the engine, not executed in-process.
+## `s` schema helpers
 
 ```ts
-sh.text("git diff")                       // resolves to stdout string
-sh.result("npm test")                     // resolves to { ok, stdout, stderr, exitCode }
-sh.write("README.md", "# Hello\n")       // resolves to write status object
+s.string
+s.number
+s.boolean
+s.unknown
+s.array(item)
+s.object(fields)
+s.record(value)
+s.enum(...values)
+s.literal(value)
+s.nullable(shape)
+s.optional(shape)
 ```
 
-Options: `{ cwd?, env?, timeout?, purpose?, signal? }`
+## `validate(value, schema)`
 
-## Call options
-
-Override per-call:
+Validate parsed data against a schema.
 
 ```ts
-await myAgent({ text: "go" }, { model: "o3-mini", timeout: 5000, max_turns: 2, signal });
+const result = validate({ label: "bug" }, s.object({ label: s.string }));
 ```
 
-## Patterns
+## `sh` intents
 
-**Subagent delegation:**
+`sh` lives in `rig/sh`.
+These are declarative placeholders, not real shell execution in the core harness.
+
 ```ts
-const sub = agent("sub", { input: { q: "" }, output: { a: "" } });
-const parent = agent("parent", { agents: { sub }, output: { result: "" } });
+sh.text("git diff")
+sh.result("npm test")
+sh.write("README.md", "# Hello\n")
 ```
 
-**Passing shell context as input:**
+## Engines
+
+Use `useEngine(engine)` to install a custom engine.
+The default Copilot SDK engine is available from `rig/engines/copilot`.
+
 ```ts
-await investigator({
-  tree: sh.text("find . -type f"),
-  config: sh.text("cat package.json"),
-});
+import { useEngine } from "rig";
+import { copilotEngine } from "rig/engines/copilot";
+
+useEngine(copilotEngine());
 ```
+
+## Compatibility bridge
+
+Still supported when migration is cheap:
+
+- `agent("name", options)`
+- old exemplar shapes
+- `agent.enum([...])`
+- `agent.literal(value)`
+- `agent.nullable(shape)`
+- `agent.unknown()`
+
+Do not use deprecated hooks or lifecycle middleware in new code.

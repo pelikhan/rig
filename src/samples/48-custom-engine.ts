@@ -1,13 +1,27 @@
-import { validate, agent } from "rig";
+import { agent, s, useEngine, validate } from "rig";
+import type { Engine } from "rig";
 
-const Shape = {
-  summary: "summary",
-  risk: agent.enum(["low", "medium", "high"]),
-  count_: 1,
+const customEngine: Engine = {
+  createSession() {
+    return {
+      async send() {
+        return JSON.stringify({ summary: "ok", risk: "low" });
+      },
+    };
+  },
 };
 
-const result = validate({ summary: "ok", risk: "low" }, Shape);
+useEngine(customEngine);
 
-if (!result.ok) {
-  console.error(result.error);
-}
+const review = agent({
+  name: "review",
+  input: s.object({ diff: s.string }),
+  output: s.object({
+    summary: s.string,
+    risk: s.enum("low", "medium", "high"),
+  }),
+});
+
+const result = await review({ diff: "..." });
+console.log(result);
+console.log(validate(result, review.outputSchema));
