@@ -1,5 +1,4 @@
-import { agent, s } from "rig";
-import { sh } from "rig/sh";
+import { agent, s, sh } from "rig";
 
 const summarizeFiles = agent({
   name: "summarizeFiles",

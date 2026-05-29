@@ -6,7 +6,7 @@ Minimal TypeScript harness for structured agent calls.
 
 ```ts
 import { agent, s, useEngine, validate } from "rig";
-import { sh } from "rig/sh";
+import { sh } from "rig";
 ```
 
 ## `agent(spec)`
@@ -71,12 +71,13 @@ const result = validate({ label: "bug" }, s.object({ label: s.string }));
 
 ## `sh` intents
 
-`sh` lives in `rig/sh`.
+`sh` lives in core `rig` (with `rig/sh` compatibility re-export).
 These are declarative placeholders, not real shell execution in the core harness.
 
 ```ts
 sh.text("git diff")
 sh.result("npm test")
+sh.read("README.md")
 sh.write("README.md", "# Hello\n")
 ```
 
