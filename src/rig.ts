@@ -1,12 +1,19 @@
+/**
+ * rig.ts API summary:
+ * - `agent(name, options)` creates typed JSON-in/JSON-out agents.
+ * - `agent.use` / `agent.on` register global middleware or legacy hooks.
+ * - `agent.enum` / `agent.literal` / `agent.nullable` / `agent.unknown` define output markers.
+ * - `sh.text` / `sh.result` / `sh.write` build shell intents for tool execution.
+ * - `useEngine(engine)` overrides the runtime engine implementation.
+ * - Types exported for composition include `Json`, `Permissions`, `Phase`,
+ *   `AgentContext`, `Middleware`, `Hooks`, `AgentOptions`, `CallOptions`, and `AgentFn`.
+ */
 import { CopilotClient } from "@github/copilot-sdk";
-import { format } from "node:util";
 
-const logEnabled = !!(process.env["RIG_LOG"] || process.env["RIG_DEBUG"]);
-type Logger = (msg: string, ...args: unknown[]) => void;
+type Logger = (entry?: Record<string, unknown>) => void;
 function createLogger(namespace: string): Logger {
-  if (!logEnabled) return () => {};
-  return (msg, ...args) => {
-    const line = JSON.stringify({ ts: Date.now(), ns: namespace, msg: format(msg, ...args) });
+  return (entry = {}) => {
+    const line = JSON.stringify({ ts: Date.now(), ns: namespace, ...entry });
     process.stderr.write(line + "\n");
   };
 }
@@ -160,7 +167,7 @@ export function agent<I = { text: string }, O = { text: string }>(
     ...(options.middleware ?? []),
     ...(options.hooks ? [hookAdapter(options.hooks)] : []),
   ];
-  lg.agent("define model=%s max_turns=%d", options.model ?? "gpt-4.1", options.max_turns ?? 4);
+  lg.agent({ event: "define", model: options.model ?? "gpt-4.1", max_turns: options.max_turns ?? 4 });
 
   // Re-namespace subagents under this agent's path
   if (options.agents) {
@@ -191,12 +198,12 @@ export function agent<I = { text: string }, O = { text: string }>(
       signal,
     };
 
-    l.agent("call model=%s", model);
+    l.agent({ event: "call", model });
     await runPhase(ctx, middleware, "beforeCall");
     actualInput = ctx.input;
 
     const session = getEngine().createSession({ model });
-    l.engine("session created");
+    l.engine({ event: "session_created" });
     let prompt = renderPrompt(name, options, inputShape, outputShape, actualInput);
     let last = "";
     for (let turn = 1; turn <= maxTurns; turn++) {
@@ -205,9 +212,9 @@ export function agent<I = { text: string }, O = { text: string }>(
       ctx.prompt = prompt;
       await runPhase(ctx, middleware, "beforeSend");
       prompt = ctx.prompt;
-      l.engine("send turn=%d prompt_len=%d", turn, prompt.length);
+      l.engine({ event: "send", turn, prompt_len: prompt.length });
       last = await session.send(prompt, signal ? { signal } : {});
-      l.engine("recv turn=%d response_len=%d", turn, last.length);
+      l.engine({ event: "recv", turn, response_len: last.length });
       ctx.response = last;
       await runPhase(ctx, middleware, "afterSend");
       last = ctx.response ?? last;
@@ -218,20 +225,20 @@ export function agent<I = { text: string }, O = { text: string }>(
         const value = ctx.parsed;
         const v = validate(value, outputShape);
         if (v.ok) {
-          l.agent("ok turn=%d", turn);
+          l.agent({ event: "ok", turn });
           const output = stripOptionalKeys(value) as Infer<O>;
           ctx.output = output;
           await runPhase(ctx, middleware, "afterValidate");
           await runPhase(ctx, middleware, "afterCall");
           return ctx.output as Infer<O>;
         }
-        l.validate("fail turn=%d %s", turn, v.error);
+        l.validate({ event: "fail", turn, error: v.error });
         ctx.error = new Error(`Output validation failed: ${v.error}`);
         await runPhase(ctx, middleware, "error");
         if (ctx.prompt && ctx.prompt !== prompt) { prompt = ctx.prompt; continue; }
         throw new Error(`Agent ${name} output validation failed: ${v.error}\nResponse:\n${last}`);
       } else {
-        l.validate("parse_fail turn=%d %s", turn, parsed.error);
+        l.validate({ event: "parse_fail", turn, error: parsed.error });
         ctx.error = new Error(`Response was not valid JSON: ${parsed.error}`);
         await runPhase(ctx, middleware, "error");
         if (ctx.prompt && ctx.prompt !== prompt) { prompt = ctx.prompt; continue; }
