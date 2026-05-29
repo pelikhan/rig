@@ -48,7 +48,7 @@ JSONL logger built-in. Enabled via `RIG_LOG=1` or `RIG_DEBUG=1`. Outputs to stde
 - Framework: vitest
 - Tests live in `src/rig.test.ts`
 - Use `mockEngine(response)` or inline `useEngine(...)` to stub the LLM
-- All 37 unit tests must pass before committing
+- All unit tests must pass before committing
 - Samples run via a stub engine that generates shape-conforming output from the prompt's `<output_schema>`
 
 ## Key Concepts
@@ -56,5 +56,7 @@ JSONL logger built-in. Enabled via `RIG_LOG=1` or `RIG_DEBUG=1`. Outputs to stde
 - **Shape descriptors**: JS values used as type exemplars (e.g., `""` = string, `0` = number, `[""]` = string array)
 - **Schema helpers**: `s.enum()`, `s.literal()`, `s.nullable()`, `s.optional()`, `s.unknown`
 - **Shell intents**: `sh.text()`, `sh.result()`, `sh.read()`, `sh.write()` — declarative placeholders resolved by the engine, not executed in-process
-- **Middleware**: `agent.use(...)` / `myAgent.use(...)` lifecycle middleware with explicit phases (`beforeCall`, `beforeSend`, `afterSend`, `afterParse`, `afterValidate`, `afterCall`, `error`)
+- **Custom intents**: Extend the intent system via `CustomIntents` declaration merging + `registerIntentRenderer(namespace, fn)` — analogous to pi-agent's `CustomAgentMessages`
+- **Event subscription**: `myAgent.subscribe(listener)` — observe `call`, `send`, `response`, `result`, `error` events without wrapping — analogous to pi-agent's `Agent.subscribe()`
+- **Middleware**: Optional wrappers in `rig/middleware`; `withMiddleware(agent, [...])` for interception
 - **Engine**: Pluggable via `useEngine()`; default uses `@github/copilot-sdk`

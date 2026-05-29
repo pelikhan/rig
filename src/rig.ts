@@ -34,10 +34,31 @@ export type Schema =
 export type SchemaLike = Schema | string | number | boolean | readonly [SchemaLike] | { [key: string]: SchemaLike };
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
+
+/**
+ * Extensible interface for custom intent types.
+ * Apps can extend via declaration merging:
+ *
+ * @example
+ * ```typescript
+ * declare module "rig" {
+ *   interface CustomIntents {
+ *     mcp: McpIntent;
+ *   }
+ * }
+ * registerIntentRenderer("mcp", (intent) => `Call MCP: ${JSON.stringify(intent)}`);
+ * ```
+ */
+export interface CustomIntents {
+  // Empty by default - apps extend via declaration merging
+}
+
+export type AnyIntent = ShIntent | CustomIntents[keyof CustomIntents];
+
 export type AgentInputValue<T> =
-  T extends readonly (infer Item)[] ? ShIntent | AgentInputValue<Item>[] :
-  T extends object ? ShIntent | { [K in keyof T]: AgentInputValue<T[K]> } :
-  T | ShIntent;
+  T extends readonly (infer Item)[] ? AnyIntent | AgentInputValue<Item>[] :
+  T extends object ? AnyIntent | { [K in keyof T]: AgentInputValue<T[K]> } :
+  T | AnyIntent;
 
 export type InferSchema<T> =
   T extends { kind: "string" } ? string :
@@ -123,6 +144,21 @@ export type CallOptions = {
   maxTurns?: number;
 };
 
+/**
+ * Lifecycle events emitted by an agent during a call.
+ * Subscribe via `myAgent.subscribe(listener)`.
+ *
+ * Analogous to pi-agent's `AgentEvent`.
+ */
+export type RigEvent =
+  | { type: "call"; agent: string; input: unknown; options: CallOptions }
+  | { type: "send"; agent: string; turn: number; prompt: string }
+  | { type: "response"; agent: string; turn: number; response: string }
+  | { type: "result"; agent: string; output: unknown }
+  | { type: "error"; agent: string; error: unknown };
+
+export type RigListener = (event: RigEvent) => void | Promise<void>;
+
 export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValue<Input>, options?: CallOptions) => Promise<Output>) & {
   agentName: string;
   inputSchema: Schema;
@@ -131,6 +167,20 @@ export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValu
   outputShape: Schema;
   spec: AgentSpec<any, any>;
   _namespace: string;
+  /**
+   * Subscribe to agent lifecycle events without wrapping the agent.
+   * Returns an unsubscribe function.
+   *
+   * Analogous to pi-agent's `Agent.subscribe()`.
+   *
+   * @example
+   * ```typescript
+   * const unsubscribe = myAgent.subscribe((event) => {
+   *   if (event.type === "result") console.log("output:", event.output);
+   * });
+   * ```
+   */
+  subscribe(listener: RigListener): () => void;
 };
 
 export type ShOptions = {
@@ -175,18 +225,18 @@ export function p(strings: TemplateStringsArray, ...values: unknown[]): string {
   let result = strings[0] ?? "";
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
-    result += isShIntent(value) ? renderShellPrompt(value) : String(value);
+    result += isAnyIntent(value) ? renderAnyIntent(value) : String(value);
     result += strings[index + 1] ?? "";
   }
   return result;
 }
 
-export function collectIntents<T>(value: T): { value: T; intents: ShIntent[] } {
-  const intents: ShIntent[] = [];
+export function collectIntents<T>(value: T): { value: T; intents: AnyIntent[] } {
+  const intents: AnyIntent[] = [];
   const seen = new WeakSet<object>();
 
   const walk = (current: unknown): unknown => {
-    if (isShIntent(current)) {
+    if (isAnyIntent(current)) {
       intents.push(current);
       return { $intent: current.id };
     }
@@ -248,6 +298,8 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const inputSchema = normalizedSpec.input ?? s.object({ text: s.string });
   const outputSchema = normalizedSpec.output ?? s.object({ text: s.string });
 
+  const listeners = new Set<RigListener>();
+
   const fn = (async (input: unknown, options: CallOptions = {}) => {
     const model = options.model ?? normalizedSpec.model ?? "gpt-4.1";
     const maxTurns = options.maxTurns ?? normalizedSpec.maxTurns ?? 4;
@@ -258,24 +310,47 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
     let prompt = renderPrompt(normalizedSpec, normalizedInput);
     let lastResponse = "";
 
-    for (let turn = 1; turn <= maxTurns; turn += 1) {
-      throwIfAborted(signal);
-      lastResponse = await session.send(prompt, signal ? { signal } : {});
+    await emitEvent(listeners, { type: "call", agent: normalizedSpec.name, input, options });
 
-      const parsed = parseJson(lastResponse);
-      if (parsed.ok) {
-        const result = validate(parsed.value, outputSchema);
-        if (result.ok) {
-          return parsed.value;
+    try {
+      for (let turn = 1; turn <= maxTurns; turn += 1) {
+        throwIfAborted(signal);
+        await emitEvent(listeners, { type: "send", agent: normalizedSpec.name, turn, prompt });
+        lastResponse = await session.send(prompt, signal ? { signal } : {});
+        await emitEvent(listeners, { type: "response", agent: normalizedSpec.name, turn, response: lastResponse });
+
+        const parsed = parseJson(lastResponse);
+        if (parsed.ok) {
+          const result = validate(parsed.value, outputSchema);
+          if (result.ok) {
+            await emitEvent(listeners, { type: "result", agent: normalizedSpec.name, output: parsed.value });
+            return parsed.value;
+          }
+
+          const error = new AgentError({
+            kind: "validation",
+            agent: normalizedSpec.name,
+            turn,
+            response: lastResponse,
+            schema: outputSchema,
+            message: `Agent ${normalizedSpec.name} output validation failed: ${result.error}`,
+          });
+
+          if (turn === maxTurns || repair === false) {
+            throw error;
+          }
+
+          prompt = repairPrompt(normalizedSpec, error);
+          continue;
         }
 
         const error = new AgentError({
-          kind: "validation",
+          kind: "parse",
           agent: normalizedSpec.name,
           turn,
           response: lastResponse,
           schema: outputSchema,
-          message: `Agent ${normalizedSpec.name} output validation failed: ${result.error}`,
+          message: `Agent ${normalizedSpec.name} returned invalid JSON: ${parsed.error}`,
         });
 
         if (turn === maxTurns || repair === false) {
@@ -283,26 +358,14 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
         }
 
         prompt = repairPrompt(normalizedSpec, error);
-        continue;
       }
 
-      const error = new AgentError({
-        kind: "parse",
-        agent: normalizedSpec.name,
-        turn,
-        response: lastResponse,
-        schema: outputSchema,
-        message: `Agent ${normalizedSpec.name} returned invalid JSON: ${parsed.error}`,
-      });
-
-      if (turn === maxTurns || repair === false) {
-        throw error;
-      }
-
-      prompt = repairPrompt(normalizedSpec, error);
+      const exhausted = new Error(`Agent ${normalizedSpec.name} failed after ${maxTurns} turns. Last response:\n${lastResponse}`);
+      throw exhausted;
+    } catch (error) {
+      await emitEvent(listeners, { type: "error", agent: normalizedSpec.name, error });
+      throw error;
     }
-
-    throw new Error(`Agent ${normalizedSpec.name} failed after ${maxTurns} turns. Last response:\n${lastResponse}`);
   }) as AgentFn<any, any>;
 
   fn.agentName = normalizedSpec.name;
@@ -312,6 +375,10 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   fn.outputShape = outputSchema;
   fn.spec = normalizedSpec;
   fn._namespace = normalizedSpec.name;
+  fn.subscribe = (listener: RigListener) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  };
   return fn;
 }
 
@@ -567,8 +634,8 @@ function inlineShellPrompts<T>(value: T): T {
   const seen = new WeakSet<object>();
 
   const walk = (current: unknown): unknown => {
-    if (isShIntent(current)) {
-      return renderShellPrompt(current);
+    if (isAnyIntent(current)) {
+      return renderAnyIntent(current);
     }
     if (!current || typeof current !== "object") {
       return current;
@@ -644,8 +711,47 @@ function isSchema(value: unknown): value is Schema {
     && ["string", "number", "boolean", "unknown", "array", "object", "record", "enum", "literal", "nullable", "optional"].includes((value as { kind: string }).kind);
 }
 
-function isShIntent(value: unknown): value is ShIntent {
-  return !!value && typeof value === "object" && (value as { __rig?: string }).__rig === "sh";
+function isAnyIntent(value: unknown): value is AnyIntent {
+  return !!value && typeof value === "object" && typeof (value as { __rig?: unknown }).__rig === "string";
+}
+
+const customIntentRenderers = new Map<string, (intent: unknown) => string>();
+
+/**
+ * Register a renderer for a custom intent namespace.
+ * Analogous to how pi-agent extensions register custom handlers.
+ *
+ * @param namespace - The `__rig` namespace string (must not be "sh")
+ * @param renderer - Function that converts an intent to a prompt string
+ *
+ * @example
+ * ```typescript
+ * registerIntentRenderer("mcp", (intent) => `Call MCP tool: ${JSON.stringify(intent)}`);
+ * ```
+ */
+export function registerIntentRenderer(namespace: string, renderer: (intent: unknown) => string): void {
+  if (namespace === "sh") {
+    throw new Error("Cannot override built-in 'sh' intent renderer.");
+  }
+  customIntentRenderers.set(namespace, renderer);
+}
+
+function renderAnyIntent(intent: AnyIntent): string {
+  const namespace = (intent as { __rig: string }).__rig;
+  if (namespace === "sh") {
+    return renderShellPrompt(intent as ShIntent);
+  }
+  const renderer = customIntentRenderers.get(namespace);
+  if (renderer) {
+    return renderer(intent);
+  }
+  throw new Error(`No renderer registered for intent namespace: "${namespace}". Use registerIntentRenderer() to add one.`);
+}
+
+async function emitEvent(listeners: Set<RigListener>, event: RigEvent): Promise<void> {
+  for (const listener of listeners) {
+    await listener(event);
+  }
 }
 function ok(): ValidationResult {
   return { ok: true };
