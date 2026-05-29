@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const actionReview = agent("actionReview", {
+const actionReview = agent({
+  name: "actionReview",
   input: { workflow: "GitHub Actions YAML" },
   output: {
     summary: "Review summary",

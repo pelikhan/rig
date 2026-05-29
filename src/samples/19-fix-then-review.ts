@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const patcher = agent("patcher", {
+const patcher = agent({
+  name: "patcher",
   input: {
     diagnosis: "Bug diagnosis",
     file: "target file",

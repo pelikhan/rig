@@ -1,12 +1,15 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const summarizeDiff = agent("summarizeDiff", {
+const summarizeDiff = agent({
+  name: "summarizeDiff",
   input: { diff: "git diff" },
   output: { summary: "diff summary", files: ["file"] },
   instructions: `Summarize the diff.`,
 });
 
-const reviewer = agent("reviewer", {
+const reviewer = agent({
+  name: "reviewer",
   input: { diff: "git diff" },
   output: { summary: "review summary", issues: ["issue"] },
   agents: { summarizeDiff },

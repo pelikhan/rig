@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const ciDiagnosis = agent("ciDiagnosis", {
+const ciDiagnosis = agent({
+  name: "ciDiagnosis",
   input: { log: "CI log text" },
   output: {
     failure: "Failure summary",

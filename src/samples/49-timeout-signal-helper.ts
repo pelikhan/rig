@@ -12,7 +12,8 @@ useEngine({
   },
 });
 
-const worker = agent("worker", {
+const worker = agent({
+  name: "worker",
   instructions: `Return a short response in output.text.`,
 });
 

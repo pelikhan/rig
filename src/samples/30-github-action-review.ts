@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const bugReport = agent("bugReport", {
+const bugReport = agent({
+  name: "bugReport",
   input: {
     failure: "test failure",
     environment: "environment details",

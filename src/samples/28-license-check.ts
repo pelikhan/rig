@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const upgradePlan = agent("upgradePlan", {
+const upgradePlan = agent({
+  name: "upgradePlan",
   input: {
     packageJson: "package.json",
     outdated: "npm outdated output",

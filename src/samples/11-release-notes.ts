@@ -1,13 +1,15 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const triage = agent("triage", {
+const triage = agent({
+  name: "triage",
   input: {
     diff: "Pull request diff",
     files: "Changed files",
   },
   output: {
-    area: agent.enum(["runtime", "docs", "tests", "ci", "unknown"]),
-    risk: agent.enum(["low", "medium", "high"]),
+    area: s.enum("runtime", "docs", "tests", "ci", "unknown"),
+    risk: s.enum("low", "medium", "high"),
     reviewers: ["team or person"],
     reason: "Why these reviewers fit",
   },

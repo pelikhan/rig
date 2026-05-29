@@ -1,6 +1,7 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 
-const commandPlanner = agent("commandPlanner", {
+const commandPlanner = agent({
+  name: "commandPlanner",
   input: { goal: "developer goal" },
   output: {
     commands: [{ command: "shell command", purpose: "why run it", readonly: true }],

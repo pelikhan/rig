@@ -1,4 +1,5 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
 const FileSummary = {
   file: "src/index.ts",
@@ -8,18 +9,21 @@ const FileSummary = {
   risks: ["Potential risk"],
 };
 
-const listFiles = agent("listFiles", {
+const listFiles = agent({
+  name: "listFiles",
   output: { files: ["src/index.ts"] },
   instructions: `Parse input.text as newline-delimited file paths.`,
 });
 
-const summarizeFile = agent("summarizeFile", {
+const summarizeFile = agent({
+  name: "summarizeFile",
   input: { file: "src/index.ts", contents: "source code" },
   output: FileSummary,
   instructions: `Summarize the file contents.`,
 });
 
-const corpus = agent("corpus", {
+const corpus = agent({
+  name: "corpus",
   input: { files: [FileSummary] },
   output: {
     summary: "Repository summary",

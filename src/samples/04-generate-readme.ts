@@ -1,4 +1,5 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
 const ShResult = {
   ok: true,
@@ -7,7 +8,8 @@ const ShResult = {
   exitCode: 0,
 };
 
-const diagnose = agent("diagnose", {
+const diagnose = agent({
+  name: "diagnose",
   input: { test: ShResult },
   output: {
     rootCause: "Likely root cause",

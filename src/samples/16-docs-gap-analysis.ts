@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const apiDiff = agent("apiDiff", {
+const apiDiff = agent({
+  name: "apiDiff",
   input: {
     before: "old declarations",
     after: "new declarations",

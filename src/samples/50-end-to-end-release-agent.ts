@@ -1,6 +1,7 @@
 import { agent } from "rig";
 
-const slow = agent("slow", {
+const slow = agent({
+  name: "slow",
   timeout: 5_000,
   instructions: `Return a concise answer.`,
 });

@@ -1,6 +1,7 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 
-const migration = agent("migrationGuide", {
+const migration = agent({
+  name: "migrationGuide",
   input: {
     fromVersion: "1.0.0",
     toVersion: "2.0.0",

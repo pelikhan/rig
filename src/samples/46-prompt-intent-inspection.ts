@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent, s } from "rig";
+import { sh } from "rig/sh";
 
-const owners = agent("owners", {
+const owners = agent({
+  name: "owners",
   input: {
     codeowners: "CODEOWNERS file",
     changedFiles: "changed files",

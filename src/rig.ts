@@ -1,9 +1,6 @@
-import { collectIntents, sh } from "./sh.js";
+import { collectIntents } from "./sh.js";
 import type { ShIntent } from "./sh.js";
 import { copilotEngine } from "./engines/copilot.js";
-
-export { collectIntents, sh };
-export type { ShIntent, ShOptions } from "./sh.js";
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type ValidationResult = { ok: true } | { ok: false; error: string };
@@ -36,13 +33,7 @@ export type Schema =
   | NullableSchema<any>
   | OptionalSchema<any>;
 
-export type LegacyMarker =
-  | { __rig: "enum"; values: readonly Json[] }
-  | { __rig: "literal"; value: Json }
-  | { __rig: "nullable"; shape: SchemaLike }
-  | { __rig: "unknown" };
-
-export type SchemaLike = Schema | LegacyMarker | string | number | boolean | readonly [SchemaLike] | { [key: string]: SchemaLike };
+export type SchemaLike = Schema | string | number | boolean | readonly [SchemaLike] | { [key: string]: SchemaLike };
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
 export type AgentInputValue<T> =
@@ -65,10 +56,6 @@ export type InferSchema<T> =
     & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? never : K]: InferSchema<Fields[K]> }
     & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? K : never]?: Fields[K] extends { kind: "optional"; inner: infer Inner } ? InferSchema<Inner> : never }
   > :
-  T extends { __rig: "enum"; values: infer Values extends readonly unknown[] } ? Values[number] :
-  T extends { __rig: "literal"; value: infer Value } ? Value :
-  T extends { __rig: "nullable"; shape: infer Inner } ? InferSchema<Inner> | null :
-  T extends { __rig: "unknown" } ? unknown :
   T extends string ? string :
   T extends number ? number :
   T extends boolean ? boolean :
@@ -131,25 +118,11 @@ export type AgentSpec<Input extends SchemaLike = ObjectSchema<{ text: StringSche
   agents?: Record<string, AgentFn<any, any>>;
 };
 
-export type LegacyAgentOptions<Input = { text: string }, Output = { text: string }> = {
-  instructions?: string;
-  input?: Input;
-  output?: Output;
-  model?: string;
-  timeout?: number;
-  maxTurns?: number;
-  max_turns?: number;
-  repair?: RepairHandler;
-  permissions?: AgentSpec["permissions"];
-  agents?: Record<string, AgentFn<any, any>>;
-};
-
 export type CallOptions = {
   signal?: AbortSignal;
   timeout?: number;
   model?: string;
   maxTurns?: number;
-  max_turns?: number;
 };
 
 export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValue<Input>, options?: CallOptions) => Promise<Output>) & {
@@ -199,23 +172,19 @@ export function agent<
   const Input extends SchemaLike = ObjectSchema<{ text: StringSchema }>,
   const Output extends SchemaLike = ObjectSchema<{ text: StringSchema }>
 >(spec: AgentSpec<Input, Output>): AgentFn<InferSchema<Input>, InferSchema<Output>>;
-export function agent<
-  const Input = { text: string },
-  const Output = { text: string }
->(name: string, options?: LegacyAgentOptions<Input, Output>): AgentFn<InferSchema<Input>, InferSchema<Output>>;
-export function agent(specOrName: string | AgentSpec<any, any>, maybeOptions: LegacyAgentOptions<any, any> = {}): AgentFn<any, any> {
-  const spec = normalizeSpec(specOrName, maybeOptions);
-  const inputSchema = spec.input ?? s.object({ text: s.string });
-  const outputSchema = spec.output ?? s.object({ text: s.string });
+export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
+  const normalizedSpec = normalizeSpec(spec);
+  const inputSchema = normalizedSpec.input ?? s.object({ text: s.string });
+  const outputSchema = normalizedSpec.output ?? s.object({ text: s.string });
 
   const fn = (async (input: unknown, options: CallOptions = {}) => {
-    const model = options.model ?? spec.model ?? "gpt-4.1";
-    const maxTurns = options.maxTurns ?? options.max_turns ?? spec.maxTurns ?? 4;
-    const signal = timeoutSignal(options.signal, options.timeout ?? spec.timeout);
-    const repair = spec.repair ?? "default";
+    const model = options.model ?? normalizedSpec.model ?? "gpt-4.1";
+    const maxTurns = options.maxTurns ?? normalizedSpec.maxTurns ?? 4;
+    const signal = timeoutSignal(options.signal, options.timeout ?? normalizedSpec.timeout);
+    const repair = normalizedSpec.repair ?? "default";
     const session = getEngine().createSession({ model });
     const normalizedInput = normalizeInput(input, inputSchema);
-    let prompt = renderPrompt(spec, normalizedInput);
+    let prompt = renderPrompt(normalizedSpec, normalizedInput);
     let lastResponse = "";
 
     for (let turn = 1; turn <= maxTurns; turn += 1) {
@@ -231,92 +200,57 @@ export function agent(specOrName: string | AgentSpec<any, any>, maybeOptions: Le
 
         const error = new AgentError({
           kind: "validation",
-          agent: spec.name,
+          agent: normalizedSpec.name,
           turn,
           response: lastResponse,
           schema: outputSchema,
-          message: `Agent ${spec.name} output validation failed: ${result.error}`,
+          message: `Agent ${normalizedSpec.name} output validation failed: ${result.error}`,
         });
 
         if (turn === maxTurns || repair === false) {
           throw error;
         }
 
-        prompt = repairPrompt(spec, error);
+        prompt = repairPrompt(normalizedSpec, error);
         continue;
       }
 
       const error = new AgentError({
         kind: "parse",
-        agent: spec.name,
+        agent: normalizedSpec.name,
         turn,
         response: lastResponse,
         schema: outputSchema,
-        message: `Agent ${spec.name} returned invalid JSON: ${parsed.error}`,
+        message: `Agent ${normalizedSpec.name} returned invalid JSON: ${parsed.error}`,
       });
 
       if (turn === maxTurns || repair === false) {
         throw error;
       }
 
-      prompt = repairPrompt(spec, error);
+      prompt = repairPrompt(normalizedSpec, error);
     }
 
-    throw new Error(`Agent ${spec.name} failed after ${maxTurns} turns. Last response:\n${lastResponse}`);
+    throw new Error(`Agent ${normalizedSpec.name} failed after ${maxTurns} turns. Last response:\n${lastResponse}`);
   }) as AgentFn<any, any>;
 
-  fn.agentName = spec.name;
+  fn.agentName = normalizedSpec.name;
   fn.inputSchema = inputSchema;
   fn.outputSchema = outputSchema;
   fn.inputShape = inputSchema;
   fn.outputShape = outputSchema;
-  fn.spec = spec;
-  fn._namespace = spec.name;
+  fn.spec = normalizedSpec;
+  fn._namespace = normalizedSpec.name;
   return fn;
 }
 
-agent.enum = function legacyEnum<const Values extends readonly Json[]>(values: Values): EnumSchema<Values> {
-  return s.enum(...values);
-};
-agent.literal = function legacyLiteral<Value extends Json>(value: Value): LiteralSchema<Value> {
-  return s.literal(value);
-};
-agent.nullable = function legacyNullable<Inner extends SchemaLike>(inner: Inner): NullableSchema<Inner> {
-  return s.nullable(inner);
-};
-agent.unknown = function legacyUnknown(): UnknownSchema {
-  return s.unknown;
-};
-
-export type AgentFactory = typeof agent & {
-  enum<const Values extends readonly Json[]>(values: Values): EnumSchema<Values>;
-  literal<Value extends Json>(value: Value): LiteralSchema<Value>;
-  nullable<Inner extends SchemaLike>(inner: Inner): NullableSchema<Inner>;
-  unknown(): UnknownSchema;
-};
+export type AgentFactory = typeof agent;
 
 export function validate(value: unknown, schemaLike: SchemaLike): ValidationResult {
   return validateSchema(value, normalizeSchema(schemaLike), "$", false);
 }
 
-function normalizeSpec(specOrName: string | AgentSpec<any, any>, options: LegacyAgentOptions<any, any>): AgentSpec<any, any> {
-  if (typeof specOrName === "string") {
-    const spec: AgentSpec<any, any> = {
-      name: specOrName,
-    };
-    if (options.instructions !== undefined) spec.instructions = options.instructions;
-    if (options.input !== undefined) spec.input = normalizeSchema(options.input);
-    if (options.output !== undefined) spec.output = normalizeSchema(options.output);
-    if (options.model !== undefined) spec.model = options.model;
-    if (options.timeout !== undefined) spec.timeout = options.timeout;
-    const maxTurns = options.maxTurns ?? options.max_turns;
-    if (maxTurns !== undefined) spec.maxTurns = maxTurns;
-    if (options.repair !== undefined) spec.repair = options.repair;
-    if (options.permissions !== undefined) spec.permissions = options.permissions;
-    if (options.agents !== undefined) spec.agents = options.agents;
-    return spec;
-  }
-
+function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   const spec: AgentSpec<any, any> = {
     name: specOrName.name,
   };
@@ -345,20 +279,6 @@ function normalizeInput(input: unknown, schema: Schema): unknown {
 function normalizeSchema(schemaLike: SchemaLike): Schema {
   if (isSchema(schemaLike)) {
     return schemaLike;
-  }
-  if (isLegacyMarker(schemaLike)) {
-    switch (schemaLike.__rig) {
-      case "enum":
-        return s.enum(...schemaLike.values);
-      case "literal":
-        return s.literal(schemaLike.value);
-      case "nullable":
-        return s.nullable(normalizeSchema(schemaLike.shape));
-      case "unknown":
-        return s.unknown;
-      default:
-        throw new Error(`Unknown legacy schema marker: ${(schemaLike as { __rig: string }).__rig}`);
-    }
   }
   if (typeof schemaLike === "string") {
     return s.string;
@@ -601,13 +521,6 @@ function isSchema(value: unknown): value is Schema {
     && typeof value === "object"
     && "kind" in value
     && ["string", "number", "boolean", "unknown", "array", "object", "record", "enum", "literal", "nullable", "optional"].includes((value as { kind: string }).kind);
-}
-
-function isLegacyMarker(value: unknown): value is LegacyMarker {
-  return !!value
-    && typeof value === "object"
-    && "__rig" in value
-    && ["enum", "literal", "nullable", "unknown"].includes((value as { __rig: string }).__rig);
 }
 
 function ok(): ValidationResult {

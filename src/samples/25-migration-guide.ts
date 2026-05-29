@@ -1,6 +1,7 @@
 import { agent } from "rig";
 
-const improve = agent("improveError", {
+const improve = agent({
+  name: "improveError",
   input: { message: "raw error", context_: "context" },
   output: {
     message: "improved error",

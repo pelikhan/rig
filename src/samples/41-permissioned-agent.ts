@@ -1,6 +1,8 @@
-import { agent, sh } from "rig";
+import { agent } from "rig";
+import { sh } from "rig/sh";
 
-const coverage = agent("coverage", {
+const coverage = agent({
+  name: "coverage",
   input: { report: "coverage report" },
   output: {
     files: {
