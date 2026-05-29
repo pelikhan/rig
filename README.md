@@ -5,11 +5,12 @@
 ## Core API
 
 ```ts
-import { agent, s, useEngine, validate } from "rig";
+import { agent, p, s, useEngine, validate } from "rig";
 import { sh } from "rig";
 ```
 
 - `agent(spec)` defines a typed structured agent.
+- `p\`\`` builds instruction strings with inline shell helpers.
 - `s.*` defines explicit schemas.
 - `useEngine(engine)` swaps the runtime engine.
 - `validate(value, schema)` validates JSON-like data.
@@ -76,14 +77,15 @@ You can disable repair with `repair: false` or provide `repair(error) => string`
 ## Shell helpers
 
 Shell helpers are part of the core API. In generated prompts, they are embedded directly into the input payload as "run this bash command" instructions.
+`sh.shell(...)` is an alias for `sh.text(...)` when you want a more natural name inside `p\`\`` instruction templates.
 
 ```ts
-import { agent, s } from "rig";
+import { agent, p, s } from "rig";
 import { sh } from "rig";
 
 const reviewRepo = agent({
   name: "reviewRepo",
-  instructions: "Review the repository status.",
+  instructions: p`Review the repository status using ${sh.shell("git status --short")} first.`,
   input: s.object({
     status: s.string,
     diff: s.string,
@@ -110,7 +112,7 @@ sh.read("README.md")
 sh.write("README.md", "# Updated\n")
 ```
 
-`"rig/sh"` remains as a compatibility import and re-exports core `sh`.
+`"rig/sh"` remains as a compatibility import and re-exports core `sh` and `p`.
 ## Engines
 
 The core engine contract is tiny:
