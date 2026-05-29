@@ -5,6 +5,7 @@ const customEngine: Engine = {
   createSession() {
     return {
       async send() {
+        // Real engines would inspect the prompt and produce a dynamic response.
         return JSON.stringify({ summary: "ok", risk: "low" });
       },
     };

@@ -212,6 +212,7 @@ export function agent(specOrName: string | AgentSpec<any, any>, maybeOptions: Le
     const model = options.model ?? spec.model ?? "gpt-4.1";
     const maxTurns = options.maxTurns ?? options.max_turns ?? spec.maxTurns ?? 4;
     const signal = timeoutSignal(options.signal, options.timeout ?? spec.timeout);
+    const repair = spec.repair ?? "default";
     const session = getEngine().createSession({ model });
     const normalizedInput = normalizeInput(input, inputSchema);
     let prompt = renderPrompt(spec, normalizedInput);
@@ -237,7 +238,7 @@ export function agent(specOrName: string | AgentSpec<any, any>, maybeOptions: Le
           message: `Agent ${spec.name} output validation failed: ${result.error}`,
         });
 
-        if (turn === maxTurns || spec.repair === false) {
+        if (turn === maxTurns || repair === false) {
           throw error;
         }
 
@@ -254,7 +255,7 @@ export function agent(specOrName: string | AgentSpec<any, any>, maybeOptions: Le
         message: `Agent ${spec.name} returned invalid JSON: ${parsed.error}`,
       });
 
-      if (turn === maxTurns || spec.repair === false) {
+      if (turn === maxTurns || repair === false) {
         throw error;
       }
 
@@ -302,7 +303,6 @@ function normalizeSpec(specOrName: string | AgentSpec<any, any>, options: Legacy
   if (typeof specOrName === "string") {
     const spec: AgentSpec<any, any> = {
       name: specOrName,
-      repair: options.repair ?? "default",
     };
     if (options.instructions !== undefined) spec.instructions = options.instructions;
     if (options.input !== undefined) spec.input = normalizeSchema(options.input);
@@ -311,6 +311,7 @@ function normalizeSpec(specOrName: string | AgentSpec<any, any>, options: Legacy
     if (options.timeout !== undefined) spec.timeout = options.timeout;
     const maxTurns = options.maxTurns ?? options.max_turns;
     if (maxTurns !== undefined) spec.maxTurns = maxTurns;
+    if (options.repair !== undefined) spec.repair = options.repair;
     if (options.permissions !== undefined) spec.permissions = options.permissions;
     if (options.agents !== undefined) spec.agents = options.agents;
     return spec;
@@ -318,7 +319,6 @@ function normalizeSpec(specOrName: string | AgentSpec<any, any>, options: Legacy
 
   const spec: AgentSpec<any, any> = {
     name: specOrName.name,
-    repair: specOrName.repair ?? "default",
   };
   if (specOrName.instructions !== undefined) spec.instructions = specOrName.instructions;
   if (specOrName.input !== undefined) spec.input = normalizeSchema(specOrName.input);
@@ -326,6 +326,7 @@ function normalizeSpec(specOrName: string | AgentSpec<any, any>, options: Legacy
   if (specOrName.model !== undefined) spec.model = specOrName.model;
   if (specOrName.timeout !== undefined) spec.timeout = specOrName.timeout;
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
+  if (specOrName.repair !== undefined) spec.repair = specOrName.repair;
   if (specOrName.permissions !== undefined) spec.permissions = specOrName.permissions;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
   return spec;

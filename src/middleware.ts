@@ -111,24 +111,24 @@ function wrapEngine(target: Engine, middleware: Middleware[]): Engine {
     createSession(options: { model: string }): EngineSession {
       const session = target.createSession(options);
       return {
-        async send(prompt: string, request: { signal?: AbortSignal }): Promise<string> {
+        async send(prompt: string, sessionOptions: { signal?: AbortSignal }): Promise<string> {
           const sendContext: MiddlewareContext = {
             kind: "engine",
             event: "send",
             model: options.model,
             prompt,
-            options: request,
+            options: sessionOptions,
           };
 
           try {
             await runMiddleware(sendContext, middleware);
-            const response = await session.send(prompt, request);
+            const response = await session.send(prompt, sessionOptions);
             const resultContext: MiddlewareContext = {
               kind: "engine",
               event: "result",
               model: options.model,
               prompt,
-              options: request,
+              options: sessionOptions,
               response,
             };
             await runMiddleware(resultContext, middleware);
@@ -139,7 +139,7 @@ function wrapEngine(target: Engine, middleware: Middleware[]): Engine {
               event: "error",
               model: options.model,
               prompt,
-              options: request,
+              options: sessionOptions,
               error,
             };
             await runMiddleware(errorContext, middleware);
