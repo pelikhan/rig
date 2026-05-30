@@ -7,7 +7,7 @@ Rig is a minimal TypeScript agent harness. The core runtime (`skills/rig/rig.ts`
 ## Architecture
 
 ```
-skills/rig/rig.ts      — Core runtime (agent, sh, p, copilotEngine, schemas)
+skills/rig/rig.ts      — Core runtime (agent, p, copilotEngine, schemas)
 skills/rig/samples/    — 51 sample agents demonstrating patterns
 src/engines/copilot.test.ts — Copilot engine unit tests (vitest)
 src/rig.test.ts        — Unit tests (vitest)

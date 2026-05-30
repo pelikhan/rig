@@ -346,7 +346,7 @@ describe("shell intents", () => {
     expect(readme.mode).toBe("sh.read");
   });
 
-  it("strips AbortSignal from sh options", () => {
+  it("strips AbortSignal from intent options", () => {
     const controller = new AbortController();
     const intent = p.bash("echo hi", { cwd: "/tmp", signal: controller.signal });
 
