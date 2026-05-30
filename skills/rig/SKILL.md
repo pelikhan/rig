@@ -39,7 +39,7 @@ export default reviewDiff;
 Use this checklist before finalizing generated code:
 
 1. Use a single `import { ... } from "rig"` statement.
-2. Use `agent({ ... })` with explicit `name`, `instructions`, `input`, and `output`.
+2. Use `agent({ ... })` with explicit `name`; keep `instructions` and `output` explicit, and include `input` when the scenario needs it.
 3. Define input/output with `s.object(...)` and explicit `s.*` helpers.
 4. Keep output schema strict (enums/literals for constrained values).
 5. Add a `// Agent role: ...` comment above each agent declaration.
@@ -238,7 +238,7 @@ Use:
 
 Treat fenced `rig` code blocks in markdown as runnable rig programs.
 Run them by extracting the fence content and piping it into `node skills/rig/rig.ts`.
-Inline programs run a no-input root agent and write stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment:
+Inline programs run a root agent with no required external input and write stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment:
 
 ```bash
 cat <<'RIG' | node skills/rig/rig.ts
@@ -254,6 +254,8 @@ RIG
 ```
 
 `import { agent, p, s } from "rig"` is optional in inline mode; the harness injects it if omitted.
+
+Inline mode accepts root agents that either omit `input`, use `input: s.object({})`, or rely on the default `input: s.object({ text: s.string })` (which is invoked with `{ text: "" }`).
 
 The harness also supports program-file mode. Export the root agent as the default export and pass input on stdin:
 
