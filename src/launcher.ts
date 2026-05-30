@@ -39,7 +39,8 @@ function asRootAgent(value: unknown): AgentFn | undefined {
   if (typeof value !== "function") {
     return undefined;
   }
-  if (!("inputSchema" in value) || !("outputSchema" in value)) {
+  const candidate = value as Partial<AgentFn>;
+  if (!candidate.inputSchema || !candidate.outputSchema) {
     return undefined;
   }
   return value as AgentFn;
@@ -56,7 +57,7 @@ function coerceStdinInput(agentFn: AgentFn, text: string): unknown {
   try {
     return JSON.parse(text);
   } catch {
-    return text;
+    throw new Error("Expected stdin to contain JSON for the root agent input schema.");
   }
 }
 
@@ -68,7 +69,7 @@ function renderStdout(value: unknown): string {
     value
     && typeof value === "object"
     && "text" in value
-    && typeof (value as { text?: unknown }).text === "string"
+    && typeof (value as { text: unknown }).text === "string"
   ) {
     return (value as { text: string }).text;
   }
