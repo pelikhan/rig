@@ -1,39 +1,11 @@
-import { agent, p, registerIntentRenderer, s } from "rig";
+import { agent, p, s } from "rig";
 import type { RigEvent } from "rig";
 
-// ─── Custom intent ────────────────────────────────────────────────────────────
-//
-// Analogous to pi-agent's CustomAgentMessages declaration merging.
-// Third-party packages can extend the intent system without modifying rig core.
-
-declare module "rig" {
-  interface CustomIntents {
-    http: HttpIntent;
-  }
-}
-
-interface HttpIntent {
-  __rig: "http";
-  id: string;
-  method: string;
-  url: string;
-}
-
-function httpIntent(method: string, url: string): HttpIntent {
-  return { __rig: "http", id: `http_${Date.now()}`, method, url };
-}
-
-// Register a renderer so rig knows how to inline this intent into the prompt.
-registerIntentRenderer("http", (intent) => {
-  const http = intent as HttpIntent;
-  return `Fetch ${http.method} ${http.url} and return the response body`;
-});
-
-// ─── Agent with custom intent ─────────────────────────────────────────────────
+// ─── Agent using prompt helpers ───────────────────────────────────────────────
 
 const apiSummarizer = agent({
   name: "apiSummarizer",
-  instructions: p`Summarize the response from ${httpIntent("GET", "https://api.example.com/status")}.`,
+  instructions: p`Summarize the response from ${p.result("curl -s https://api.example.com/status")}.`,
   output: s.object({ summary: s.string }),
 });
 

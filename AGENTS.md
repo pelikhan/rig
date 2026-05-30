@@ -52,7 +52,6 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 - **Shape descriptors**: JS values used as type exemplars (e.g., `""` = string, `0` = number, `[""]` = string array). Promoted to schemas via `SchemaLike`.
 - **Schema helpers (`s.*`)**: `s.string`, `s.number`, `s.boolean`, `s.unknown`, `s.array`, `s.object`, `s.record`, `s.enum`, `s.literal`, `s.nullable`, `s.optional`
 - **Shell intents (`sh.*`)**: `sh.text(cmd)` / `sh.shell(cmd)` (alias used inside `p\`\``), `sh.result(cmd)`, `sh.read(path)`, `sh.write(path, content)` — declarative placeholders resolved by the engine, not executed in-process
-- **Custom intents**: Extend the intent system via `CustomIntents` declaration merging + `registerIntentRenderer(namespace, fn)` — analogous to pi-agent's `CustomAgentMessages`
 - **Event subscription**: `myAgent.subscribe(listener)` — observe `call`, `send`, `response`, `result`, `error` events without wrapping — analogous to pi-agent's `Agent.subscribe()`
 - **Prompts**: `p\`...\`` template tag composes instructions with inline `sh.*` helpers
 - **Engine**: Pluggable via `useEngine(engine)`. There is no implicit default — opt in with `useEngine(copilotEngine())` from `rig/engines/copilot`, or supply your own `{ createSession({ model }) => { send(prompt, { signal }) } }`.

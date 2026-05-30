@@ -35,25 +35,7 @@ export type SchemaLike = Schema | string | number | boolean | readonly [SchemaLi
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
-/**
- * Extensible interface for custom intent types.
- * Apps can extend via declaration merging:
- *
- * @example
- * ```typescript
- * declare module "rig" {
- *   interface CustomIntents {
- *     mcp: McpIntent;
- *   }
- * }
- * registerIntentRenderer("mcp", (intent) => `Call MCP: ${JSON.stringify(intent)}`);
- * ```
- */
-export interface CustomIntents {
-  // Empty by default - apps extend via declaration merging
-}
-
-export type AnyIntent = ShIntent | CustomIntents[keyof CustomIntents];
+export type AnyIntent = ShIntent;
 
 export type AgentInputValue<T> =
   T extends readonly (infer Item)[] ? AnyIntent | AgentInputValue<Item>[] :
@@ -695,40 +677,14 @@ function isSchema(value: unknown): value is Schema {
 }
 
 function isAnyIntent(value: unknown): value is AnyIntent {
-  return !!value && typeof value === "object" && typeof (value as { __rig?: unknown }).__rig === "string";
-}
-
-const customIntentRenderers = new Map<string, (intent: unknown) => string>();
-
-/**
- * Register a renderer for a custom intent namespace.
- * Analogous to how pi-agent extensions register custom handlers.
- *
- * @param namespace - The `__rig` namespace string (must not be "sh")
- * @param renderer - Function that converts an intent to a prompt string
- *
- * @example
- * ```typescript
- * registerIntentRenderer("mcp", (intent) => `Call MCP tool: ${JSON.stringify(intent)}`);
- * ```
- */
-export function registerIntentRenderer(namespace: string, renderer: (intent: unknown) => string): void {
-  if (namespace === "sh") {
-    throw new Error("Cannot override built-in 'sh' intent renderer.");
-  }
-  customIntentRenderers.set(namespace, renderer);
+  return !!value
+    && typeof value === "object"
+    && (value as { __rig?: unknown }).__rig === "sh"
+    && typeof (value as { mode?: unknown }).mode === "string";
 }
 
 function renderAnyIntent(intent: AnyIntent): string {
-  const namespace = (intent as { __rig: string }).__rig;
-  if (namespace === "sh") {
-    return renderShellPrompt(intent as ShIntent);
-  }
-  const renderer = customIntentRenderers.get(namespace);
-  if (renderer) {
-    return renderer(intent);
-  }
-  throw new Error(`No renderer registered for intent namespace: "${namespace}". Use registerIntentRenderer() to add one.`);
+  return renderShellPrompt(intent);
 }
 
 async function emitEvent(listeners: Set<RigListener>, event: RigEvent): Promise<void> {
