@@ -4,7 +4,7 @@ import { agent, s } from "rig";
 const writer = agent({
     name: "writer",
     model: "mini",
-    input: s.object({ request: s.string }),
+    input: s.string,
     output: s.object({ draft: s.string }),
     instructions: "Write a helpful, clear response to the request.",
 });
@@ -36,7 +36,7 @@ const reviser = agent({
 });
 
 const request = "Explain how to safely handle and dispose of old batteries.";
-const { draft } = await writer({ request });
+const { draft } = await writer(request);
 const critique = await critic({ request, draft });
 await reviser({ request, draft, issues: critique.issues });
 

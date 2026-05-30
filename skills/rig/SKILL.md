@@ -320,7 +320,7 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 
 ## Patterns to avoid
 
-- Do not invent deprecated hooks or compatibility layers.
+- Do not wrap a single string field in an input object; use `input: s.string` directly.
 - Do not import shell helpers from anywhere except `rig`.
 - Do not require `input` fields just to pass `p.read(...)` / `p.bash(...)` context into instructions.
 - Do not leave outputs as unstructured prose when a schema would help.
