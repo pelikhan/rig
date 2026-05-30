@@ -193,6 +193,23 @@ it("accepts --typecheck flag without rejecting", async () => {
   expect(output.join("")).toBe("done");
 });
 
+it("falls back to the skill tsconfig when cwd tsconfig is missing", async () => {
+  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin.fixture.ts");
+  const cwdWithoutTsconfig = resolve(dirname(fileURLToPath(import.meta.url)), "../skills/rig");
+  const stdin = Readable.from(["Review this patch"]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  await runLauncherCli([fixturePath, "--typecheck"], { cwd: cwdWithoutTsconfig }, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
+});
+
 it("rejects --typecheck when inline program fails typecheck", async () => {
   const stdin = Readable.from([`
 const root = agent({

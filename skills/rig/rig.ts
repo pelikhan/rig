@@ -1,6 +1,6 @@
-import { basename, isAbsolute, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
@@ -370,13 +370,26 @@ function renderStdout(value: unknown): string {
 
 async function typecheckProgram(programPath: string, cwd: string): Promise<void> {
   const execFileAsync = promisify(execFile);
+  const skillTsconfigPath = resolve(dirname(fileURLToPath(import.meta.url)), "tsconfig.json");
+  const candidateTsconfigPaths = [resolve(cwd, "tsconfig.json"), skillTsconfigPath];
+  const baseTsconfigPath = await (async () => {
+    for (const tsconfigPath of candidateTsconfigPaths) {
+      try {
+        await access(tsconfigPath);
+        return tsconfigPath;
+      } catch {
+        // Try the next candidate.
+      }
+    }
+    throw new Error("Typecheck mode requires a tsconfig.json in the current working directory or skills/rig/.");
+  })();
   const tempRoot = resolve(cwd, ".tmp");
   await mkdir(tempRoot, { recursive: true });
   const tempDir = await mkdtemp(resolve(tempRoot, "rig-typecheck-"));
   const projectPath = resolve(tempDir, "tsconfig.typecheck.json");
   try {
     await writeFile(projectPath, JSON.stringify({
-      extends: resolve(cwd, "tsconfig.json"),
+      extends: baseTsconfigPath,
       include: [programPath],
     }), "utf8");
     await execFileAsync("npx", ["tsc", "--project", projectPath, "--pretty", "false"], { cwd });
