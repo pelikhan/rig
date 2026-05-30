@@ -38,6 +38,20 @@ export type Schema =
   | NullableSchema<any>
   | OptionalSchema<any>;
 
+type SchemaPrimitive = string | number | boolean | null;
+type SchemaTuple = readonly [unknown, ...unknown[]];
+type OptionalFieldName<Key extends string> = Key extends `${infer Name}_` ? Name : never;
+type RequiredFieldName<Key extends string> = Key extends "*" | `${string}_` ? never : Key;
+
+export type SchemaLike =
+  | Schema
+  | StringConstructor
+  | NumberConstructor
+  | BooleanConstructor
+  | SchemaPrimitive
+  | SchemaTuple
+  | { [key: string]: SchemaLike };
+
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
 export type AgentInputValue<T> =
@@ -60,6 +74,24 @@ export type InferSchema<T> =
     & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? never : K]: InferSchema<Fields[K]> }
     & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? K : never]?: Fields[K] extends { kind: "optional"; inner: infer Inner } ? InferSchema<Inner> : never }
   > :
+  unknown;
+
+export type InferSchemaLike<T> =
+  T extends Schema ? InferSchema<T> :
+  T extends StringConstructor ? string :
+  T extends NumberConstructor ? number :
+  T extends BooleanConstructor ? boolean :
+  T extends SchemaPrimitive ? T :
+  T extends readonly [infer Item] ? InferSchemaLike<Item>[] :
+  T extends readonly [unknown, unknown, ...unknown[]] ? T[number] extends Json ? T[number] : never :
+  T extends Record<string, unknown> ? (
+    keyof T extends "*"
+      ? T["*"] extends SchemaLike ? Record<string, InferSchemaLike<T["*"]>> : never
+      : Simplify<
+        & { [K in Extract<keyof T, string> as RequiredFieldName<K>]: InferSchemaLike<T[K]> }
+        & { [K in Extract<keyof T, string> as OptionalFieldName<K>]?: InferSchemaLike<T[K]> }
+      >
+  ) :
   unknown;
 
 export const s = {
@@ -136,7 +168,7 @@ function writeEvent(event: unknown): void {
 
 export type RepairHandler = false | "default" | ((error: AgentError) => string);
 
-export type AgentSpec<Input extends Schema = ObjectSchema<{ text: StringSchema }>, Output extends Schema = ObjectSchema<{ text: StringSchema }>> = {
+export type AgentSpec<Input extends SchemaLike = ObjectSchema<{ text: StringSchema }>, Output extends SchemaLike = ObjectSchema<{ text: StringSchema }>> = {
   name: string;
   instructions?: string;
   input?: Input;
@@ -547,9 +579,9 @@ export async function runLauncherCli(
 }
 
 export function agent<
-  const Input extends Schema = ObjectSchema<{ text: StringSchema }>,
-  const Output extends Schema = ObjectSchema<{ text: StringSchema }>
->(spec: AgentSpec<Input, Output>): AgentFn<InferSchema<Input>, InferSchema<Output>>;
+  const Input extends SchemaLike = ObjectSchema<{ text: StringSchema }>,
+  const Output extends SchemaLike = ObjectSchema<{ text: StringSchema }>
+>(spec: AgentSpec<Input, Output>): AgentFn<InferSchemaLike<Input>, InferSchemaLike<Output>>;
 export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const normalizedSpec = normalizeSpec(spec);
   const inputSchema = normalizedSpec.input ?? defaultTextSchema;
@@ -612,18 +644,18 @@ function validate(value: unknown, schema: Schema): ValidationResult {
   return validateSchema(value, schema, "$", false);
 }
 
-function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
-  const spec: AgentSpec<any, any> = {
+type NormalizedAgentSpec = Omit<AgentSpec<any, any>, "input" | "output"> & { input?: Schema; output?: Schema };
+
+function normalizeSpec(specOrName: AgentSpec<any, any>): NormalizedAgentSpec {
+  const spec: NormalizedAgentSpec = {
     name: specOrName.name,
   };
   if (specOrName.instructions !== undefined) spec.instructions = specOrName.instructions;
   if (specOrName.input !== undefined) {
-    assertValidSchema(specOrName.input, specOrName.name, "input");
-    spec.input = specOrName.input;
+    spec.input = normalizeSchemaLike(specOrName.input, specOrName.name, "input");
   }
   if (specOrName.output !== undefined) {
-    assertValidSchema(specOrName.output, specOrName.name, "output");
-    spec.output = specOrName.output;
+    spec.output = normalizeSchemaLike(specOrName.output, specOrName.name, "output");
   }
   if (specOrName.model !== undefined) spec.model = specOrName.model;
   if (specOrName.timeout !== undefined) spec.timeout = specOrName.timeout;
@@ -632,6 +664,57 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   if (specOrName.permissions !== undefined) spec.permissions = specOrName.permissions;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
   return spec;
+}
+
+function normalizeSchemaLike(schema: SchemaLike, agentName: string, slot: "input" | "output", path: string = slot): Schema {
+  if (isSchema(schema)) {
+    assertValidSchema(schema, agentName, slot, path);
+    return schema;
+  }
+  if (schema === String) {
+    return s.string;
+  }
+  if (schema === Number) {
+    return s.number;
+  }
+  if (schema === Boolean) {
+    return s.boolean;
+  }
+  if (schema === null || typeof schema === "string" || typeof schema === "number" || typeof schema === "boolean") {
+    return s.literal(schema);
+  }
+  if (Array.isArray(schema)) {
+    if (schema.length === 1) {
+      return s.array(normalizeSchemaLike(schema[0] as SchemaLike, agentName, slot, `${path}[]`));
+    }
+    if (schema.length > 1 && schema.every(isJsonValue)) {
+      return s.enum(...schema);
+    }
+    throw new Error(`Invalid ${slot} schema for agent "${agentName}" at ${path}. Use [item] for arrays, literal JSON values for enums, or s.* helpers.`);
+  }
+  if (!schema || typeof schema !== "object") {
+    throw new Error(`Invalid ${slot} schema for agent "${agentName}" at ${path}. Use simplified schema values or s.* helpers.`);
+  }
+
+  const entries = Object.entries(schema);
+  if (entries.length === 1 && entries[0]?.[0] === "*") {
+    return s.record(normalizeSchemaLike(entries[0][1] as SchemaLike, agentName, slot, `${path}.*`));
+  }
+  if (entries.some(([key]) => key === "*")) {
+    throw new Error(`Invalid ${slot} schema for agent "${agentName}" at ${path}. {"*": ...} record shorthand cannot be mixed with named fields.`);
+  }
+
+  const fields: Record<string, Schema> = {};
+  for (const [rawKey, value] of entries) {
+    const optional = rawKey.endsWith("_");
+    const key = optional ? rawKey.slice(0, -1) : rawKey;
+    if (!key) {
+      throw new Error(`Invalid ${slot} schema for agent "${agentName}" at ${path}.${rawKey}. Field names cannot be empty.`);
+    }
+    const fieldSchema = normalizeSchemaLike(value as SchemaLike, agentName, slot, `${path}.${key}`);
+    fields[key] = optional ? s.optional(fieldSchema) : fieldSchema;
+  }
+  return s.object(fields);
 }
 
 function normalizeInput(input: unknown, schema: Schema): unknown {
@@ -1103,6 +1186,19 @@ function tag(name: string, value: string): string {
 
 function json(value: unknown): string {
   return JSON.stringify(value, null, 2);
+}
+
+function isJsonValue(value: unknown): value is Json {
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue);
+  }
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  return Object.values(value).every(isJsonValue);
 }
 
 function deepEqual(left: unknown, right: unknown): boolean {

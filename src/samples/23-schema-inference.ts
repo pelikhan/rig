@@ -3,13 +3,13 @@ import { agent, p, s } from "rig";
 const normalize = agent({
     name: "normalizeConfig",
     model: "mini",
-    input: s.object({
-        config: s.string
-    }),
-    output: s.object({
+    input: {
+        config: String
+    },
+    output: {
         normalized: s.unknown,
-        warnings: s.array(s.string)
-    }),
+        warnings: [String]
+    },
     instructions: `Normalize the config into a JSON-compatible object.`,
 });
 await normalize({

@@ -54,11 +54,11 @@ const extractScripts = agent({
   name: "extractScripts",
   model: "nano",
   instructions: p`Read ${p.read("package.json")} and summarize the package scripts. Use ${p.bash("find src -name '*.ts' -type f | sort")} only to call out source files that look relevant.`,
-  output: s.object({
-    scriptsByName: s.record(s.string),
-    summary: s.string,
-    relatedFiles: s.array(s.string),
-  }),
+  output: {
+    scriptsByName: { "*": String },
+    summary: String,
+    relatedFiles: [String],
+  },
 });
 
 export default extractScripts;
@@ -69,6 +69,15 @@ When the context already lives in the workspace, prefer intent templates like th
 ## Schemas
 
 ```ts
+// Shorthand for the common cases.
+String
+Number
+Boolean
+[String]
+["low", "medium", "high"] as const
+{ text: String, confidence_: Number, metadata: { "*": String } }
+
+// Explicit helpers for the full schema surface.
 s.string
 s.number
 s.boolean
@@ -82,8 +91,16 @@ s.nullable(shape)
 s.optional(shape)
 ```
 
-Use declarative `s.*` helpers for every schema node.
-Implicit object literals, trailing-underscore optional fields, and `{"*": ...}` record sugar are not supported.
+Shorthand rules:
+
+- object literals become `s.object(...)`
+- keys ending with `_` become optional fields with the suffix removed
+- `{ "*": value }` becomes `s.record(value)`
+- single-item arrays become `s.array(item)`
+- multi-item literal arrays become `s.enum(...)`
+- literal strings, numbers, booleans, and `null` become `s.literal(...)`
+
+Use `s.*` helpers when you need `unknown`, `nullable`, or more explicit schema composition.
 
 ## Shell intents
 

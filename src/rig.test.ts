@@ -79,6 +79,7 @@ describe("agent", () => {
     mocks.setSendAndWaitImpl(async () => ({
       summary: "Looks good",
       risk: "low",
+      scores: { quality: 3 },
       findings: [{ file: "src/index.ts", message: "Check edge case" }],
     }));
 
@@ -107,16 +108,66 @@ describe("agent", () => {
     expect(result.findings[0]?.line).toBeUndefined();
   });
 
-  it("rejects implicit schema syntax at runtime", () => {
+  it("supports shorthand schema declarations for simple schemas", async () => {
+    mocks.setSendAndWaitImpl(async () => ({
+      summary: "Looks good",
+      risk: "low",
+      findings: [{ file: "src/index.ts", message: "Check edge case" }],
+    }));
+
+    const review = agent({
+      name: "review",
+      input: { diff: String },
+      output: {
+        summary: String,
+        risk: ["low", "medium", "high"] as const,
+        scores: { "*": Number },
+        findings: [{
+          file: String,
+          line_: Number,
+          message: String,
+        }],
+      },
+    });
+
+    expect(review.inputSchema).toEqual(s.object({ diff: s.string }));
+    expect(review.outputSchema).toEqual(s.object({
+      summary: s.string,
+      risk: s.enum("low", "medium", "high"),
+      scores: s.record(s.number),
+      findings: s.array(s.object({
+        file: s.string,
+        line: s.optional(s.number),
+        message: s.string,
+      })),
+    }));
+
+    type Review = Awaited<ReturnType<typeof review>>;
+    const risk: Review["risk"] = "low";
+    const line: Review["findings"][number]["line"] = undefined;
+
+    const result = await review({ diff: "..." });
+    expect(risk).toBe("low");
+    expect(line).toBeUndefined();
+    expect(result.scores.quality).toBe(3);
+    expect(result.findings[0]?.line).toBeUndefined();
+  });
+
+  it("rejects invalid shorthand schema syntax at runtime", () => {
     expect(() => agent({
-      name: "implicit-top-level",
-      input: { text: "go" } as any,
-    })).toThrow(/Use declarative s\.\* schema helpers/);
+      name: "invalid-empty-array",
+      input: { text: [] as unknown as [never] },
+    })).toThrow(/Use \[item\] for arrays/);
 
     expect(() => agent({
-      name: "implicit-nested",
-      input: s.object({ text: "go" as any }),
-    })).toThrow(/input\.text/);
+      name: "invalid-field",
+      input: { text: Date as any },
+    })).toThrow(/Use simplified schema values or s\.\* helpers/);
+
+    expect(() => agent({
+      name: "invalid-record-mix",
+      output: { "*": String, status: String } as any,
+    })).toThrow(/record shorthand cannot be mixed/);
   });
 
   it("does not expose deprecated hook APIs in core", () => {
