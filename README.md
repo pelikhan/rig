@@ -76,14 +76,17 @@ When the context already lives in the workspace, prefer intent templates like th
 
 ```ts
 s.string
+s.string("description")
 s.number
 s.boolean
 s.unknown
-s.array(item)
-s.object(fields)
-s.record(value)
+s.array(item, "description")
+s.object(fields, "description")
+s.record(value, "description")
 s.enum(...values)
+s.enum(values, "description")
 s.optional(shape)
+s.optional(shape, "description")
 ```
 
 Use declarative `s.*` helpers for every schema node.

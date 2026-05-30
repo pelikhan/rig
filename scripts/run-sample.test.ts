@@ -5,7 +5,8 @@
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { readFileSync, readdirSync } from "fs";
-import { mkdir, rm, writeFile } from "fs/promises";
+import { mkdtemp, rm, writeFile } from "fs/promises";
+import { tmpdir } from "os";
 import { resolve } from "path";
 import { Readable, Writable } from "stream";
 import { execFile } from "child_process";
@@ -221,9 +222,7 @@ describe("skill markdown samples", () => {
 
 describe("skill markdown samples typecheck", () => {
   it("typechecks extracted rig programs with npx tsc", async () => {
-    const typecheckDir = resolve(markdownDir, ".tmp-typecheck");
-    await rm(typecheckDir, { recursive: true, force: true });
-    await mkdir(typecheckDir, { recursive: true });
+    const typecheckDir = await mkdtemp(resolve(tmpdir(), "rig-sample-typecheck-"));
     try {
       for (const file of markdownTargets) {
         const markdown = readFileSync(resolve(markdownDir, file), "utf8");
