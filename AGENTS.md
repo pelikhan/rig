@@ -49,7 +49,6 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 - **Shape descriptors**: JS values used as type exemplars (e.g., `""` = string, `0` = number, `[""]` = string array). Promoted to schemas via `SchemaLike`.
 - **Schema helpers (`s.*`)**: `s.string`, `s.number`, `s.boolean`, `s.unknown`, `s.array`, `s.object`, `s.record`, `s.enum`, `s.literal`, `s.nullable`, `s.optional`
 - **Shell intents (`p.*`)**: `p.bash(cmd)`, `p.result(cmd)`, `p.read(path)`, `p.write(path, content)` — declarative placeholders resolved by the engine, not executed in-process
-- **Event subscription**: `myAgent.subscribe(listener)` — observe `call`, `send`, `response`, `result`, `error` events without wrapping — analogous to pi-agent's `Agent.subscribe()`
 - **Prompts**: `p\`...\`` template tag composes instructions with inline `p.*` helpers
 - **Engine**: Pluggable via `useEngine(engine)`. Import `copilotEngine` from `rig` and call `useEngine(copilotEngine())`, or supply your own `{ createSession({ model }) => { send(prompt, { signal }) } }`.
 - **Repair**: `repair: "default"` (or a custom `(error) => string`) re-prompts on parse/validation failure up to `maxTurns`. Disable with `repair: false`.
@@ -60,4 +59,3 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 - `36-subagent-delegation.ts` — focused-agent delegation
 - `47-shell-intents.ts` — shell intent primitives
 - `50-end-to-end-release-agent.ts` — end-to-end release workflow orchestration
-- `51-extensibility.ts` — lifecycle tracing for measuring behavior

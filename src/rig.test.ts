@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { AgentError, agent, p, s, useEngine } from "rig";
-import type { Engine, RigEvent } from "rig";
+import type { Engine } from "rig";
 
 function mockEngine(response: unknown): Engine {
   return {
@@ -86,9 +86,9 @@ describe("agent", () => {
     expect((agent as { use?: unknown }).use).toBeUndefined();
   });
 
-  it("exposes subscribe on the returned agent function", () => {
-    const myAgent = agent({ name: "test-subscribe" });
-    expect(typeof myAgent.subscribe).toBe("function");
+  it("does not expose lifecycle subscription APIs on agents", () => {
+    const myAgent = agent({ name: "test-agent" }) as { subscribe?: unknown };
+    expect(myAgent.subscribe).toBeUndefined();
   });
 });
 
@@ -268,84 +268,6 @@ describe("agent invocation", () => {
     expect(prompts[0]).toContain("Options:");
     expect(prompts[0]).toContain("/tmp/workspace");
     expect(prompts[0]).toContain("before answering.");
-  });
-});
-
-describe("subscribe", () => {
-  it("fires call and result events on a successful run", async () => {
-    useEngine(mockEngine({ text: "hello" }));
-    const events: RigEvent[] = [];
-    const myAgent = agent({ name: "observable", output: s.object({ text: s.string }) });
-    myAgent.subscribe((e) => { events.push(e); });
-
-    await myAgent({ text: "go" });
-
-    expect(events.map((e) => e.type)).toEqual(["call", "send", "response", "result"]);
-    expect(events[0]).toMatchObject({ type: "call", agent: "observable" });
-    expect(events[3]).toMatchObject({ type: "result", agent: "observable", output: { text: "hello" } });
-  });
-
-  it("fires error event on failure and re-throws", async () => {
-    useEngine({
-      createSession() {
-        return { async send() { return "not json"; } };
-      },
-    });
-    const events: RigEvent[] = [];
-    const strict = agent({ name: "strict", repair: false });
-    strict.subscribe((e) => { events.push(e); });
-
-    await expect(strict({ text: "go" })).rejects.toBeInstanceOf(AgentError);
-    expect(events.some((e) => e.type === "error")).toBe(true);
-  });
-
-  it("fires send and response events for each repair turn", async () => {
-    let calls = 0;
-    useEngine({
-      createSession() {
-        return {
-          async send() {
-            calls += 1;
-            return calls === 1 ? "bad json" : JSON.stringify({ text: "ok" });
-          },
-        };
-      },
-    });
-    const events: RigEvent[] = [];
-    const repairable = agent({ name: "repairable", maxTurns: 2 });
-    repairable.subscribe((e) => { events.push(e); });
-
-    await repairable({ text: "go" });
-
-    const sends = events.filter((e) => e.type === "send");
-    const responses = events.filter((e) => e.type === "response");
-    expect(sends.length).toBe(2);
-    expect(responses.length).toBe(2);
-  });
-
-  it("unsubscribes correctly", async () => {
-    useEngine(mockEngine({ text: "hi" }));
-    const events: RigEvent[] = [];
-    const myAgent = agent({ name: "unsub-test" });
-    const unsub = myAgent.subscribe((e) => { events.push(e); });
-
-    unsub();
-    await myAgent({ text: "go" });
-
-    expect(events).toHaveLength(0);
-  });
-
-  it("supports async listeners", async () => {
-    useEngine(mockEngine({ text: "hi" }));
-    const log: string[] = [];
-    const myAgent = agent({ name: "async-listener" });
-    myAgent.subscribe(async (e) => {
-      await Promise.resolve();
-      log.push(e.type);
-    });
-
-    await myAgent({ text: "go" });
-    expect(log).toContain("result");
   });
 });
 

@@ -6,7 +6,6 @@ Minimal TypeScript harness for structured agent calls.
 
 ```ts
 import { agent, p, s, useEngine } from "rig";
-import type { RigEvent } from "rig";
 ```
 
 ## Recommended default pattern
@@ -243,28 +242,6 @@ import { copilotEngine, useEngine } from "rig";
 useEngine(copilotEngine());
 ```
 
-## Extensibility
-
-### Event subscription
-
-Observe lifecycle events on any agent without wrapping it:
-
-```ts
-const unsubscribe = myAgent.subscribe((event: RigEvent) => {
-  if (event.type === "result") console.log(event.output);
-});
-
-unsubscribe();
-```
-
-Event types:
-
-- `call`
-- `send`
-- `response`
-- `result`
-- `error`
-
 ## Patterns to prefer
 
 - Prefer `s.object(...)` for important examples.
@@ -289,6 +266,5 @@ Use only the current API:
 - `agent({ name, ... })`
 - `p.*` and `p\`...\`` from `rig`
 - `s.*` for explicit schema helpers
-- `myAgent.subscribe(listener)` for lifecycle observation
 
 Do not add deprecated hooks or compatibility layers.
