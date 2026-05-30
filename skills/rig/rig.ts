@@ -96,11 +96,15 @@ export type CopilotEngineOptions = Omit<CopilotClientOptions, "connection"> & {
   server?: boolean;
 };
 
+function resolveDefaultCopilotUri(): string {
+  return process.env["COPILOT_SDK_URI"] ?? process.env["AGENT_HTTP_URL"] ?? "localhost:7777";
+}
+
 export function copilotEngine(options: CopilotEngineOptions = {}): CopilotClient {
   const { server, connection, ...clientOptions } = options;
   return new CopilotClient({
     ...clientOptions,
-    connection: connection ?? (server ? RuntimeConnection.forStdio() : RuntimeConnection.forUri(process.env["AGENT_HTTP_URL"] ?? "localhost:7777")),
+    connection: connection ?? (server ? RuntimeConnection.forStdio() : RuntimeConnection.forUri(resolveDefaultCopilotUri())),
   });
 }
 
