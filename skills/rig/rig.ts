@@ -486,17 +486,45 @@ async function runProgramCodeFromStdin(
   }
 }
 
+const launcherHelpArgs = new Set(["--help", "-h", "-help", "-?", "help", "/help", "/h", "/?"]);
+
+function isLauncherHelpArg(arg: string): boolean {
+  return launcherHelpArgs.has(arg.toLowerCase());
+}
+
+function renderLauncherUsage(scriptName: string): string {
+  return [
+    `Usage: ${scriptName} [<program-file>] [--server] [--typecheck]`,
+    "",
+    "Modes:",
+    "  <no program-file>  Read a rig program from stdin and run its default root agent.",
+    "  <program-file>     Read root-agent input from stdin and run the program file.",
+    "",
+    "Help aliases:",
+    "  --help, -h, -help, -?, help, /help, /h, /?",
+    "",
+    "Examples:",
+    `  cat ./program.ts | ${scriptName}`,
+    `  cat ./program.ts | ${scriptName} --typecheck`,
+    `  echo "Summarize this repository" | ${scriptName} src/program.ts`,
+  ].join("\n");
+}
+
 export async function runLauncherCli(
   argv: string[] = process.argv.slice(2),
   options: LaunchOptions = {},
   io: LauncherIo = process,
 ): Promise<void> {
+  const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
+  if (argv.some(isLauncherHelpArg)) {
+    io.stdout.write(`${renderLauncherUsage(scriptName)}\n`);
+    return;
+  }
   const positionalArgs = argv.filter((arg) => !arg.startsWith("--"));
   const flags = argv.filter((arg) => arg.startsWith("--"));
   const serverFlag = flags.includes("--server");
   const typecheckFlag = flags.includes("--typecheck");
   const unknownFlags = flags.filter((f) => f !== "--server" && f !== "--typecheck");
-  const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
   if (positionalArgs.length > 1 || unknownFlags.length > 0) {
     throw new Error(`Usage: ${scriptName} <program-file> [--server] [--typecheck]`);
   }
