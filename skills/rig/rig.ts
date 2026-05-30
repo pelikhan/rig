@@ -262,7 +262,6 @@ type CopilotSession = {
   on?: (handler: (event: unknown) => void) => unknown;
   sendAndWait(request: { prompt: string; signal?: AbortSignal }): Promise<unknown>;
 };
-const execFileAsync = promisify(execFile);
 
 /**
  * Mounts an engine and executes a rig program file.
@@ -370,6 +369,7 @@ function renderStdout(value: unknown): string {
 }
 
 async function typecheckProgram(programPath: string, cwd: string): Promise<void> {
+  const execFileAsync = promisify(execFile);
   const tempRoot = resolve(cwd, ".tmp");
   await mkdir(tempRoot, { recursive: true });
   const tempDir = await mkdtemp(resolve(tempRoot, "rig-typecheck-"));
@@ -467,8 +467,8 @@ export async function runLauncherCli(
   const positionalArgs = argv.filter((arg) => !arg.startsWith("--"));
   const flags = argv.filter((arg) => arg.startsWith("--"));
   const serverFlag = flags.includes("--server");
-  const typecheckFlag = flags.includes("--typecheck") || flags.includes("--type-check");
-  const unknownFlags = flags.filter((f) => f !== "--server" && f !== "--typecheck" && f !== "--type-check");
+  const typecheckFlag = flags.includes("--typecheck");
+  const unknownFlags = flags.filter((f) => f !== "--server" && f !== "--typecheck");
   const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
   if (positionalArgs.length > 1 || unknownFlags.length > 0) {
     throw new Error(`Usage: ${scriptName} <program-file> [--server] [--typecheck]`);
