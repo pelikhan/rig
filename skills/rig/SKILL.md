@@ -2,6 +2,20 @@
 
 Minimal TypeScript agent harness skill for structured agent calls, intended for embedding in markdown with `rig` code fences.
 
+## Install
+
+Install the latest package release:
+
+```bash
+npm install @pelikhan/rig@latest
+```
+
+Or clone the skill for Copilot coding agent:
+
+```bash
+gh skills clone pelikhan/rig
+```
+
 ## Preferred imports
 
 ```ts
