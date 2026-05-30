@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const refactorPlan = agent({
   name: "refactorPlan",
@@ -13,6 +13,6 @@ const refactorPlan = agent({
 });
 
 console.log(await refactorPlan({
-  files: sh.text("find src -type f | sort"),
+  files: p.text("find src -type f | sort"),
   target: "Split validation helpers out of the main runtime file.",
 }));

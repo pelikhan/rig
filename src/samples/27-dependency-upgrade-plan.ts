@@ -13,5 +13,5 @@ const designReview = agent({
 });
 
 console.log(await designReview({
-  proposal: "Add a direct sh.run helper for local execution.",
+  proposal: "Add a direct p.run helper for local execution.",
 }));

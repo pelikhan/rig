@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const flaky = agent({
   name: "flakyAnalysis",
@@ -13,5 +13,5 @@ const flaky = agent({
 });
 
 console.log(await flaky({
-  history: sh.text("cat test-runs/*.log 2>/dev/null || true"),
+  history: p.text("cat test-runs/*.log 2>/dev/null || true"),
 }));

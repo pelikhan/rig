@@ -6,8 +6,7 @@
     ".": "./src/rig.ts",
     "./launcher": "./src/launcher.ts",
     "./engines/copilot": "./src/engines/copilot.ts",
-    "./sh": "./src/sh.ts",
-    "./middleware": "./src/middleware.ts"
+    "./sh": "./src/sh.ts"
   },
   "scripts": {
     "test": "vitest run src/",

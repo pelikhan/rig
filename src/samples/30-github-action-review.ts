@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const bugReport = agent({
   name: "bugReport",
@@ -16,6 +16,6 @@ const bugReport = agent({
 });
 
 console.log(await bugReport({
-  failure: sh.text("npm test 2>&1 || true"),
-  environment: sh.text("node --version && npm --version && uname -a"),
+  failure: p.text("npm test 2>&1 || true"),
+  environment: p.text("node --version && npm --version && uname -a"),
 }));

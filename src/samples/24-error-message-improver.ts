@@ -1,5 +1,5 @@
 import { agent, s } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const inferShape = agent({
   name: "inferShape",
@@ -12,5 +12,5 @@ const inferShape = agent({
 });
 
 console.log(await inferShape({
-  jsonSamples: sh.text("head -100 data/events.ndjson"),
+  jsonSamples: p.text("head -100 data/events.ndjson"),
 }));

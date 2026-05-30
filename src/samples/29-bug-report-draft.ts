@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const licenseCheck = agent({
   name: "licenseCheck",
@@ -13,5 +13,5 @@ const licenseCheck = agent({
 });
 
 console.log(await licenseCheck({
-  packages: sh.text("npm ls --json --all", { purpose: "collect dependency tree" }),
+  packages: p.text("npm ls --json --all", { purpose: "collect dependency tree" }),
 }));

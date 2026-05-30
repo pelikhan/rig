@@ -203,7 +203,26 @@ export type ShIntent = {
 
 let nextIntentId = 1;
 
-export const sh = {
+type PromptHelpers = {
+  (strings: TemplateStringsArray, ...values: unknown[]): string;
+  shell(command: string, options?: ShOptions): ShIntent;
+  text(command: string, options?: ShOptions): ShIntent;
+  result(command: string, options?: ShOptions): ShIntent;
+  read(path: string, options?: ShOptions): ShIntent;
+  write(path: string, contents: string, options?: ShOptions): ShIntent;
+};
+
+function renderPromptTemplate(strings: TemplateStringsArray, ...values: unknown[]): string {
+  let result = strings[0] ?? "";
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    result += isAnyIntent(value) ? renderAnyIntent(value) : String(value);
+    result += strings[index + 1] ?? "";
+  }
+  return result;
+}
+
+export const p: PromptHelpers = Object.assign(renderPromptTemplate, {
   shell(command: string, options?: ShOptions): ShIntent {
     return createIntent("sh.text", withOptions({ command }, options));
   },
@@ -219,42 +238,7 @@ export const sh = {
   write(path: string, contents: string, options?: ShOptions): ShIntent {
     return createIntent("sh.write", withOptions({ path, contents }, options));
   },
-};
-
-export function p(strings: TemplateStringsArray, ...values: unknown[]): string {
-  let result = strings[0] ?? "";
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index];
-    result += isAnyIntent(value) ? renderAnyIntent(value) : String(value);
-    result += strings[index + 1] ?? "";
-  }
-  return result;
-}
-
-export function collectIntents<T>(value: T): { value: T; intents: AnyIntent[] } {
-  const intents: AnyIntent[] = [];
-  const seen = new WeakSet<object>();
-
-  const walk = (current: unknown): unknown => {
-    if (isAnyIntent(current)) {
-      intents.push(current);
-      return { $intent: current.id };
-    }
-    if (!current || typeof current !== "object") {
-      return current;
-    }
-    if (seen.has(current)) {
-      throw new Error("Cannot serialize circular input.");
-    }
-    seen.add(current);
-    if (Array.isArray(current)) {
-      return current.map(walk);
-    }
-    return Object.fromEntries(Object.entries(current).map(([key, item]) => [key, walk(item)]));
-  };
-
-  return { value: walk(value) as T, intents };
-}
+});
 
 export class AgentError extends Error {
   readonly kind: "parse" | "validation";
@@ -383,7 +367,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
 
 export type AgentFactory = typeof agent;
 
-export function validate(value: unknown, schemaLike: SchemaLike): ValidationResult {
+function validate(value: unknown, schemaLike: SchemaLike): ValidationResult {
   return validateSchema(value, normalizeSchema(schemaLike), "$", false);
 }
 

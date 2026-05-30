@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const investigator = agent({
   name: "investigator",
@@ -17,7 +17,7 @@ const investigator = agent({
 });
 
 console.log(await investigator({
-  tree: sh.text("find . -maxdepth 3 -type f | sort"),
-  packageJson: sh.text("cat package.json"),
-  tests: sh.text("find . -name '*test*' -o -name '*spec*'"),
+  tree: p.text("find . -maxdepth 3 -type f | sort"),
+  packageJson: p.text("cat package.json"),
+  tests: p.text("find . -name '*test*' -o -name '*spec*'"),
 }));
