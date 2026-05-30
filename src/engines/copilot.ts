@@ -24,7 +24,7 @@ export function copilotEngine(): Engine {
             return response;
           }
           const value = response as any;
-          return value?.data?.content ?? value?.data?.text ?? value?.text ?? value?.content ?? jsonl(response);
+          return value?.data?.content ?? value?.data?.text ?? value?.text ?? value?.content ?? JSON.stringify(response);
         },
       };
     },
