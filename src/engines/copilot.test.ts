@@ -26,8 +26,8 @@ beforeEach(() => {
   mocks.forStdio.mockClear();
   mocks.forStdio.mockImplementation(() => ({ kind: "stdio" }));
   mocks.copilotClientCtor.mockClear();
-  delete process.env.COPILOT_SDK_URI;
-  delete process.env.AGENT_HTTP_URL;
+  delete process.env["COPILOT_SDK_URI"];
+  delete process.env["AGENT_HTTP_URL"];
   vi.restoreAllMocks();
 });
 
@@ -40,9 +40,9 @@ it("uses a URI (HTTP) connection by default", async () => {
 });
 
 it("prefers COPILOT_SDK_URI over AGENT_HTTP_URL", async () => {
-  process.env.COPILOT_SDK_URI = "http://127.0.0.1:4141";
-  process.env.AGENT_HTTP_URL = "localhost:9999";
-  mocks.forUri.mockImplementation((url: string) => ({ kind: "uri", url }));
+  process.env["COPILOT_SDK_URI"] = "http://127.0.0.1:4141";
+  process.env["AGENT_HTTP_URL"] = "localhost:9999";
+  mocks.forUri.mockImplementation(((url: string) => ({ kind: "uri", url })) as any);
 
   copilotEngine().createSession({ model: "gpt-5", streaming: false } as any);
 
