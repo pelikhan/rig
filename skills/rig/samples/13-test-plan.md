@@ -1,10 +1,11 @@
 # 13 - Test Plan
 
 ```rig
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: review dependency security posture from the provided outputs.
 const securityReview = agent({
     name: "securityReview",
+    model: "mini",
     input: s.object({
         dependencies: s.string,
         audit: s.string
@@ -19,10 +20,10 @@ const securityReview = agent({
     }),
     instructions: `Review dependency security posture from the provided outputs.`,
 });
-console.log(await securityReview({
+await securityReview({
     dependencies: p.bash("npm ls --depth=0"),
     audit: p.bash("npm audit --json", { purpose: "security audit" }),
-}));
+});
 
 export default securityReview;
 ```

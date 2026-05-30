@@ -1,6 +1,8 @@
 import { agent, s } from "rig";
+// Agent role: repair input.text into a JSON-compatible value.
 const repair = agent({
     name: "jsonRepair",
+    model: "mini",
     input: s.object({
         text: s.string
     }),
@@ -10,8 +12,8 @@ const repair = agent({
     }),
     instructions: `Repair input.text into a JSON-compatible value.`,
 });
-console.log(await repair({
+await repair({
     text: "{name: 'rig', trailing: true,}",
-}));
+});
 
 export default repair;

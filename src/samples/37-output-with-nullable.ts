@@ -1,7 +1,8 @@
 import { agent, s } from "rig";
-import { p } from "rig";
+// Agent role: summarize the diff.
 const summarizeDiff = agent({
     name: "summarizeDiff",
+    model: "mini",
     input: s.object({
         diff: s.string
     }),
@@ -11,8 +12,10 @@ const summarizeDiff = agent({
     }),
     instructions: `Summarize the diff.`,
 });
+// Agent role: review the diff. You may use the provided subagent conceptually.
 const reviewer = agent({
     name: "reviewer",
+    model: "mini",
     input: s.string,
     output: s.object({
         summary: s.string,
@@ -21,6 +24,5 @@ const reviewer = agent({
     agents: { summarizeDiff },
     instructions: `Review the diff. You may use the provided subagent conceptually.`,
 });
-console.log(await reviewer(p.bash("git diff -- .")));
 
 export default reviewer;

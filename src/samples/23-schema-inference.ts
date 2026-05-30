@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: normalize the config into a JSON-compatible object.
 const normalize = agent({
     name: "normalizeConfig",
+    model: "mini",
     input: s.object({
         config: s.string
     }),
@@ -11,8 +12,8 @@ const normalize = agent({
     }),
     instructions: `Normalize the config into a JSON-compatible object.`,
 });
-console.log(await normalize({
+await normalize({
     config: p.bash("cat config.json 2>/dev/null || cat config.js"),
-}));
+});
 
 export default normalize;

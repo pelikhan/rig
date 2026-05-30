@@ -2,8 +2,10 @@
 
 ```rig
 import { agent, s } from "rig";
+// Agent role: extract a clear reproduction from the issue.
 const reproducer = agent({
     name: "reproducer",
+    model: "mini",
     input: s.object({
         issueTitle: s.string,
         issueBody: s.string
@@ -16,10 +18,10 @@ const reproducer = agent({
     }),
     instructions: `Extract a clear reproduction from the issue.`,
 });
-console.log(await reproducer({
+await reproducer({
     issueTitle: "Install fails on Windows",
     issueBody: "npm install errors with EPERM when postinstall runs.",
-}));
+});
 
 export default reproducer;
 ```

@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: find documentation gaps against the source API.
 const docsGap = agent({
     name: "docsGap",
+    model: "mini",
     input: s.object({
         source: s.string,
         docs: s.string
@@ -13,9 +14,9 @@ const docsGap = agent({
     }),
     instructions: `Find documentation gaps against the source API.`,
 });
-console.log(await docsGap({
+await docsGap({
     source: p.bash("grep -R \"export \" -n src || true"),
     docs: p.bash("cat README.md docs/*.md 2>/dev/null || true"),
-}));
+});
 
 export default docsGap;

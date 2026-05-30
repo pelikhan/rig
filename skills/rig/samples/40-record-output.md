@@ -1,10 +1,11 @@
 # 40 - Record Output
 
 ```rig
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: extract any JSON object from input.text into raw.
 const extractJson = agent({
     name: "extractJson",
+    model: "mini",
     input: s.object({
         text: s.string
     }),
@@ -14,9 +15,9 @@ const extractJson = agent({
     }),
     instructions: `Extract any JSON object from input.text into raw.`,
 });
-console.log(await extractJson({
+await extractJson({
     text: p.bash("node ./scripts/print-config.js"),
-}));
+});
 
 export default extractJson;
 ```

@@ -1,7 +1,10 @@
 import { agent, s } from "rig";
 
+// Agent role: summarize the diff.
+
 const summarize = agent({
   name: "summarize",
+  model: "mini",
   instructions: "Summarize the diff.",
   input: s.object({
     diff: s.string,
@@ -12,7 +15,5 @@ const summarize = agent({
   maxTurns: 2,
   repair: "default",
 });
-
-console.log(await summarize({ diff: "diff --git a/file.ts b/file.ts" }));
 
 export default summarize;

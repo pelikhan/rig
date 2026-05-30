@@ -1,10 +1,13 @@
 # 47 - Shell Intents
 
 ```rig
-import { agent, s, p } from "rig";
+import { agent, p, s } from "rig";
+
+// Agent role: summarize the current git workspace changes.
 
 const shellIntents = agent({
   name: "shellIntents",
+  model: "mini",
   instructions: "Summarize the current git workspace changes.",
   input: s.object({
     diff: s.string,
@@ -16,12 +19,10 @@ const shellIntents = agent({
   }),
 });
 
-const result = await shellIntents({
+await shellIntents({
   diff: p.bash("git diff -- ."),
   status: p.bash("git status --short"),
 });
-
-console.log(JSON.stringify(result, null, 2));
 
 export default shellIntents;
 ```

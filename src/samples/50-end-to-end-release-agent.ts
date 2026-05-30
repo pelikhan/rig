@@ -1,7 +1,10 @@
 import { agent, p, s } from "rig";
 
+// Agent role: summarize the release candidate changes from the diff and recent commits.
+
 const analyzeChanges = agent({
   name: "analyzeChanges",
+  model: "mini",
   instructions: "Summarize the release candidate changes from the diff and recent commits.",
   input: s.object({
     diff: s.string,
@@ -13,8 +16,11 @@ const analyzeChanges = agent({
   }),
 });
 
+// Agent role: choose the safest semantic version bump for the summarized changes.
+
 const chooseVersion = agent({
   name: "chooseVersion",
+  model: "mini",
   instructions: "Choose the safest semantic version bump for the summarized changes.",
   input: s.object({
     summary: s.string,
@@ -26,8 +32,11 @@ const chooseVersion = agent({
   }),
 });
 
+// Agent role: draft the release title, checklist, and risks for the chosen version bump.
+
 const draftRelease = agent({
   name: "draftRelease",
+  model: "mini",
   instructions: "Draft the release title, checklist, and risks for the chosen version bump.",
   input: s.object({
     bump: s.enum("patch", "minor", "major"),
@@ -49,11 +58,9 @@ const analysis = await analyzeChanges({
 
 const version = await chooseVersion(analysis);
 
-const release = await draftRelease({
+await draftRelease({
   ...analysis,
   ...version,
 });
-
-console.log({ analysis, version, release });
 
 export default analyzeChanges;

@@ -1,6 +1,8 @@
 import { agent, s } from "rig";
+// Agent role: write a concise migration guide.
 const migration = agent({
     name: "migrationGuide",
+    model: "mini",
     input: s.object({
         fromVersion: s.string,
         toVersion: s.string,
@@ -16,10 +18,10 @@ const migration = agent({
     }),
     instructions: `Write a concise migration guide.`,
 });
-console.log(await migration({
+await migration({
     fromVersion: "0.1",
     toVersion: "0.2",
     changes: ["Agents now always receive input objects."],
-}));
+});
 
 export default migration;

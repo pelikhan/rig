@@ -1,10 +1,11 @@
 # 31 - Monorepo Package Map
 
 ```rig
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: review the workflow for reliability, caching, and least privilege.
 const actionReview = agent({
     name: "actionReview",
+    model: "mini",
     input: s.object({
         workflow: s.string
     }),
@@ -15,9 +16,9 @@ const actionReview = agent({
     }),
     instructions: `Review the workflow for reliability, caching, and least privilege.`,
 });
-console.log(await actionReview({
+await actionReview({
     workflow: p.bash("cat .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true"),
-}));
+});
 
 export default actionReview;
 ```

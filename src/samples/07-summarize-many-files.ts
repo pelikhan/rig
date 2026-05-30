@@ -1,7 +1,10 @@
-import { agent, s, p } from "rig";
+import { agent, p, s } from "rig";
+
+// Agent role: summarize the repository file list in one sentence.
 
 const summarizeFiles = agent({
   name: "summarizeFiles",
+  model: "mini",
   instructions: "Summarize the repository file list in one sentence.",
   input: s.object({
     files: s.string,
@@ -11,10 +14,8 @@ const summarizeFiles = agent({
   }),
 });
 
-const result = await summarizeFiles({
+await summarizeFiles({
   files: p.bash("find src -name '*.ts' -type f | sort"),
 });
-
-console.log(result.summary);
 
 export default summarizeFiles;
