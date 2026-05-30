@@ -269,6 +269,18 @@ Pass `--server` to have the harness start the Copilot server automatically befor
 echo "Review this diff" | node skills/rig/rig.ts src/program.ts --server
 ```
 
+To typecheck a rig program before running it, write the snippet to a `.ts` file under this repository and run TypeScript in no-emit mode:
+
+```bash
+cat <<'RIG' > skills/rig/samples/.tmp-program.ts
+import { agent, s } from "rig";
+const root = agent({ name: "review", model: "mini", output: s.object({ text: s.string }) });
+export default root;
+RIG
+npx tsc --noEmit --pretty false
+rm skills/rig/samples/.tmp-program.ts
+```
+
 ## Copilot SDK runtime
 
 `rig` is specialized for Copilot SDK sessions and no longer exposes a custom engine mount API.
