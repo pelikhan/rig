@@ -24,3 +24,5 @@ const result = await reviewDiff({
 
 console.log(result.summary);
 console.log(result.findings);
+
+export default reviewDiff;

@@ -15,3 +15,5 @@ const actionReview = agent({
 console.log(await actionReview({
     workflow: p.bash("cat .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true"),
 }));
+
+export default actionReview;

@@ -26,3 +26,5 @@ const result = await diagnose({
     test: p.result("npm test"),
 });
 console.log(result);
+
+export default diagnose;

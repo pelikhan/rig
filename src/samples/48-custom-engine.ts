@@ -25,3 +25,5 @@ const review = agent({
 
 const result = await review({ diff: "..." });
 console.log(result);
+
+export default review;

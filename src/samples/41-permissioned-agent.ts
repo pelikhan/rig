@@ -17,3 +17,5 @@ const coverage = agent({
 console.log(await coverage({
     report: p.bash("cat coverage/coverage-summary.json"),
 }));
+
+export default coverage;

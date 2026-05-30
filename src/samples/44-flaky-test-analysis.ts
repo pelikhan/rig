@@ -22,3 +22,5 @@ console.log(await snapshotReview({
     testResult: p.result("npm test -- --runInBand"),
     diff: p.bash("git diff -- '*snap*'"),
 }));
+
+export default snapshotReview;

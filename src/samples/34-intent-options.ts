@@ -19,3 +19,5 @@ console.log(await investigator({
     packageJson: p.bash("cat package.json"),
     tests: p.bash("find . -name '*test*' -o -name '*spec*'"),
 }));
+
+export default investigator;

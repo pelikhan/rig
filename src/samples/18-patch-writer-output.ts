@@ -17,3 +17,5 @@ console.log(await refactorPlan({
     files: p.bash("find src -type f | sort"),
     target: "Split validation helpers out of the main runtime file.",
 }));
+
+export default refactorPlan;

@@ -17,3 +17,5 @@ console.log(await classifyIssue({
     title: "CLI exits zero after failed upload",
     body: "The command prints an error but exits with code 0.",
 }));
+
+export default classifyIssue;

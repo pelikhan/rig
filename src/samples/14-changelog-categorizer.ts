@@ -17,3 +17,5 @@ console.log(await planner({
     diff: p.bash("git diff -- ."),
     packageJson: p.bash("cat package.json"),
 }));
+
+export default planner;

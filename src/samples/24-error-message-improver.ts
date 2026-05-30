@@ -18,3 +18,5 @@ const inferShape = agent({
 console.log(await inferShape({
     jsonSamples: p.bash("head -100 data/events.ndjson"),
 }));
+
+export default inferShape;

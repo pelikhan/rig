@@ -11,3 +11,5 @@ const categorize = agent({
     instructions: `Convert the change description to Keep a Changelog style.`,
 });
 console.log(await categorize({ text: "Fix crash when config is missing." }));
+
+export default categorize;

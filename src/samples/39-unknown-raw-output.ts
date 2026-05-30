@@ -12,3 +12,5 @@ const reviewRecord = agent({
     instructions: `Convert the finding into a typed review record.`,
 });
 console.log(await reviewRecord({ finding: "No regression test covers the parser repair path." }));
+
+export default reviewRecord;

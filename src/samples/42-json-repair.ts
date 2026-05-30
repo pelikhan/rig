@@ -29,3 +29,5 @@ const summarize = agent({
 });
 
 console.log(await summarize({ diff: "diff --git a/file.ts b/file.ts" }));
+
+export default summarize;

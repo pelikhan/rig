@@ -55,3 +55,5 @@ const release = await draftRelease({
 });
 
 console.log({ analysis, version, release });
+
+export default analyzeChanges;

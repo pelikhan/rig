@@ -15,3 +15,5 @@ const flaky = agent({
 console.log(await flaky({
     history: p.bash("cat test-runs/*.log 2>/dev/null || true"),
 }));
+
+export default flaky;

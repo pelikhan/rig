@@ -16,3 +16,5 @@ const result = await summarizeFiles({
 });
 
 console.log(result.summary);
+
+export default summarizeFiles;

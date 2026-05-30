@@ -17,3 +17,5 @@ console.log(await reproducer({
     issueTitle: "Install fails on Windows",
     issueBody: "npm install errors with EPERM when postinstall runs.",
 }));
+
+export default reproducer;

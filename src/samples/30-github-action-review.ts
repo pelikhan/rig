@@ -17,3 +17,5 @@ console.log(await bugReport({
     failure: p.bash("npm test 2>&1 || true"),
     environment: p.bash("node --version && npm --version && uname -a"),
 }));
+
+export default bugReport;

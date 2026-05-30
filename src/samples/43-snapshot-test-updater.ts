@@ -13,3 +13,5 @@ const repair = agent({
 console.log(await repair({
     text: "{name: 'rig', trailing: true,}",
 }));
+
+export default repair;

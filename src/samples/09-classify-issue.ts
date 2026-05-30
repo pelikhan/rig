@@ -19,3 +19,5 @@ const result = await classifyIssue({
 });
 
 console.log(result.label, result.confidence);
+
+export default classifyIssue;

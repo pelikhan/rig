@@ -36,3 +36,5 @@ const unsubscribe = apiSummarizer.subscribe((event: RigEvent) => {
 
 // Unsubscribe when done (e.g. on cleanup).
 void unsubscribe;
+
+export default apiSummarizer;
