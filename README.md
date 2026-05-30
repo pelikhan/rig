@@ -126,6 +126,14 @@ For runnable programs, use the launcher CLI to mount the Copilot engine in the h
 ```bash
 node src/launcher.ts src/samples/02-review-git-diff.ts
 ```
+
+For one-shot prompt execution, read the prompt from stdin and print the final answer to stdout:
+
+```bash
+echo "Summarize this repository" | node src/launcher.ts --stdin
+```
+
+Copilot SDK lifecycle events are logged to stderr as JSONL.
 ## Extensibility
 
 - Lifecycle events: `myAgent.subscribe(listener)`

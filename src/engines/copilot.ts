@@ -20,7 +20,7 @@ export function copilotEngine(options: CopilotEngineOptions = {}): Engine {
             streaming: false,
           }).then((session: any) => {
             session.on?.((event: unknown) => {
-              console.log(jsonl({ source: "copilot-sdk", event }));
+              console.error(jsonl({ source: "copilot-sdk", event }));
             });
             return session;
           });

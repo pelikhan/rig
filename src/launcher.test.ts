@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { resolve, dirname } from "node:path";
+import { Readable, Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { agent, s } from "rig";
 import type { Engine } from "rig";
@@ -50,12 +51,27 @@ it("supports cli mode with argv", async () => {
   expect(result).toEqual({ text: "cli-mounted" });
 });
 
+it("supports stdin mode and writes the final answer to stdout", async () => {
+  const stdin = Readable.from(["Review this patch"]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  await runLauncherCli(["--stdin"], { engine: mockEngine({ text: "done" }) }, { stdin, stdout });
+
+  expect(output.join("")).toBe("{\"text\":\"done\"}");
+});
+
 it("requires a program path in cli mode", async () => {
   const originalArgv1 = process.argv[1];
   process.argv[1] = "/tmp/launcher.ts";
   try {
     await expect(runLauncherCli([], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
-      "Usage: launcher.ts <program-file>",
+      "Usage: launcher.ts [<program-file> | --stdin]",
     );
   } finally {
     process.argv[1] = originalArgv1;

@@ -50,14 +50,14 @@ it("preserves explicit client options", async () => {
   });
 });
 
-it("subscribes to all Copilot SDK events and logs JSONL", async () => {
+it("subscribes to all Copilot SDK events and logs JSONL to stderr", async () => {
   const on = vi.fn((handler: (event: unknown) => void) => {
     handler({ type: "session.idle", data: { done: true } });
     return () => {};
   });
   const sendAndWait = vi.fn().mockResolvedValue({ data: { content: "ok" } });
   mocks.createSession.mockResolvedValue({ on, sendAndWait });
-  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
 
   const session = copilotEngine().createSession({ model: "gpt-4.1" });
   await expect(session.send("hello", {})).resolves.toBe("ok");
