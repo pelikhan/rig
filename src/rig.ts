@@ -546,9 +546,9 @@ function inlineShellPrompts<T>(value: T): T {
   return walk(value) as T;
 }
 
-type ParsedResponseResult = { ok: true; output: unknown } | { ok: false; error: AgentError };
+type ResponseAnalysisResult = { ok: true; output: unknown } | { ok: false; error: AgentError };
 
-function analyzeResponse(response: string, outputSchema: Schema, agentName: string, turn: number): ParsedResponseResult {
+function analyzeResponse(response: string, outputSchema: Schema, agentName: string, turn: number): ResponseAnalysisResult {
   const parsed = parseJson(response);
   if (!parsed.ok) {
     return {
