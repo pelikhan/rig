@@ -285,9 +285,24 @@ function asRootAgent(value: unknown): AgentFn | undefined {
   return value as AgentFn;
 }
 
-function hasNoInputSchema(agentFn: AgentFn): boolean {
+function noInputInvocation(agentFn: AgentFn): unknown | undefined {
   const schema = agentFn.inputSchema;
-  return schema.kind === "object" && Object.keys(schema.fields).length === 0;
+  if (schema.kind !== "object") {
+    return undefined;
+  }
+  const keys = Object.keys(schema.fields);
+  if (keys.length === 0) {
+    return {};
+  }
+  if (
+    keys.length === 1
+    && "text" in schema.fields
+    && schema.fields.text?.kind === "string"
+    && schema.fields.text.optional !== true
+  ) {
+    return { text: "" };
+  }
+  return undefined;
 }
 
 function withInjectedRigImport(programCode: string): string {
@@ -375,10 +390,11 @@ async function runProgramCodeFromStdin(
     if (!rootAgent) {
       throw new Error("Expected program to export a root agent as default export.");
     }
-    if (!hasNoInputSchema(rootAgent)) {
-      throw new Error("Expected stdin program root agent to have no input (input: s.object({})).");
+    const input = noInputInvocation(rootAgent);
+    if (input === undefined) {
+      throw new Error("Expected stdin program root agent to have no input (omit input or use input: s.object({})).");
     }
-    const result = await rootAgent({});
+    const result = await rootAgent(input);
     io.stdout.write(renderStdout(result));
   } finally {
     await rm(tempDir, { recursive: true, force: true });

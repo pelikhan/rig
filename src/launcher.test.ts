@@ -204,7 +204,7 @@ it("rejects an inlined stdin program when the root agent requires input", async 
   const stdin = Readable.from([`
 const root = agent({
   name: "launcher-stdin-program-with-input",
-  input: s.object({ text: s.string }),
+  input: s.object({ message: s.string }),
   output: s.object({ text: s.string }),
 });
 export default root;
@@ -216,7 +216,7 @@ export default root;
   });
 
   await expect(runLauncherCli([], {}, { stdin, stdout })).rejects.toThrow(
-    "Expected stdin program root agent to have no input (input: s.object({})).",
+    "Expected stdin program root agent to have no input (omit input or use input: s.object({})).",
   );
 });
 
