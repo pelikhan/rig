@@ -1,7 +1,12 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const createSession = vi.fn();
-const CopilotClient = vi.fn(() => ({ createSession }));
+const { createSession, CopilotClient } = vi.hoisted(() => {
+  const createSession = vi.fn();
+  const CopilotClient = vi.fn(class {
+    createSession = createSession;
+  });
+  return { createSession, CopilotClient };
+});
 
 vi.mock("@github/copilot-sdk", () => ({ CopilotClient }));
 
