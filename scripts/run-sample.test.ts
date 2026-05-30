@@ -5,9 +5,14 @@
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { readFileSync, readdirSync } from "fs";
+import { mkdir, rm, writeFile } from "fs/promises";
 import { resolve } from "path";
 import { Readable, Writable } from "stream";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { runLauncherCli } from "rig";
+
+const execFileAsync = promisify(execFile);
 
 const mocks = vi.hoisted(() => {
   let sendAndWaitImpl: (request: { prompt: string }) => unknown | Promise<unknown> = async () => ({ text: "stub response" });
@@ -147,6 +152,10 @@ function extractRigCode(markdown: string): string {
   return match[1];
 }
 
+function withTypecheckModel(code: string): string {
+  return code.replace(/model:\s*"[^"]+"/g, 'model: "typecheck"');
+}
+
 beforeEach(() => {
   mocks.createSession.mockClear();
   mocks.setSendAndWaitImpl(async ({ prompt }) => generateOutput(prompt));
@@ -178,6 +187,7 @@ describe("skill markdown samples", () => {
   for (const file of markdownTargets) {
     it(file, async () => {
       const code = extractRigCode(readFileSync(resolve(markdownDir, file), "utf8"));
+      const runnableCode = withTypecheckModel(code);
       expect(code.split("\n").length).toBeLessThanOrEqual(30);
       expect(code).toContain("export default");
       expect(code).toContain("// Agent role:");
@@ -188,7 +198,7 @@ describe("skill markdown samples", () => {
       expect((code.match(/^import .* from "rig";$/gm) ?? [])).toHaveLength(1);
       expect(code).not.toMatch(/^await\s+\w+\(/m);
 
-      const stdin = Readable.from([code]);
+      const stdin = Readable.from([runnableCode]);
       const output: string[] = [];
       const stdout = new Writable({
         write(chunk, _encoding, callback) {
@@ -204,4 +214,31 @@ describe("skill markdown samples", () => {
       expect(output.join("")).not.toBe("");
     });
   }
+});
+
+describe("skill markdown samples typecheck", () => {
+  it("typechecks extracted rig programs with npx tsc", async () => {
+    const typecheckDir = resolve(markdownDir, ".tmp-typecheck");
+    await rm(typecheckDir, { recursive: true, force: true });
+    await mkdir(typecheckDir, { recursive: true });
+    try {
+      for (const file of markdownTargets) {
+        const markdown = readFileSync(resolve(markdownDir, file), "utf8");
+        const code = withTypecheckModel(extractRigCode(markdown));
+        const tsFile = resolve(typecheckDir, file.replace(/\.md$/, ".ts"));
+        await writeFile(tsFile, `${code}\n`, "utf8");
+      }
+
+      await execFileAsync(
+        "npx",
+        ["--yes", "--package", "typescript@5.9.3", "--", "tsc", "--noEmit", "--pretty", "false"],
+        {
+          cwd: resolve(__dirname, ".."),
+          env: { ...process.env, npm_config_ignore_scripts: "true" },
+        },
+      );
+    } finally {
+      await rm(typecheckDir, { recursive: true, force: true });
+    }
+  });
 });

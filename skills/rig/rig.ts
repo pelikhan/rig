@@ -1,6 +1,8 @@
-import { basename, isAbsolute, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
 import type { CopilotClientOptions } from "@github/copilot-sdk";
 
@@ -156,6 +158,7 @@ export type CallOptions = {
 export type LaunchOptions = {
   cwd?: string;
   startServer?: boolean;
+  typecheck?: boolean;
 };
 
 export type LauncherIo = {
@@ -365,6 +368,58 @@ function renderStdout(value: unknown): string {
   return JSON.stringify(value);
 }
 
+async function typecheckProgram(programPath: string, cwd: string): Promise<void> {
+  const execFileAsync = promisify(execFile);
+  const skillTsconfigPath = resolve(dirname(fileURLToPath(import.meta.url)), "tsconfig.json");
+  const candidateTsconfigPaths = [resolve(cwd, "tsconfig.json"), skillTsconfigPath];
+  let baseTsconfigPath: string | undefined;
+  for (const tsconfigPath of candidateTsconfigPaths) {
+    try {
+      await access(tsconfigPath);
+      baseTsconfigPath = tsconfigPath;
+      break;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  if (!baseTsconfigPath) {
+    throw new Error(
+      `Typecheck mode requires tsconfig.json at one of: ${candidateTsconfigPaths.join(", ")}`,
+    );
+  }
+  const tempRoot = resolve(cwd, ".tmp");
+  await mkdir(tempRoot, { recursive: true });
+  const tempDir = await mkdtemp(resolve(tempRoot, "rig-typecheck-"));
+  const projectPath = resolve(tempDir, "tsconfig.typecheck.json");
+  try {
+    await writeFile(projectPath, JSON.stringify({
+      extends: baseTsconfigPath,
+      include: [programPath],
+    }), "utf8");
+    await execFileAsync(
+      "npx",
+      ["--yes", "--package", "typescript@5.9.3", "--", "tsc", "--project", projectPath, "--pretty", "false"],
+      {
+        cwd,
+        env: { ...process.env, npm_config_ignore_scripts: "true" },
+      },
+    );
+  } catch (error) {
+    const execError = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
+    if (execError.code === "ENOENT") {
+      throw new Error("Typecheck mode requires `npx tsc` to be available in PATH.");
+    }
+    const diagnostics = [execError.stdout, execError.stderr]
+      .filter((entry) => typeof entry === "string" && entry.trim())
+      .join("\n")
+      .trim();
+    const detail = diagnostics ? `\n${diagnostics}` : "";
+    throw new Error(`Typecheck failed for ${programPath}.${detail}`);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function runRootAgentFromStdin(
   programPath: string,
   options: LaunchOptions = {},
@@ -378,6 +433,9 @@ async function runRootAgentFromStdin(
 
   const cwd = options.cwd ?? process.cwd();
   const resolvedPath = isAbsolute(programPath) ? programPath : resolve(cwd, programPath);
+  if (options.typecheck) {
+    await typecheckProgram(resolvedPath, cwd);
+  }
 
   configureCopilot(resolveCopilotOptions(cwd, options));
   const mod = await import(pathToFileURL(resolvedPath).href);
@@ -397,7 +455,7 @@ async function runProgramCodeFromStdin(
 ): Promise<void> {
   const programCode = await readStdin(io.stdin);
   if (!programCode.trim()) {
-    throw new Error(`Usage: ${scriptName} <program-file> [--server]`);
+    throw new Error(`Usage: ${scriptName} <program-file> [--server] [--typecheck]`);
   }
 
   const cwd = options.cwd ?? process.cwd();
@@ -408,6 +466,9 @@ async function runProgramCodeFromStdin(
   const transformedProgramCode = withInjectedDefaultRootAgent(withInjectedRigImport(programCode));
   await writeFile(tempProgramPath, transformedProgramCode, "utf8");
   try {
+    if (options.typecheck) {
+      await typecheckProgram(tempProgramPath, cwd);
+    }
     configureCopilot(resolveCopilotOptions(cwd, options));
     const mod = await import(pathToFileURL(tempProgramPath).href);
     const rootAgent = asRootAgent(mod.default);
@@ -433,12 +494,17 @@ export async function runLauncherCli(
   const positionalArgs = argv.filter((arg) => !arg.startsWith("--"));
   const flags = argv.filter((arg) => arg.startsWith("--"));
   const serverFlag = flags.includes("--server");
-  const unknownFlags = flags.filter((f) => f !== "--server");
+  const typecheckFlag = flags.includes("--typecheck");
+  const unknownFlags = flags.filter((f) => f !== "--server" && f !== "--typecheck");
   const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
   if (positionalArgs.length > 1 || unknownFlags.length > 0) {
-    throw new Error(`Usage: ${scriptName} <program-file> [--server]`);
+    throw new Error(`Usage: ${scriptName} <program-file> [--server] [--typecheck]`);
   }
-  const mergedOptions: LaunchOptions = serverFlag ? { ...options, startServer: true } : options;
+  const mergedOptions: LaunchOptions = {
+    ...options,
+    ...(serverFlag ? { startServer: true } : {}),
+    ...(typecheckFlag ? { typecheck: true } : {}),
+  };
   if (positionalArgs.length === 1) {
     await runRootAgentFromStdin(positionalArgs[0]!, mergedOptions, io, scriptName);
     return;

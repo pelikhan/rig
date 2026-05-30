@@ -269,6 +269,25 @@ Pass `--server` to have the harness start the Copilot server automatically befor
 echo "Review this diff" | node skills/rig/rig.ts src/program.ts --server
 ```
 
+Pass `--typecheck` to typecheck the rig program before execution:
+
+```bash
+cat <<'RIG' | node skills/rig/rig.ts --typecheck
+const root = agent({
+  name: "review",
+  model: "mini",
+  output: s.object({ text: s.string }),
+});
+export default root;
+RIG
+```
+
+Program-file mode also supports `--typecheck`:
+
+```bash
+echo "Review this diff" | node skills/rig/rig.ts src/program.ts --typecheck
+```
+
 ## Copilot SDK runtime
 
 `rig` is specialized for Copilot SDK sessions and no longer exposes a custom engine mount API.

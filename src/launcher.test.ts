@@ -2,6 +2,8 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { resolve, dirname } from "node:path";
 import { Readable, Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 
 const mocks = vi.hoisted(() => {
   let sendAndWaitImpl: () => unknown | Promise<unknown> = async () => ({ text: "done" });
@@ -175,6 +177,94 @@ it("accepts --server flag without rejecting", async () => {
 
   expect(output.join("")).toBe("done");
   expect(mocks.forStdio).toHaveBeenCalled();
+});
+
+it("accepts --typecheck flag without rejecting", async () => {
+  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin.fixture.ts");
+  const stdin = Readable.from(["Review this patch"]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  await runLauncherCli([fixturePath, "--typecheck"], {}, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
+});
+
+it("falls back to the skill tsconfig when cwd tsconfig is missing", async () => {
+  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin.fixture.ts");
+  const skillDirCwd = resolve(dirname(fileURLToPath(import.meta.url)), "../skills/rig");
+  const stdin = Readable.from(["Review this patch"]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  await runLauncherCli([fixturePath, "--typecheck"], { cwd: skillDirCwd }, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
+});
+
+it("rejects --typecheck when inline program fails typecheck", async () => {
+  const stdin = Readable.from([`
+const root = agent({
+  name: "launcher-stdin-program",
+  instructions: 42,
+  output: s.object({ text: s.string }),
+});
+export default root;
+`]);
+  const stdout = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+
+  await expect(runLauncherCli(["--typecheck"], {}, { stdin, stdout })).rejects.toThrow(
+    /Typecheck failed/,
+  );
+});
+
+it("rejects --typecheck when program file fails typecheck before execution", async () => {
+  const tempDir = await mkdtemp(resolve(tmpdir(), "rig-launcher-test-"));
+  const fixturePath = resolve(tempDir, "typecheck-fail.ts");
+  await writeFile(
+    fixturePath,
+    `
+import { agent, s } from "rig";
+const shouldBeString: string = 42;
+void shouldBeString;
+const root = agent({
+  name: "launcher-typecheck-fail",
+  input: s.object({ text: s.string }),
+  output: s.object({ text: s.string }),
+});
+export default root;
+`,
+    "utf8",
+  );
+  try {
+    const stdin = Readable.from(["Review this patch"]);
+    const stdout = new Writable({
+      write(_chunk, _encoding, callback) {
+        callback();
+      },
+    });
+
+    await expect(runLauncherCli([fixturePath, "--typecheck"], {}, { stdin, stdout })).rejects.toThrow(
+      /Typecheck failed/,
+    );
+    expect(mocks.createSession).not.toHaveBeenCalled();
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 });
 
 it("runs an inlined stdin program by invoking the default no-input root agent", async () => {
