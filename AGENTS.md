@@ -2,20 +2,20 @@
 
 ## Project Overview
 
-Rig is a minimal TypeScript agent harness. The core runtime (`skills/rig/rig.ts`) provides declarative agent construction with typed input/output shapes, shell intents, a pluggable LLM engine, and the built-in Copilot SDK engine.
+Rig is a minimal TypeScript agent harness. The core runtime (`skills/rig/rig.ts`) provides declarative agent construction with typed input/output shapes, shell intents, and a Copilot SDK runtime.
 
 ## Architecture
 
 ```
-skills/rig/rig.ts      — Core runtime (agent, sh, p, validate, useEngine, copilotEngine, schemas)
+skills/rig/rig.ts      — Core runtime (agent, sh, p, copilotEngine, schemas)
 skills/rig/samples/    — 51 sample agents demonstrating patterns
 src/engines/copilot.test.ts — Copilot engine unit tests (vitest)
 src/rig.test.ts        — Unit tests (vitest)
-scripts/run-sample.test.ts — Sample runner with a stub engine (dry-run)
+scripts/run-sample.test.ts — Sample runner with a stub Copilot SDK client (dry-run)
 skills/rig/SKILL.md    — Framework reference docs
 ```
 
-All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest alias). `copilotEngine` is exported directly from `rig`.
+All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest alias). `copilotEngine` is exported directly from `rig` for client construction.
 
 ## Commands
 
@@ -39,10 +39,10 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 ## Testing
 
 - Framework: vitest
-- Tests live in `src/rig.test.ts` (18 tests covering agent definition, invocation, validation, and shell intents)
-- Stub the LLM with a local `mockEngine(response)` helper or inline `useEngine({ createSession: ... })`
+- Tests live in `src/rig.test.ts` (agent definition, invocation, validation, and shell intent coverage)
+- Stub the Copilot SDK client with `vi.mock("@github/copilot-sdk", ...)`
 - All unit tests must pass before committing
-- Samples run via a stub engine that synthesizes shape-conforming output from the prompt's `<output_schema>` block
+- Samples run via a stub Copilot SDK client that synthesizes shape-conforming output from the prompt's `<output_schema>` block
 
 ## Key Concepts
 
@@ -51,7 +51,7 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 - **Shell intents (`p.*`)**: `p.bash(cmd)`, `p.result(cmd)`, `p.read(path)`, `p.write(path, content)` — declarative placeholders resolved by the engine, not executed in-process
 - **Event subscription**: `myAgent.subscribe(listener)` — observe `call`, `send`, `response`, `result`, `error` events without wrapping — analogous to pi-agent's `Agent.subscribe()`
 - **Prompts**: `p\`...\`` template tag composes instructions with inline `p.*` helpers
-- **Engine**: Pluggable via `useEngine(engine)`. Import `copilotEngine` from `rig` and call `useEngine(copilotEngine())`, or supply your own `{ createSession({ model }) => { send(prompt, { signal }) } }`.
+- **Runtime transport**: Copilot SDK sessions are created by the harness; use launcher `--server` to switch to stdio transport.
 - **Repair**: `repair: "default"` (or a custom `(error) => string`) re-prompts on parse/validation failure up to `maxTurns`. Disable with `repair: false`.
 
 ## Sample guide

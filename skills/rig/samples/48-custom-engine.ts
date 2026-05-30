@@ -1,18 +1,4 @@
-import { agent, s, useEngine } from "rig";
-import type { Engine } from "rig";
-
-const customEngine: Engine = {
-  createSession() {
-    return {
-      async send() {
-        // Real engines would inspect the prompt and produce a dynamic response.
-        return JSON.stringify({ summary: "ok", risk: "low" });
-      },
-    };
-  },
-};
-
-useEngine(customEngine);
+import { agent, s } from "rig";
 
 const review = agent({
   name: "review",

@@ -90,55 +90,17 @@ export const s = {
 
 const defaultTextSchema = s.object({ text: s.string });
 
-export type Engine = {
-  createSession(options: { model: string }): EngineSession;
-};
-
-export type EngineSession = {
-  send(prompt: string, options: { signal?: AbortSignal }): Promise<string>;
-};
-
 export type CopilotEngineOptions = Omit<CopilotClientOptions, "connection"> & {
   connection?: CopilotClientOptions["connection"];
   server?: boolean;
 };
 
-export function copilotEngine(options: CopilotEngineOptions = {}): Engine {
+export function copilotEngine(options: CopilotEngineOptions = {}): CopilotClient {
   const { server, connection, ...clientOptions } = options;
-  const client = new CopilotClient({
+  return new CopilotClient({
     ...clientOptions,
     connection: connection ?? (server ? RuntimeConnection.forStdio() : RuntimeConnection.forUri(process.env["AGENT_HTTP_URL"] ?? "localhost:7777")),
   });
-
-  return {
-    createSession(sessionOptions: { model: string }): EngineSession {
-      let sessionPromise: Promise<any> | undefined;
-      return {
-        async send(prompt: string, request: { signal?: AbortSignal }): Promise<string> {
-          sessionPromise ??= client.createSession({
-            model: sessionOptions.model,
-            streaming: false,
-          }).then((session: any) => {
-            session.on?.((event: unknown) => {
-              process.stderr.write(`${jsonl({ source: "copilot-sdk", event })}\n`);
-            });
-            return session;
-          });
-
-          const session = await sessionPromise;
-          const response = await session.sendAndWait({ prompt, signal: request.signal } as any);
-          if (!response) {
-            return "";
-          }
-          if (typeof response === "string") {
-            return response;
-          }
-          const value = response as any;
-          return value?.data?.content ?? value?.data?.text ?? value?.text ?? value?.content ?? JSON.stringify(response);
-        },
-      };
-    },
-  };
 }
 
 function jsonl(value: unknown): string {
@@ -182,7 +144,6 @@ export type CallOptions = {
 
 export type LaunchOptions = {
   cwd?: string;
-  engine?: Engine;
   startServer?: boolean;
 };
 
@@ -310,11 +271,12 @@ export class AgentError extends Error {
   }
 }
 
-let currentEngine: Engine | undefined;
-
-export function useEngine(engine: Engine): void {
-  currentEngine = engine;
-}
+let currentCopilotOptions: CopilotEngineOptions | undefined;
+let currentCopilotClient: CopilotClient | undefined;
+type CopilotSession = {
+  on?: (handler: (event: unknown) => void) => unknown;
+  sendAndWait(request: { prompt: string; signal?: AbortSignal }): Promise<unknown>;
+};
 
 /**
  * Mounts an engine and executes a rig program file.
@@ -322,10 +284,9 @@ export function useEngine(engine: Engine): void {
  */
 export async function launchRigProgram(programPath: string, options: LaunchOptions = {}): Promise<void> {
   const cwd = options.cwd ?? process.cwd();
-  const engine = options.engine ?? copilotEngine(resolveEngineOptions(cwd, options));
   const resolvedPath = isAbsolute(programPath) ? programPath : resolve(cwd, programPath);
 
-  useEngine(engine);
+  configureCopilot(resolveCopilotOptions(cwd, options));
   await import(pathToFileURL(resolvedPath).href);
 }
 
@@ -337,7 +298,7 @@ async function readStdin(stream: NodeJS.ReadableStream): Promise<string> {
   return chunks.join("");
 }
 
-function resolveEngineOptions(cwd: string, options: LaunchOptions): { workingDirectory: string } | { workingDirectory: string; server: true } {
+function resolveCopilotOptions(cwd: string, options: LaunchOptions): { workingDirectory: string } | { workingDirectory: string; server: true } {
   return options.startServer ? { workingDirectory: cwd, server: true } : { workingDirectory: cwd };
 }
 
@@ -394,10 +355,9 @@ async function runRootAgentFromStdin(
   }
 
   const cwd = options.cwd ?? process.cwd();
-  const engine = options.engine ?? copilotEngine(resolveEngineOptions(cwd, options));
   const resolvedPath = isAbsolute(programPath) ? programPath : resolve(cwd, programPath);
 
-  useEngine(engine);
+  configureCopilot(resolveCopilotOptions(cwd, options));
   const mod = await import(pathToFileURL(resolvedPath).href);
   const rootAgent = asRootAgent(mod.default);
   if (!rootAgent) {
@@ -438,7 +398,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
 
   const fn = (async (input: unknown, options: CallOptions = {}) => {
     const runtime = resolveCallRuntime(normalizedSpec, options);
-    const session = getEngine().createSession({ model: runtime.model });
+    const session = createCopilotSession(runtime.model);
     const normalizedInput = normalizeInput(input, inputSchema);
     let prompt = renderPrompt(normalizedSpec, normalizedInput);
     let lastResponse = "";
@@ -449,7 +409,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
       for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
         throwIfAborted(runtime.signal);
         await emitEvent(listeners, { type: "send", agent: normalizedSpec.name, turn, prompt });
-        lastResponse = await session.send(prompt, runtime.signal ? { signal: runtime.signal } : {});
+        lastResponse = await sendCopilotPrompt(session, prompt, runtime.signal);
         await emitEvent(listeners, { type: "response", agent: normalizedSpec.name, turn, response: lastResponse });
 
         const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
@@ -811,9 +771,36 @@ function withOptions<T extends Omit<Partial<ShIntent>, "__rig" | "id" | "mode">>
   return options ? { ...value, options: stripSignal(options) } : value;
 }
 
-function getEngine(): Engine {
-  currentEngine ??= copilotEngine();
-  return currentEngine;
+function configureCopilot(options: CopilotEngineOptions): void {
+  currentCopilotOptions = options;
+  currentCopilotClient = undefined;
+}
+
+function getCopilotClient(): CopilotClient {
+  currentCopilotClient ??= copilotEngine(currentCopilotOptions);
+  return currentCopilotClient;
+}
+
+async function createCopilotSession(model: string): Promise<CopilotSession> {
+  const session = await getCopilotClient().createSession({ model, streaming: false }) as CopilotSession;
+  session.on?.((event: unknown) => {
+    process.stderr.write(`${jsonl({ source: "copilot-sdk", event })}\n`);
+  });
+  return session;
+}
+
+async function sendCopilotPrompt(sessionPromise: Promise<CopilotSession>, prompt: string, signal?: AbortSignal): Promise<string> {
+  const session = await sessionPromise;
+  const request = signal ? { prompt, signal } : { prompt };
+  const response = await session.sendAndWait(request);
+  if (!response) {
+    return "";
+  }
+  if (typeof response === "string") {
+    return response;
+  }
+  const value = response as any;
+  return value?.data?.content ?? value?.data?.text ?? value?.text ?? value?.content ?? JSON.stringify(response);
 }
 
 function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
