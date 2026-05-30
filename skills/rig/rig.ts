@@ -10,18 +10,19 @@ import type { CopilotClientOptions } from "@github/copilot-sdk";
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type ValidationResult = { ok: true } | { ok: false; error: string };
 
-export type StringSchema = { kind: "string" };
-export type NumberSchema = { kind: "number" };
-export type BooleanSchema = { kind: "boolean" };
-export type UnknownSchema = { kind: "unknown" };
-export type ArraySchema<Item extends Schema = Schema> = { kind: "array"; item: Item };
+export type StringSchema = { kind: "string"; description?: string };
+export type NumberSchema = { kind: "number"; description?: string };
+export type BooleanSchema = { kind: "boolean"; description?: string };
+export type UnknownSchema = { kind: "unknown"; description?: string };
+export type ArraySchema<Item extends Schema = Schema> = { kind: "array"; item: Item; description?: string };
 export type ObjectSchema<Fields extends Record<string, Schema> = Record<string, Schema>> = {
   kind: "object";
   fields: Fields;
+  description?: string;
 };
-export type RecordSchema<Value extends Schema = Schema> = { kind: "record"; value: Value };
-export type EnumSchema<Values extends readonly Json[] = readonly Json[]> = { kind: "enum"; values: Values };
-export type OptionalSchema<Inner extends Schema = Schema> = { kind: "optional"; inner: Inner };
+export type RecordSchema<Value extends Schema = Schema> = { kind: "record"; value: Value; description?: string };
+export type EnumSchema<Values extends readonly Json[] = readonly Json[]> = { kind: "enum"; values: Values; description?: string };
+export type OptionalSchema<Inner extends Schema = Schema> = { kind: "optional"; inner: Inner; description?: string };
 
 export type Schema =
   | StringSchema
@@ -33,6 +34,33 @@ export type Schema =
   | RecordSchema<any>
   | EnumSchema<any>
   | OptionalSchema<any>;
+
+type PrimitiveSchemaFactory<T extends Schema> = T & ((description?: string) => T);
+
+function createPrimitiveSchema<T extends Schema>(kind: T["kind"]): PrimitiveSchemaFactory<T> {
+  const base = { kind } as T;
+  const factory = ((description?: string) => (description === undefined ? base : { ...base, description } as T)) as PrimitiveSchemaFactory<T>;
+  return Object.assign(factory, base);
+}
+
+type EnumSchemaFactory = {
+  <const Values extends readonly Json[]>(...values: Values): EnumSchema<Values>;
+  <const Values extends readonly Json[]>(values: Values, description?: string): EnumSchema<Values>;
+};
+
+const createEnumSchema: EnumSchemaFactory = (...valuesOrTuple: readonly Json[]) => {
+  if (
+    Array.isArray(valuesOrTuple[0])
+    && valuesOrTuple.length <= 2
+    && (valuesOrTuple.length === 1 || typeof valuesOrTuple[1] === "string")
+  ) {
+    const values = valuesOrTuple[0] as readonly Json[];
+    const description = valuesOrTuple[1] as string | undefined;
+    return description === undefined ? { kind: "enum", values } : { kind: "enum", values, description };
+  }
+  const values = valuesOrTuple as readonly Json[];
+  return { kind: "enum", values };
+};
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
@@ -57,24 +85,22 @@ export type InferSchema<T> =
   unknown;
 
 export const s = {
-  string: { kind: "string" } as StringSchema,
-  number: { kind: "number" } as NumberSchema,
-  boolean: { kind: "boolean" } as BooleanSchema,
-  unknown: { kind: "unknown" } as UnknownSchema,
-  array<Item extends Schema>(item: Item): ArraySchema<Item> {
-    return { kind: "array", item };
+  string: createPrimitiveSchema<StringSchema>("string"),
+  number: createPrimitiveSchema<NumberSchema>("number"),
+  boolean: createPrimitiveSchema<BooleanSchema>("boolean"),
+  unknown: createPrimitiveSchema<UnknownSchema>("unknown"),
+  array<Item extends Schema>(item: Item, description?: string): ArraySchema<Item> {
+    return description === undefined ? { kind: "array", item } : { kind: "array", item, description };
   },
-  object<Fields extends Record<string, Schema>>(fields: Fields): ObjectSchema<Fields> {
-    return { kind: "object", fields };
+  object<Fields extends Record<string, Schema>>(fields: Fields, description?: string): ObjectSchema<Fields> {
+    return description === undefined ? { kind: "object", fields } : { kind: "object", fields, description };
   },
-  record<Value extends Schema>(value: Value): RecordSchema<Value> {
-    return { kind: "record", value };
+  record<Value extends Schema>(value: Value, description?: string): RecordSchema<Value> {
+    return description === undefined ? { kind: "record", value } : { kind: "record", value, description };
   },
-  enum<const Values extends readonly Json[]>(...values: Values): EnumSchema<Values> {
-    return { kind: "enum", values };
-  },
-  optional<Inner extends Schema>(inner: Inner): OptionalSchema<Inner> {
-    return { kind: "optional", inner };
+  enum: createEnumSchema,
+  optional<Inner extends Schema>(inner: Inner, description?: string): OptionalSchema<Inner> {
+    return description === undefined ? { kind: "optional", inner } : { kind: "optional", inner, description };
   },
 };
 
@@ -776,23 +802,26 @@ function renderSchema(schema: Schema): string {
 
 function renderSchemaNode(schema: Schema, indent: number): string {
   const pad = "  ".repeat(indent);
+  const describe = (text: string): string => (
+    schema.description ? `${text} /* ${schema.description.replaceAll("*/", "*\\/").replaceAll("\n", " ").trim()} */` : text
+  );
   switch (schema.kind) {
     case "string":
-      return "string";
+      return describe("string");
     case "number":
-      return "number";
+      return describe("number");
     case "boolean":
-      return "boolean";
+      return describe("boolean");
     case "unknown":
-      return "unknown";
+      return describe("unknown");
     case "enum":
-      return schema.values.map((value: Json) => JSON.stringify(value)).join(" | ");
+      return describe(schema.values.map((value: Json) => JSON.stringify(value)).join(" | "));
     case "optional":
-      return `${renderSchemaNode(schema.inner, indent)} | undefined`;
+      return describe(`${renderSchemaNode(schema.inner, indent)} | undefined`);
     case "array":
-      return `${renderSchemaNode(schema.item, indent)}[]`;
+      return describe(`${renderSchemaNode(schema.item, indent)}[]`);
     case "record":
-      return `{\n${pad}  [key: string]: ${renderSchemaNode(schema.value, indent + 1)};\n${pad}}`;
+      return describe(`{\n${pad}  [key: string]: ${renderSchemaNode(schema.value, indent + 1)};\n${pad}}`);
     case "object": {
       const lines = ["{"];
       for (const [key, value] of Object.entries(schema.fields) as [string, Schema][]) {
@@ -803,7 +832,7 @@ function renderSchemaNode(schema: Schema, indent: number): string {
         }
       }
       lines.push(`${pad}}`);
-      return lines.join("\n");
+      return describe(lines.join("\n"));
     }
   }
 }
@@ -1027,7 +1056,7 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
 
 function isSchema(value: unknown): value is Schema {
   return !!value
-    && typeof value === "object"
+    && (typeof value === "object" || typeof value === "function")
     && "kind" in value
     && ["string", "number", "boolean", "unknown", "array", "object", "record", "enum", "optional"].includes((value as { kind: string }).kind);
 }

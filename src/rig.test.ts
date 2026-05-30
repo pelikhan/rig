@@ -337,6 +337,27 @@ describe("agent invocation", () => {
     expect(prompts[0]).toContain("before answering.");
   });
 
+  it("renders schema descriptions for discovery", async () => {
+    const prompts: string[] = [];
+
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      return { text: "ok" };
+    });
+
+    const describeSchema = agent({
+      name: "describe-schema",
+      output: s.object({
+        text: s.string("Final answer text"),
+      }, "Response payload"),
+    });
+
+    await describeSchema({ text: "go" });
+
+    expect(prompts[0]).toContain("text: string /* Final answer text */;");
+    expect(prompts[0]).toContain("} /* Response payload */");
+  });
+
   it("renders subagent metadata for delegated task-solving prompts", async () => {
     const prompts: string[] = [];
 
