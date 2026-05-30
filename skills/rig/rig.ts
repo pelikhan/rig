@@ -285,6 +285,18 @@ function asRootAgent(value: unknown): AgentFn | undefined {
   return value as AgentFn;
 }
 
+function hasNoInputSchema(agentFn: AgentFn): boolean {
+  const schema = agentFn.inputSchema;
+  return schema.kind === "object" && Object.keys(schema.fields).length === 0;
+}
+
+function withInjectedRigImport(programCode: string): string {
+  if (/\bfrom\s*["']rig["']/.test(programCode)) {
+    return programCode;
+  }
+  return `import { agent, p, s } from "rig";\n\n${programCode}`;
+}
+
 function coerceStdinInput(agentFn: AgentFn, text: string): unknown {
   const schema = agentFn.inputSchema;
   if (schema.kind === "string") {
@@ -355,9 +367,19 @@ async function runProgramCodeFromStdin(
   await mkdir(tempRoot, { recursive: true });
   const tempDir = await mkdtemp(resolve(tempRoot, "rig-stdin-"));
   const tempProgramPath = resolve(tempDir, "program.ts");
-  await writeFile(tempProgramPath, programCode, "utf8");
+  await writeFile(tempProgramPath, withInjectedRigImport(programCode), "utf8");
   try {
-    await launchRigProgram(tempProgramPath, options);
+    configureCopilot(resolveCopilotOptions(cwd, options));
+    const mod = await import(pathToFileURL(tempProgramPath).href);
+    const rootAgent = asRootAgent(mod.default);
+    if (!rootAgent) {
+      throw new Error("Expected program to export a root agent as default export.");
+    }
+    if (!hasNoInputSchema(rootAgent)) {
+      throw new Error("Expected stdin program root agent to have no input (input: s.object({})).");
+    }
+    const result = await rootAgent({});
+    io.stdout.write(renderStdout(result));
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

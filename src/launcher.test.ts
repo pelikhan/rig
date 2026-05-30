@@ -177,23 +177,19 @@ it("accepts --server flag without rejecting", async () => {
   expect(mocks.forStdio).toHaveBeenCalled();
 });
 
-it("runs a program piped on stdin when no program path is provided", async () => {
+it("runs an inlined stdin program by invoking the default no-input root agent", async () => {
   const stdin = Readable.from([`
-import { agent, s } from "rig";
-
 const root = agent({
   name: "launcher-stdin-program",
-  input: s.object({ text: s.string }),
   output: s.object({ text: s.string }),
+  instructions: "Write a short note.",
 });
-
-const result = await root({ text: "Review this patch" });
-(globalThis as { __launcherStdinProgramResult?: string }).__launcherStdinProgramResult = result.text;
+export default root;
 `]);
-  const globalState = globalThis as { __launcherStdinProgramResult?: string };
-delete globalState.__launcherStdinProgramResult;
+  const output: string[] = [];
   const stdout = new Writable({
-    write(_chunk, _encoding, callback) {
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
       callback();
     },
   });
@@ -201,7 +197,27 @@ delete globalState.__launcherStdinProgramResult;
   mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
   await runLauncherCli([], {}, { stdin, stdout });
 
-  expect(globalState.__launcherStdinProgramResult).toBe("done");
+  expect(output.join("")).toBe("done");
+});
+
+it("rejects an inlined stdin program when the root agent requires input", async () => {
+  const stdin = Readable.from([`
+const root = agent({
+  name: "launcher-stdin-program-with-input",
+  input: s.object({ text: s.string }),
+  output: s.object({ text: s.string }),
+});
+export default root;
+`]);
+  const stdout = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+
+  await expect(runLauncherCli([], {}, { stdin, stdout })).rejects.toThrow(
+    "Expected stdin program root agent to have no input (input: s.object({})).",
+  );
 });
 
 it("requires a non-empty stdin program when no program path is provided", async () => {
