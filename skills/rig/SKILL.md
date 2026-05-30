@@ -6,7 +6,6 @@ Minimal TypeScript harness for structured agent calls.
 
 ```ts
 import { agent, p, s } from "rig";
-import type { RigEvent } from "rig";
 ```
 
 ## Recommended default pattern
@@ -237,28 +236,6 @@ echo "Review this diff" | node skills/rig/rig.ts src/program.ts --server
 `rig` is specialized for Copilot SDK sessions and no longer exposes a custom engine mount API.
 Use `--server` at launch time when you want the harness to start the Copilot server via stdio.
 
-## Extensibility
-
-### Event subscription
-
-Observe lifecycle events on any agent without wrapping it:
-
-```ts
-const unsubscribe = myAgent.subscribe((event: RigEvent) => {
-  if (event.type === "result") console.log(event.output);
-});
-
-unsubscribe();
-```
-
-Event types:
-
-- `call`
-- `send`
-- `response`
-- `result`
-- `error`
-
 ## Patterns to prefer
 
 - Prefer `s.object(...)` for important examples.
@@ -283,6 +260,5 @@ Use only the current API:
 - `agent({ name, ... })`
 - `p.*` and `p\`...\`` from `rig`
 - `s.*` for explicit schema helpers
-- `myAgent.subscribe(listener)` for lifecycle observation
 
 Do not add deprecated hooks or compatibility layers.

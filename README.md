@@ -83,7 +83,6 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 - `skills/rig/samples/36-subagent-delegation.ts` — delegation between focused agents
 - `skills/rig/samples/47-shell-intents.ts` — shell/file intents as structured inputs
 - `skills/rig/samples/50-end-to-end-release-agent.ts` — multi-step release planning workflow
-- `skills/rig/samples/51-extensibility.ts` — lifecycle instrumentation for observing runs
 
 ## Agent behavior
 
@@ -120,11 +119,6 @@ echo "Summarize this repository" | node skills/rig/rig.ts src/program.ts
 ```
 
 Copilot SDK lifecycle events are logged to stderr as JSONL.
-## Extensibility
-
-- Lifecycle events: `myAgent.subscribe(listener)`
-
-Event types: `call`, `send`, `response`, `result`, `error`.
 
 ## Local development
 

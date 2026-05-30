@@ -152,21 +152,6 @@ export type LauncherIo = {
   stdout: NodeJS.WritableStream;
 };
 
-/**
- * Lifecycle events emitted by an agent during a call.
- * Subscribe via `myAgent.subscribe(listener)`.
- *
- * Analogous to pi-agent's `AgentEvent`.
- */
-export type RigEvent =
-  | { type: "call"; agent: string; input: unknown; options: CallOptions }
-  | { type: "send"; agent: string; turn: number; prompt: string }
-  | { type: "response"; agent: string; turn: number; response: string }
-  | { type: "result"; agent: string; output: unknown }
-  | { type: "error"; agent: string; error: unknown };
-
-export type RigListener = (event: RigEvent) => void | Promise<void>;
-
 export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValue<Input>, options?: CallOptions) => Promise<Output>) & {
   agentName: string;
   inputSchema: Schema;
@@ -175,20 +160,6 @@ export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValu
   outputShape: Schema;
   spec: AgentSpec<any, any>;
   _namespace: string;
-  /**
-   * Subscribe to agent lifecycle events without wrapping the agent.
-   * Returns an unsubscribe function.
-   *
-   * Analogous to pi-agent's `Agent.subscribe()`.
-   *
-   * @example
-   * ```typescript
-   * const unsubscribe = myAgent.subscribe((event) => {
-   *   if (event.type === "result") console.log("output:", event.output);
-   * });
-   * ```
-   */
-  subscribe(listener: RigListener): () => void;
 };
 
 export type ShOptions = {
@@ -394,8 +365,6 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const inputSchema = normalizedSpec.input ?? defaultTextSchema;
   const outputSchema = normalizedSpec.output ?? defaultTextSchema;
 
-  const listeners = new Set<RigListener>();
-
   const fn = (async (input: unknown, options: CallOptions = {}) => {
     const runtime = resolveCallRuntime(normalizedSpec, options);
     const session = createCopilotSession(runtime.model);
@@ -403,33 +372,23 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
     let prompt = renderPrompt(normalizedSpec, normalizedInput);
     let lastResponse = "";
 
-    await emitEvent(listeners, { type: "call", agent: normalizedSpec.name, input, options });
+    for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
+      throwIfAborted(runtime.signal);
+      lastResponse = await sendCopilotPrompt(session, prompt, runtime.signal);
 
-    try {
-      for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
-        throwIfAborted(runtime.signal);
-        await emitEvent(listeners, { type: "send", agent: normalizedSpec.name, turn, prompt });
-        lastResponse = await sendCopilotPrompt(session, prompt, runtime.signal);
-        await emitEvent(listeners, { type: "response", agent: normalizedSpec.name, turn, response: lastResponse });
-
-        const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
-        if (analysis.ok) {
-          await emitEvent(listeners, { type: "result", agent: normalizedSpec.name, output: analysis.output });
-          return analysis.output;
-        }
-
-        if (turn === runtime.maxTurns || runtime.repair === false) {
-          throw analysis.error;
-        }
-
-        prompt = repairPrompt(normalizedSpec, analysis.error);
+      const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
+      if (analysis.ok) {
+        return analysis.output;
       }
 
-      throw new Error(`Agent ${normalizedSpec.name} failed after ${runtime.maxTurns} turns. Last response:\n${lastResponse}`);
-    } catch (error) {
-      await emitEvent(listeners, { type: "error", agent: normalizedSpec.name, error });
-      throw error;
+      if (turn === runtime.maxTurns || runtime.repair === false) {
+        throw analysis.error;
+      }
+
+      prompt = repairPrompt(normalizedSpec, analysis.error);
     }
+
+    throw new Error(`Agent ${normalizedSpec.name} failed after ${runtime.maxTurns} turns. Last response:\n${lastResponse}`);
   }) as AgentFn<any, any>;
 
   fn.agentName = normalizedSpec.name;
@@ -439,10 +398,6 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   fn.outputShape = outputSchema;
   fn.spec = normalizedSpec;
   fn._namespace = normalizedSpec.name;
-  fn.subscribe = (listener: RigListener) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  };
   return fn;
 }
 
@@ -860,11 +815,6 @@ function renderAnyIntent(intent: AnyIntent): string {
   return renderShellPrompt(intent);
 }
 
-async function emitEvent(listeners: Set<RigListener>, event: RigEvent): Promise<void> {
-  for (const listener of listeners) {
-    await listener(event);
-  }
-}
 function ok(): ValidationResult {
   return { ok: true };
 }
