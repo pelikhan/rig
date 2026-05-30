@@ -1,5 +1,3 @@
-import { copilotEngine } from "./engines/copilot.js";
-
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type ValidationResult = { ok: true } | { ok: false; error: string };
 
@@ -287,6 +285,35 @@ let currentEngine: Engine | undefined;
 
 export function useEngine(engine: Engine): void {
   currentEngine = engine;
+}
+
+export function copilotEngine(): Engine {
+  return {
+    createSession(options: { model: string }): EngineSession {
+      let session: any;
+      return {
+        async send(prompt: string, request: { signal?: AbortSignal }): Promise<string> {
+          if (!session) {
+            const { CopilotClient } = await import("@github/copilot-sdk");
+            session = await new CopilotClient().createSession({
+              model: options.model,
+              streaming: false,
+            });
+          }
+          const response = await session.sendAndWait({ prompt, signal: request.signal } as any);
+          if (typeof response === "string") {
+            return response;
+          }
+          const value = response as any;
+          return value?.text ?? value?.content ?? value?.data?.text ?? value?.data?.content ?? JSON.stringify(response);
+        },
+      };
+    },
+  };
+}
+
+export function useCopilotEngine(): void {
+  useEngine(copilotEngine());
 }
 
 export function agent<

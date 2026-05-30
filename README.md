@@ -140,14 +140,16 @@ type EngineSession = {
 };
 ```
 
-The default Copilot SDK engine lives in a separate module:
+Rig ships with a built-in Copilot helper:
 
 ```ts
-import { useEngine } from "rig";
-import { copilotEngine } from "rig/engines/copilot";
+import { useCopilotEngine } from "rig";
 
-useEngine(copilotEngine());
+useCopilotEngine();
 ```
+
+`useCopilotEngine()` wires up the default engine via `useEngine(copilotEngine())`.
+`copilotEngine()` is also exported from `rig` and re-exported by `rig/engines/copilot`.
 
 ## Extensibility
 

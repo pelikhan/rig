@@ -1,6 +1,16 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { AgentError, agent, collectIntents, p, registerIntentRenderer, s, sh, useEngine, validate } from "rig";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AgentError, agent, collectIntents, p, registerIntentRenderer, s, sh, useCopilotEngine, useEngine, validate } from "rig";
 import type { Engine, RigEvent } from "rig";
+
+vi.mock("@github/copilot-sdk", () => ({
+  CopilotClient: class {
+    async createSession(): Promise<{ sendAndWait: (_request: unknown) => Promise<string> }> {
+      return {
+        sendAndWait: async () => JSON.stringify({ text: "copilot" }),
+      };
+    }
+  },
+}));
 
 function mockEngine(response: unknown): Engine {
   return {
@@ -170,6 +180,12 @@ describe("agent invocation", () => {
         model = options.model;
         return { async send() { return JSON.stringify({ text: "ok" }); } };
       },
+    });
+
+    it("configures the built-in Copilot engine helper", async () => {
+      useCopilotEngine();
+      const run = agent({ name: "built-in-copilot" });
+      await expect(run({ text: "hello" })).resolves.toEqual({ text: "copilot" });
     });
 
     const call = agent({ name: "model-test", model: "gpt-4.1" });
