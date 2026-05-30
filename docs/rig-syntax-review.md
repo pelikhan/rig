@@ -1,117 +1,155 @@
 # Rig syntax review
 
-This review scores **50 agentic harness scenarios** in `src/samples/` (samples `02` through `51`) as examples of current rig syntax.
+This review covers the current rig syntax as expressed in:
 
-## Scoring rubric
+- `src/rig.ts`
+- `skills/rig/SKILL.md`
+- all 50 sample programs in `src/samples/` (`02` through `51`)
 
-- **Solution quality**: how well the sample demonstrates a useful agentic harness pattern.
-- **Naturalness**: how likely an agent is to reproduce the pattern correctly without extra coaching.
-- Scale: `1` weak, `3` acceptable, `5` exemplary.
+## Overall score
 
-## Summary
+**Correct-generation score: `7.0 / 10`**
 
-- **Overall solution quality:** `3.7 / 5`
-- **Overall naturalness for sample generation:** `3.4 / 5`
-- **Genetic friendliness index** (how reliably agents can mutate/recombine the syntax into correct new programs): `3.5 / 5`
-- **Most agent-friendly patterns:** explicit `s.*` schemas, short `agent({ ... })` specs, inline `sh.*` inputs, small focused outputs.
-- **Least agent-friendly patterns:** alternate schema spellings, advanced options that are absent from the skill doc, and examples that rely on implicit sugar instead of the explicit `s.*` form.
+Why it is above average:
 
-## What the current syntax does well
+- `rig.ts` exposes a very small, regular surface area: `agent(...)`, `s.*`, `p.*`, `useEngine(...)`, call options, and lifecycle events.
+- `SKILL.md` teaches a clear canonical pattern and a good generation checklist.
+- the runtime prompt contract is stable and easy to reason about.
 
-1. `agent({ name, instructions, input, output })` is small and memorable.
-2. `sh.text`, `sh.result`, `sh.read`, and `sh.write` read naturally inside inputs and `p\`\`` templates.
-3. `s.object`, `s.enum`, `s.literal`, `s.nullable`, and `s.record` make structured outputs easy to validate.
-4. Call-time overrides such as `timeout`, `model`, `maxTurns`, and `signal` are compact.
-5. `permissions` and `agents` make advanced harnesses possible without changing the core API.
+Why it is not higher:
 
-## Where agents are likely to drift
+- the sample corpus does not reinforce the canonical style strongly enough.
+- most samples use shorthand schema literals, while the skill teaches explicit `s.object(...)`.
+- many sample filenames no longer match the program body, which makes retrieval-by-filename unreliable for agents.
+- `npm run sample` currently has four failing samples, so the runnable corpus is not fully trustworthy as a training set.
 
-1. Some samples use alternate schema spellings instead of the explicit `s.*` form, which makes the API easier to miscopy.
-2. `permissions`, `agents`, `collectIntents`, and call-time options are real syntax, but they are not surfaced clearly enough in the skill doc.
-3. The samples do not consistently reinforce one canonical schema style.
-4. Some sample names are stronger than the code they currently contain, so an agent can overgeneralize from the filename instead of the actual pattern.
+## Evidence snapshot
 
-## Recommendations to make rig more genetically friendly
+- total samples reviewed: **50**
+- samples using explicit `s.object(...)` input schemas: **5**
+- samples using explicit `s.object(...)` output schemas: **6**
+- samples using shorthand object-literal schemas: **40**
+- samples using `p.*` shell/file placeholders: **34**
+- samples using `permissions`: **4**
+- samples using `agents`: **1**
+- samples using `p\`...\`` templates: **1**
+- samples using `.subscribe(...)`: **1**
 
-1. **Prefer explicit schemas in teaching docs.** Use `s.object(...)` as the default and only documented style.
-2. **Show one recommended template first.** Teach one “good default” agent shape before presenting variants.
-3. **Separate spec-time from call-time options.** Put `timeout`, `model`, `maxTurns`, and `signal` into their own section.
-4. **Promote advanced fields into the main spec table.** Include `permissions` and `agents` alongside `name`, `instructions`, `input`, and `output`.
-5. **Call out anti-patterns.** Tell agents not to invent alternate schema spellings when the explicit `s.*` form is available.
-6. **Bias examples toward structured outputs.** Small typed outputs are easier for agents to mimic than raw prose-only agents.
+## `src/rig.ts` review
 
-## Distilled generation rules
+### What works well
 
-1. Always start with `agent({ name, instructions, input, output })`.
-2. Keep schemas explicit with `s.object(...)` + `s.*` primitives.
-3. Keep outputs narrow and typed; avoid prose-only outputs when schema is possible.
-4. Use `sh.*` helpers as declarative input placeholders.
-5. Use `permissions`, `agents`, and call-time overrides only when scenario needs them.
-6. Treat this as the canonical order for sample generation: core agent shape → explicit schema → shell intents → advanced options → extensibility.
+1. **Small syntax surface.** `agent`, `s`, `p`, `useEngine`, and call-time overrides are enough to express most programs.
+2. **Consistent runtime contract.** The prompt renderer always emits `<instructions>`, `<output_schema>`, `<input>`, and `<rules>`, with optional `<permissions>` and `<subagents>` blocks.
+3. **Useful schema normalization.** `normalizeSchema()` lets authors use explicit `s.*` helpers or shorthand object/array/literal forms.
+4. **Advanced features stay composable.** `permissions`, `agents`, `repair`, and lifecycle subscriptions layer on top of the same base syntax.
+5. **Defaults are pragmatic.** `agent()` defaults `model` to `gpt-4.1`, `maxTurns` to `4`, and falls back to `copilotEngine()` when no engine was installed explicitly.
 
-## Scenario scores
+### Agentic friction points
 
-| # | Sample | Scenario | Solution | Naturalness | Notes |
-|---|--------|----------|----------|-------------|-------|
-| 02 | `02-review-git-diff.ts` | Diff review with optional line numbers | 4 | 4 | Strong structured review output. |
-| 03 | `03-diagnose-test-failure.ts` | Test failure diagnosis | 3 | 2 | Alternate schema sugar reduces discoverability. |
-| 04 | `04-generate-readme.ts` | README generation | 3 | 3 | Natural task, light schema pressure. |
-| 05 | `05-write-readme-intent.ts` | File write intent generation | 3 | 2 | `s.literal` is good; write-intent framing needs coaching. |
-| 06 | `06-list-source-files.ts` | Source file inventory with permissions | 3 | 2 | Realistic, but `permissions` is not taught clearly. |
-| 07 | `07-summarize-many-files.ts` | Multi-file summarization | 3 | 3 | Useful batch summarization pattern. |
-| 08 | `08-extract-package-scripts.ts` | Package script extraction | 4 | 4 | Compact and easy to imitate. |
-| 09 | `09-classify-issue.ts` | Issue classification | 5 | 5 | Best beginner sample; simple task and crisp enums. |
-| 10 | `10-triage-pr.ts` | PR triage | 4 | 4 | Strong real-world workflow shape. |
-| 11 | `11-release-notes.ts` | Release note drafting | 4 | 3 | Useful, but prose-heavy outputs are less constrained. |
-| 12 | `12-security-scan-review.ts` | Security scan review | 3 | 2 | Alternate schema sugar makes this less discoverable. |
-| 13 | `13-test-plan.ts` | Regression test planning | 4 | 3 | Good planning harness; moderate structure. |
-| 14 | `14-changelog-categorizer.ts` | Changelog categorization | 4 | 4 | Clear categorical output. |
-| 15 | `15-api-diff-summary.ts` | API diff summarization | 4 | 3 | Good pattern, moderate schema ambiguity. |
-| 16 | `16-docs-gap-analysis.ts` | Documentation gap analysis | 4 | 3 | Useful review pattern, moderate naturalness. |
-| 17 | `17-refactor-plan.ts` | Refactor planning | 4 | 3 | Common harness, but structure could be stricter. |
-| 18 | `18-patch-writer-output.ts` | Patch payload generation | 4 | 3 | Valuable but more specialized. |
-| 19 | `19-fix-then-review.ts` | Fix and review workflow | 4 | 4 | Good compound workflow; `permissions` is meaningful. |
-| 20 | `20-issue-reproducer.ts` | Repro step generation | 4 | 3 | Good developer task framing. |
-| 21 | `21-ci-log-diagnosis.ts` | CI log diagnosis | 4 | 3 | Strong scenario, slightly verbose pattern. |
-| 22 | `22-config-normalizer.ts` | Config normalization | 4 | 3 | Good typed transform example. |
-| 23 | `23-schema-inference.ts` | Schema inference | 4 | 4 | Clear advanced use of `s.unknown`. |
-| 24 | `24-error-message-improver.ts` | Error message improvement | 3 | 2 | `s.unknown` plus prose output is easy to miscopy. |
-| 25 | `25-migration-guide.ts` | Migration guide writing | 3 | 3 | Practical, but alternate schema sugar is opaque. |
-| 26 | `26-design-review.ts` | Design review | 4 | 4 | Strong analysis harness shape. |
-| 27 | `27-dependency-upgrade-plan.ts` | Dependency upgrade plan | 4 | 3 | Good practical workflow. |
-| 28 | `28-license-check.ts` | License review | 3 | 3 | Fine reference sample. |
-| 29 | `29-bug-report-draft.ts` | Bug report drafting | 3 | 3 | Natural task, moderate schema value. |
-| 30 | `30-github-action-review.ts` | GitHub Action review | 4 | 3 | Useful, but domain-specific. |
-| 31 | `31-monorepo-package-map.ts` | Monorepo package mapping | 4 | 3 | Good inventory pattern. |
-| 32 | `32-command-planner.ts` | Command planning | 4 | 3 | Useful planning harness with moderate structure. |
-| 33 | `33-readonly-investigator.ts` | Readonly investigation | 4 | 3 | Good controlled-agent pattern. |
-| 34 | `34-intent-options.ts` | Intent options and permissions | 4 | 3 | Important syntax, but not documented enough. |
-| 35 | `35-call-options.ts` | Call option overrides | 4 | 3 | Good feature coverage; should be in the skill guide. |
-| 36 | `36-subagent-delegation.ts` | Subagent delegation | 4 | 3 | Valuable advanced pattern; concept needs explanation. |
-| 37 | `37-output-with-nullable.ts` | Subagent-aware reviewer | 5 | 4 | `agents` is compact and powerful. |
-| 38 | `38-exact-literal-output.ts` | Literal and nullable output | 5 | 5 | Excellent example of precise extraction. |
-| 39 | `39-unknown-raw-output.ts` | Raw structured payload | 4 | 4 | Clear example of `s.literal` and `s.unknown`. |
-| 40 | `40-record-output.ts` | Record-shaped output | 4 | 4 | Strong `s.record` example. |
-| 41 | `41-permissioned-agent.ts` | Permissioned-agent style record output | 3 | 3 | Good record pattern, but alternate schema sugar is hidden. |
-| 42 | `42-json-repair.ts` | Repair and retry | 5 | 4 | Important behavior and easy to justify. |
-| 43 | `43-snapshot-test-updater.ts` | Snapshot update planning | 3 | 3 | Useful but more task-specific. |
-| 44 | `44-flaky-test-analysis.ts` | Flaky test analysis | 3 | 2 | Alternate schema sugar reduces readability. |
-| 45 | `45-code-owner-suggestion.ts` | Code owner suggestion | 3 | 3 | Fine reference example. |
-| 46 | `46-prompt-intent-inspection.ts` | Prompt and intent inspection | 4 | 4 | Strong introspection sample. |
-| 47 | `47-validate-output.ts` | Intent collection and validation | 5 | 4 | Excellent advanced sample. |
-| 48 | `48-custom-engine.ts` | Custom engine wiring | 5 | 4 | Strong systems-level example. |
-| 49 | `49-timeout-signal-helper.ts` | Timeout and abort handling | 4 | 3 | Good operational pattern. |
-| 50 | `50-end-to-end-release-agent.ts` | End-to-end release agent control flow | 4 | 4 | Small and memorable, with the sample currently emphasizing timeout and abort control. |
-| 51 | `51-extensibility.ts` | Custom intents and lifecycle events | 5 | 5 | Best advanced sample; captures the API direction well. |
+1. **Two valid schema styles compete.** The runtime accepts both shorthand and explicit schemas, but only one can realistically become the agent's default habit.
+2. **Some important behavior is implicit.** The auto-installed default engine and the exact rendered prompt shape are discoverable in `rig.ts`, not obvious from the samples alone.
+3. **Optional-field sugar is terse but hidden.** The trailing-underscore rule is convenient for humans and easy for agents to miss.
+4. **Advanced syntax is under-sampled.** `agents`, `subscribe`, `repair`, and prompt templates exist in the runtime, but the corpus gives them very little repetition.
 
-## Distilled guidance for `SKILL.md`
+## `skills/rig/SKILL.md` review
 
-The skill file should teach this order:
+### Strengths
 
-1. Start with one explicit `agent({ ... })` template.
-2. Show explicit `s.object(...)` schemas as the default.
-3. Add shell intents next.
-4. Add `permissions`, `agents`, and call-time overrides after the core path.
-5. End with extensibility and validation helpers.
+1. It teaches one canonical starting shape: `agent({ name, instructions, input, output })`.
+2. It strongly prefers explicit `s.object(...)` + `s.*`, which is the most reproducible style for code generation.
+3. It clearly separates spec-time fields from call-time overrides.
+4. It documents `permissions`, `agents`, repair, prompt helpers, engines, and lifecycle events using the current public API.
 
-That ordering matches what the current samples reward, improves natural sample generation, and reduces the chance that an agent invents unsupported syntax.
+### Gaps
+
+1. The skill does not explicitly call out that the runtime also accepts shorthand schemas, so agents that learn from samples can see a style the skill does not frame.
+2. The skill does not show the rendered prompt contract from `rig.ts`, even though that contract explains why some patterns are robust.
+3. The skill is more canonical than the sample corpus, so the repository currently teaches two different defaults.
+4. The skill does not mention that `agent()` falls back to `copilotEngine()` when no engine has been installed.
+
+## Sample corpus review
+
+### High-level findings
+
+1. **The samples are valid syntax, but not a single canonical dialect.** The runtime-normalized shorthand dominates the corpus.
+2. **Filename drift is now a real retrieval problem.** Examples:
+   - `04-generate-readme.ts` contains a test-diagnosis harness.
+   - `10-triage-pr.ts` contains issue classification.
+   - `45-code-owner-suggestion.ts` contains flaky-test analysis.
+   - `46-prompt-intent-inspection.ts` contains code-owner suggestion.
+   - `49-timeout-signal-helper.ts` demonstrates custom engine wiring.
+   - `50-end-to-end-release-agent.ts` demonstrates timeout/abort handling.
+3. **The corpus over-represents shorthand schemas and under-represents advanced syntax.** This makes beginner generation easy to start but harder to keep canonical.
+4. **Runnable confidence is slightly degraded.** `npm run sample` currently fails for samples `43`-`46` under the stub runner because their required output shapes are stricter than the fallback repaired response.
+
+### Per-sample syntax inventory
+
+| # | Sample | Syntax profile | Agentic note |
+|---|--------|----------------|--------------|
+| 02 | `02-review-git-diff.ts` | explicit `s.object(...)` + `p.text(...)` | Best canonical starter sample. |
+| 03 | `03-diagnose-test-failure.ts` | shorthand schemas + `p.text(...)` | Valid, but it teaches non-canonical sugar immediately. |
+| 04 | `04-generate-readme.ts` | shorthand schemas + `p.result(...)` | Syntax is fine; filename/body mismatch hurts retrieval. |
+| 05 | `05-write-readme-intent.ts` | shorthand + `s.literal(...)` + `p.text(...)` | Good literal example, still non-canonical overall. |
+| 06 | `06-list-source-files.ts` | shorthand + `p.write(...)` + `permissions` | Useful write-intent sample, but filename/body mismatch hurts discoverability. |
+| 07 | `07-summarize-many-files.ts` | explicit `s.object(...)` + `p.text(...)` | Strong canonical batch-analysis sample. |
+| 08 | `08-extract-package-scripts.ts` | shorthand + `p.text(...)` | Simple and reusable, but again teaches shorthand first. |
+| 09 | `09-classify-issue.ts` | explicit `s.object(...)` + enums | Excellent beginner sample. |
+| 10 | `10-triage-pr.ts` | shorthand schemas | Clean syntax, misleading filename. |
+| 11 | `11-release-notes.ts` | shorthand + `p.text(...)` | Useful pattern, filename/body drift continues. |
+| 12 | `12-security-scan-review.ts` | shorthand + `p.text(...)` | Good review shape, but not aligned with the filename or canonical schema style. |
+| 13 | `13-test-plan.ts` | shorthand + `p.text(...)` | Clear planning harness, but still sugar-heavy. |
+| 14 | `14-changelog-categorizer.ts` | shorthand + `p.text(...)` | Same issue: valid but non-canonical. |
+| 15 | `15-api-diff-summary.ts` | shorthand schemas | Small syntax footprint; filename/body mismatch persists. |
+| 16 | `16-docs-gap-analysis.ts` | shorthand + `p.text(...)` | Good analysis harness, not a canonical schema exemplar. |
+| 17 | `17-refactor-plan.ts` | shorthand + `p.text(...)` | Same pattern. |
+| 18 | `18-patch-writer-output.ts` | shorthand + `p.text(...)` | Practical but still teaches the shorthand default. |
+| 19 | `19-fix-then-review.ts` | shorthand + `p.text(...)` + `permissions` | Useful advanced permission hint; still non-canonical. |
+| 20 | `20-issue-reproducer.ts` | shorthand + `p.text(...)` + `p.result(...)` + `permissions` | Good multi-intent sample, but filename/body mismatch remains. |
+| 21 | `21-ci-log-diagnosis.ts` | shorthand schemas | Minimal syntax, but not strongly instructive. |
+| 22 | `22-config-normalizer.ts` | shorthand + `p.text(...)` | Good transform shape, still shorthand-first. |
+| 23 | `23-schema-inference.ts` | shorthand + `p.text(...)` + `s.unknown` | Strong advanced concept with non-canonical surface syntax. |
+| 24 | `24-error-message-improver.ts` | shorthand + `p.text(...)` | Valid but generic. |
+| 25 | `25-migration-guide.ts` | shorthand schemas | Straightforward, but not a syntax anchor. |
+| 26 | `26-design-review.ts` | shorthand schemas | Same issue. |
+| 27 | `27-dependency-upgrade-plan.ts` | shorthand schemas | Practical scenario with shorthand drift. |
+| 28 | `28-license-check.ts` | shorthand + `p.text(...)` | Good command-fed input, non-canonical schema style. |
+| 29 | `29-bug-report-draft.ts` | shorthand + `p.text(...)` | Useful but generic. |
+| 30 | `30-github-action-review.ts` | shorthand + `p.text(...)` | Valid structure, filename/body mismatch still present. |
+| 31 | `31-monorepo-package-map.ts` | shorthand + `p.text(...)` | Good inventory shape, still shorthand-led. |
+| 32 | `32-command-planner.ts` | shorthand + `p.text(...)` | Clear planning shape, non-canonical. |
+| 33 | `33-readonly-investigator.ts` | shorthand schemas | Small and valid, but not especially instructive. |
+| 34 | `34-intent-options.ts` | shorthand + `p.text(...)` + `permissions` | Important feature coverage; needs canonical styling or stronger skill cross-linking. |
+| 35 | `35-call-options.ts` | shorthand + `p.text(...)` | Good call-options scenario, but the file body no longer matches the name. |
+| 36 | `36-subagent-delegation.ts` | default text input/output + call-time overrides | Good minimal example of defaults and per-call overrides. |
+| 37 | `37-output-with-nullable.ts` | shorthand + `agents` + `p.text(...)` | Only subagent sample; highly valuable but under-repeated. |
+| 38 | `38-exact-literal-output.ts` | shorthand + `s.literal(...)` + nullable-ish event parsing | Strong exact-output sample. |
+| 39 | `39-unknown-raw-output.ts` | shorthand + `s.literal(...)` | Good structured extraction sample. |
+| 40 | `40-record-output.ts` | shorthand + `p.text(...)` | Good raw-input sample, but not explicit enough for teaching. |
+| 41 | `41-permissioned-agent.ts` | shorthand + `p.text(...)` | Helpful record-like output, filename/body mismatch hurts retrieval. |
+| 42 | `42-json-repair.ts` | explicit `s.object(...)` + repair | Excellent advanced sample. |
+| 43 | `43-snapshot-test-updater.ts` | shorthand + `s.unknown` | Useful repair target, but currently fails under `npm run sample`. |
+| 44 | `44-flaky-test-analysis.ts` | shorthand + `p.result(...)` + `p.text(...)` | Practical diagnostic sample, also currently fails under `npm run sample`. |
+| 45 | `45-code-owner-suggestion.ts` | shorthand + `p.text(...)` | Body is flaky-test analysis; mismatch plus sample-run failure reduces trust. |
+| 46 | `46-prompt-intent-inspection.ts` | shorthand + `p.text(...)` | Body is code-owner suggestion; mismatch plus sample-run failure reduces trust. |
+| 47 | `47-shell-intents.ts` | helper-only `p.text(...)` object | Good ultra-small reference for raw intents. |
+| 48 | `48-custom-engine.ts` | explicit `s.object(...)` + `useEngine(...)` | Strong canonical systems sample. |
+| 49 | `49-timeout-signal-helper.ts` | default text schema + `useEngine(...)` | Demonstrates engine wiring, not timeout/signal as the filename suggests. |
+| 50 | `50-end-to-end-release-agent.ts` | default text schema + timeout + `AbortController` | Demonstrates abort handling, not release-agent orchestration. |
+| 51 | `51-extensibility.ts` | `p\`...\`` + explicit output + `.subscribe(...)` | Best advanced sample for the current API direction. |
+
+## Suggestions to improve agentic performance
+
+1. **Make the sample corpus reinforce one default.** Convert the early teaching samples to explicit `s.object(...)` so the examples match `SKILL.md`.
+2. **Fix filename/content drift.** Agents retrieve by filename and topic words; mismatched filenames actively teach the wrong association.
+3. **Add an explicit "supported sugar vs preferred style" section to `SKILL.md`.** Say clearly that shorthand exists because `normalizeSchema()` accepts it, but generated code should prefer explicit `s.*`.
+4. **Document the rendered prompt contract.** Show the `<instructions>`, `<output_schema>`, `<input>`, `<permissions>`, `<subagents>`, and `<rules>` blocks that `rig.ts` actually sends.
+5. **Promote advanced syntax into dedicated canonical examples.** `permissions`, `agents`, `repair`, `p\`...\``, and `.subscribe(...)` should each have at least one obvious, accurately named sample.
+6. **Keep the runnable corpus green.** Samples `43`-`46` should pass the stub runner so agents can trust that every checked-in example is executable.
+7. **Add a short starter template to the repository root docs.** One small "copy this first" example would reduce drift more than many medium-complexity samples.
+
+## Validation
+
+- `npm test` ✅
+- `npm run typecheck` ✅
+- `npm run sample` ❌ (pre-existing failures in `43-snapshot-test-updater.ts`, `44-flaky-test-analysis.ts`, `45-code-owner-suggestion.ts`, and `46-prompt-intent-inspection.ts`)

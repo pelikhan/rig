@@ -23,6 +23,7 @@ beforeEach(() => {
   mocks.forTcp.mockClear();
   mocks.forTcp.mockImplementation(() => ({ kind: "tcp", port: 0 }));
   mocks.copilotClientCtor.mockClear();
+  vi.restoreAllMocks();
 });
 
 it("uses a TCP server connection by default", async () => {
@@ -47,4 +48,36 @@ it("preserves explicit client options", async () => {
     connection,
     workingDirectory: "/tmp/rig",
   });
+});
+
+it("subscribes to all Copilot SDK events and logs JSONL", async () => {
+  const on = vi.fn((handler: (event: unknown) => void) => {
+    handler({ type: "session.idle", data: { done: true } });
+    return () => {};
+  });
+  const sendAndWait = vi.fn().mockResolvedValue({ data: { content: "ok" } });
+  mocks.createSession.mockResolvedValue({ on, sendAndWait });
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+  const session = copilotEngine().createSession({ model: "gpt-4.1" });
+  await expect(session.send("hello", {})).resolves.toBe("ok");
+
+  expect(mocks.copilotClientCtor).toHaveBeenCalledTimes(1);
+  expect(mocks.createSession).toHaveBeenCalledTimes(1);
+  expect(on).toHaveBeenCalledTimes(1);
+  expect(log).toHaveBeenCalledWith(JSON.stringify({ source: "copilot-sdk", event: { type: "session.idle", data: { done: true } } }));
+});
+
+it("creates and subscribes only once per engine session", async () => {
+  const on = vi.fn(() => () => {});
+  const sendAndWait = vi.fn().mockResolvedValue({ data: { content: "ok" } });
+  mocks.createSession.mockResolvedValue({ on, sendAndWait });
+
+  const session = copilotEngine().createSession({ model: "gpt-4.1" });
+  await session.send("first", {});
+  await session.send("second", {});
+
+  expect(mocks.createSession).toHaveBeenCalledTimes(1);
+  expect(on).toHaveBeenCalledTimes(1);
+  expect(sendAndWait).toHaveBeenCalledTimes(2);
 });
