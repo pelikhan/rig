@@ -133,8 +133,6 @@ p.read("README.md")
 p.write("README.md", "# Hello\n")
 ```
 
-`p.shell(...)` is an alias of `p.bash(...)`.
-
 Use `p.*` helpers:
 
 - in input values

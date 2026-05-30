@@ -10,7 +10,7 @@ Rig is a minimal TypeScript agent harness. The core runtime (`src/rig.ts`) provi
 src/rig.ts             — Core runtime (agent, sh, p, validate, useEngine, schemas)
 src/engines/copilot.ts — Copilot SDK engine (rig/engines/copilot)
 src/rig.test.ts        — Unit tests (vitest)
-src/samples/           — 49 sample agents demonstrating patterns
+src/samples/           — 50 sample agents demonstrating patterns
 scripts/run-sample.test.ts — Sample runner with a stub engine (dry-run)
 src/launcher.ts        — Launcher API + CLI entrypoint
 skills/rig/SKILL.md    — Framework reference docs
@@ -51,8 +51,16 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 
 - **Shape descriptors**: JS values used as type exemplars (e.g., `""` = string, `0` = number, `[""]` = string array). Promoted to schemas via `SchemaLike`.
 - **Schema helpers (`s.*`)**: `s.string`, `s.number`, `s.boolean`, `s.unknown`, `s.array`, `s.object`, `s.record`, `s.enum`, `s.literal`, `s.nullable`, `s.optional`
-- **Shell intents (`sh.*`)**: `sh.text(cmd)` / `sh.shell(cmd)` (alias used inside `p\`\``), `sh.result(cmd)`, `sh.read(path)`, `sh.write(path, content)` — declarative placeholders resolved by the engine, not executed in-process
+- **Shell intents (`p.*`)**: `p.bash(cmd)`, `p.result(cmd)`, `p.read(path)`, `p.write(path, content)` — declarative placeholders resolved by the engine, not executed in-process
 - **Event subscription**: `myAgent.subscribe(listener)` — observe `call`, `send`, `response`, `result`, `error` events without wrapping — analogous to pi-agent's `Agent.subscribe()`
-- **Prompts**: `p\`...\`` template tag composes instructions with inline `sh.*` helpers
+- **Prompts**: `p\`...\`` template tag composes instructions with inline `p.*` helpers
 - **Engine**: Pluggable via `useEngine(engine)`. There is no implicit default — opt in with `useEngine(copilotEngine())` from `rig/engines/copilot`, or supply your own `{ createSession({ model }) => { send(prompt, { signal }) } }`.
 - **Repair**: `repair: "default"` (or a custom `(error) => string`) re-prompts on parse/validation failure up to `maxTurns`. Disable with `repair: false`.
+
+## Sample guide
+
+- `20-issue-reproducer.ts` — chained diagnosis, fix planning, and review
+- `36-subagent-delegation.ts` — focused-agent delegation
+- `47-shell-intents.ts` — shell intent primitives
+- `50-end-to-end-release-agent.ts` — end-to-end release workflow orchestration
+- `51-extensibility.ts` — lifecycle tracing for measuring behavior
