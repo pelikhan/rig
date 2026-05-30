@@ -1,8 +1,8 @@
 import { basename, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { copilotEngine } from "./engines/copilot.js";
-import type { Engine } from "./rig.js";
-import { useEngine } from "./rig.js";
+import { copilotEngine } from "./engines/copilot.ts";
+import type { Engine } from "./rig.ts";
+import { useEngine } from "./rig.ts";
 
 export type LaunchOptions = {
   cwd?: string;

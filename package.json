@@ -2,10 +2,17 @@
   "name": "rig",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/rig.ts",
+    "./launcher": "./src/launcher.ts",
+    "./engines/copilot": "./src/engines/copilot.ts",
+    "./sh": "./src/sh.ts",
+    "./middleware": "./src/middleware.ts"
+  },
   "scripts": {
     "test": "vitest run src/",
     "sample": "vitest run scripts/run-sample.test.ts",
-    "sample:run": "npx tsx src/launcher.ts",
+    "sample:run": "node src/launcher.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

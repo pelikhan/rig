@@ -1,5 +1,5 @@
 import { CopilotClient } from "@github/copilot-sdk";
-import type { Engine, EngineSession } from "../rig.js";
+import type { Engine, EngineSession } from "../rig.ts";
 
 export function copilotEngine(): Engine {
   return {

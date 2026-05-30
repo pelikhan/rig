@@ -152,7 +152,7 @@ useEngine(copilotEngine());
 For runnable programs, use the launcher CLI to mount the Copilot engine and execute a file:
 
 ```bash
-npx tsx src/launcher.ts src/samples/02-review-git-diff.ts
+node src/launcher.ts src/samples/02-review-git-diff.ts
 ```
 
 ## Extensibility

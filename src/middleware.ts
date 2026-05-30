@@ -1,4 +1,4 @@
-import type { AgentFn, CallOptions, Engine, EngineSession } from "./rig.js";
+import type { AgentFn, CallOptions, Engine, EngineSession } from "./rig.ts";
 
 export type MiddlewareContext =
   | {
