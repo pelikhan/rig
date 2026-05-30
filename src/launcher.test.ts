@@ -188,12 +188,12 @@ const root = agent({
 });
 
 const result = await root({ text: "Review this patch" });
-process.stdout.write(result.text);
+(globalThis as { __launcherStdinProgramResult?: string }).__launcherStdinProgramResult = result.text;
 `]);
-  const output: string[] = [];
+  const globalState = globalThis as { __launcherStdinProgramResult?: string };
+delete globalState.__launcherStdinProgramResult;
   const stdout = new Writable({
-    write(chunk, _encoding, callback) {
-      output.push(chunk.toString());
+    write(_chunk, _encoding, callback) {
       callback();
     },
   });
@@ -201,7 +201,7 @@ process.stdout.write(result.text);
   mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
   await runLauncherCli([], {}, { stdin, stdout });
 
-  expect(output.join("")).toBe("done");
+  expect(globalState.__launcherStdinProgramResult).toBe("done");
 });
 
 it("requires a non-empty stdin program when no program path is provided", async () => {
