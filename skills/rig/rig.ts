@@ -396,7 +396,14 @@ async function typecheckProgram(programPath: string, cwd: string): Promise<void>
       extends: baseTsconfigPath,
       include: [programPath],
     }), "utf8");
-    await execFileAsync("npx", ["tsc", "--project", projectPath, "--pretty", "false"], { cwd });
+    await execFileAsync(
+      "npx",
+      ["--yes", "--package", "typescript@5.9.3", "--", "tsc", "--project", projectPath, "--pretty", "false"],
+      {
+        cwd,
+        env: { ...process.env, npm_config_ignore_scripts: "true" },
+      },
+    );
   } catch (error) {
     const execError = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
     if (execError.code === "ENOENT") {

@@ -229,9 +229,14 @@ describe("skill markdown samples typecheck", () => {
         await writeFile(tsFile, `${code}\n`, "utf8");
       }
 
-      await execFileAsync("npx", ["tsc", "--noEmit", "--pretty", "false"], {
-        cwd: resolve(__dirname, ".."),
-      });
+      await execFileAsync(
+        "npx",
+        ["--yes", "--package", "typescript@5.9.3", "--", "tsc", "--noEmit", "--pretty", "false"],
+        {
+          cwd: resolve(__dirname, ".."),
+          env: { ...process.env, npm_config_ignore_scripts: "true" },
+        },
+      );
     } finally {
       await rm(typecheckDir, { recursive: true, force: true });
     }
