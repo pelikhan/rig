@@ -1,20 +1,36 @@
 # rig
 
-`rig` is a small TypeScript harness for structured agent calls.
+`rig` is a minimal TypeScript harness for structured agent calls.
+
+## Install
+
+```bash
+npm install
+```
 
 ## Core API
 
 ```ts
-import { agent, p, s, useEngine, validate } from "rig";
-import { sh } from "rig";
+import {
+  agent,
+  p,
+  s,
+  sh,
+  useEngine,
+  validate,
+  collectIntents,
+  registerIntentRenderer,
+} from "rig";
 ```
 
-- `agent(spec)` defines a typed structured agent.
-- `p\`\`` builds instruction strings with inline shell helpers.
-- `s.*` defines explicit schemas.
-- `useEngine(engine)` swaps the runtime engine.
-- `validate(value, schema)` validates JSON-like data.
-- `sh.*` creates inline shell instructions in agent input.
+- `agent(spec)` creates a typed agent function.
+- `s.*` defines input/output schemas.
+- `sh.*` embeds shell/file intents in inputs or prompt templates.
+- `p\`...\`` inlines intent renderings into instruction text.
+- `validate(value, schema)` validates JSON-like values.
+- `collectIntents(value)` extracts intents and replaces them with `$intent` references.
+- `useEngine(engine)` sets the runtime engine.
+- `registerIntentRenderer(namespace, fn)` adds custom intent rendering.
 
 ## Quick start
 
@@ -40,18 +56,6 @@ const result = await classify({
 });
 ```
 
-## Recommended generation order
-
-When generating new rig programs, use this canonical order:
-
-1. Start with `agent({ name, instructions, input, output })`.
-2. Define explicit typed schemas with `s.object(...)` and `s.*`.
-3. Add `sh.*` placeholders for shell/file context.
-4. Add advanced fields (`permissions`, `agents`) only when needed.
-5. Add call-time overrides (`model`, `timeout`, `maxTurns`, `signal`) at invocation time.
-
-This keeps generated harnesses small, predictable, and easier to reproduce.
-
 ## Schemas
 
 ```ts
@@ -68,67 +72,43 @@ s.nullable(shape)
 s.optional(shape)
 ```
 
-## Repair and retries
+Shorthand object schemas are normalized:
+- `{"name": ""}` -> required string field
+- `{"name_": ""}` -> optional string field `name`
+- `{"*": ""}` -> `Record<string, string>`
 
-Agents retry invalid output up to `maxTurns`.
-
-```ts
-const summarize = agent({
-  name: "summarize",
-  instructions: "Summarize the diff.",
-  input: s.object({ diff: s.string }),
-  output: s.object({ summary: s.string }),
-  maxTurns: 3,
-  repair: "default",
-});
-```
-
-If parsing or validation fails, rig sends an explicit repair prompt with the error and output schema.
-You can disable repair with `repair: false` or provide `repair(error) => string`.
-
-## Shell helpers
-
-Shell helpers are part of the core API. In generated prompts, they are embedded directly into the input payload as "run this bash command" instructions.
-`sh.shell(...)` is an alias for `sh.text(...)` when you want a more natural name inside `p\`\`` instruction templates.
+## Shell intents
 
 ```ts
-import { agent, p, s } from "rig";
-import { sh } from "rig";
-
-const reviewRepo = agent({
-  name: "reviewRepo",
-  instructions: p`Review the repository status using ${sh.shell("git status --short")} first.`,
-  input: s.object({
-    status: s.string,
-    diff: s.string,
-  }),
-  output: s.object({
-    summary: s.string,
-    findings: s.array(s.object({
-      file: s.string,
-      message: s.string,
-    })),
-  }),
-});
-
-await reviewRepo({
-  status: sh.text("git status --short"),
-  diff: sh.text("git diff --stat"),
-});
-```
-
-RIG also supports explicit file operations aligned with PyAgent essentials:
-
-```ts
+sh.text("git status --short")
+sh.result("npm test")
 sh.read("README.md")
 sh.write("README.md", "# Updated\n")
 ```
 
-Use shell intents as declarative placeholders in inputs and `p`` templates; avoid embedding raw shell instructions as free-form prose.
+`sh.shell(...)` is an alias of `sh.text(...)`.
 
-## Engines
+## Agent behavior
 
-The core engine contract is tiny:
+- Default model: `gpt-4.1`
+- Default max turns: `4`
+- Default repair mode: `"default"`
+- Retry loop reparses/revalidates responses until success or max turns
+
+Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
+
+## Engine
+
+`rig` uses the Copilot engine by default. You can override with:
+
+```ts
+import { useEngine } from "rig";
+import { copilotEngine } from "rig/engines/copilot";
+
+useEngine(copilotEngine());
+```
+
+Engine contract:
 
 ```ts
 type Engine = {
@@ -140,79 +120,16 @@ type EngineSession = {
 };
 ```
 
-The default Copilot SDK engine lives in a separate module:
-
-```ts
-import { useEngine } from "rig";
-import { copilotEngine } from "rig/engines/copilot";
-
-useEngine(copilotEngine());
-```
-
 ## Extensibility
 
-Rig's extensibility model mirrors pi-agent's: **declaration merging** for custom types and **event subscription** for lifecycle observation.
+- Custom intents: declaration merging + `registerIntentRenderer(...)`
+- Lifecycle events: `myAgent.subscribe(listener)`
 
-### Custom intent types
-
-Extend the intent system for new instruction categories without modifying core.
-
-```ts
-import { registerIntentRenderer } from "rig";
-
-declare module "rig" {
-  interface CustomIntents {
-    http: HttpIntent;
-  }
-}
-
-interface HttpIntent {
-  __rig: "http";
-  id: string;
-  method: string;
-  url: string;
-}
-
-registerIntentRenderer("http", (intent) => {
-  const { method, url } = intent as HttpIntent;
-  return `Fetch ${method} ${url} and return the response body`;
-});
-```
-
-Custom intents work anywhere `sh.*` intents work: inline in input values, in `p\`\`` templates, and with `collectIntents`.
-
-### Event subscription
-
-Subscribe to agent lifecycle events with `myAgent.subscribe(listener)`. Returns an unsubscribe function.
-
-```ts
-import type { RigEvent } from "rig";
-
-const unsubscribe = myAgent.subscribe((event: RigEvent) => {
-  if (event.type === "result") console.log("output:", event.output);
-  if (event.type === "error") console.error("error:", event.error);
-});
-
-// Detach when done
-unsubscribe();
-```
-
-Event types: `call`, `send`, `response`, `result`, `error`. Listeners can be async and are awaited in registration order.
-
-
-
-- define agents with `agent({ name, ... })`
-- import shell helpers from `rig`
-- use `s.*` for explicit schema helpers
-
-Deprecated hooks and lifecycle middleware are removed.
-Use `myAgent.subscribe()` and custom intent renderers for extensibility.
+Event types: `call`, `send`, `response`, `result`, `error`.
 
 ## Local development
 
 ```bash
-npm install
 npm test
 npm run typecheck
-npm run sample
 ```
