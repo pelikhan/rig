@@ -6,7 +6,7 @@ import { agent, p, s } from "rig";
 const diagnose = agent({
   name: "diagnose",
   model: "mini",
-  input: s.object({ stdout: s.string, exitCode: s.number }),
+  input: s.object({ ok: s.boolean, stdout: s.string, exitCode: s.number }),
   output: s.object({ done: s.boolean, rootCause: s.string }),
   instructions: "Diagnose test failures. Set done to true if all tests passed.",
 });
@@ -15,7 +15,7 @@ const fix = agent({
   name: "fix",
   model: "mini",
   input: s.object({ rootCause: s.string }),
-  output: s.object({ summary: s.string }),
+  output: s.object({ summary: s.string, changed: s.boolean }),
   instructions: "Apply the smallest safe fix for the root cause.",
   permissions: { write: "workspace" },
 });
