@@ -27,4 +27,4 @@ console.log(await reviewer({
     diff: p.bash("git diff -- ."),
 }));
 
-export default summarizeDiff;
+export default reviewer;
