@@ -9,6 +9,10 @@ export type LaunchOptions = {
   engine?: Engine;
 };
 
+/**
+ * Mounts an engine and executes a rig program file.
+ * Relative paths are resolved from `options.cwd` (or process cwd).
+ */
 export async function launchRigProgram(programPath: string, options: LaunchOptions = {}): Promise<void> {
   const cwd = options.cwd ?? process.cwd();
   const engine = options.engine ?? copilotEngine();

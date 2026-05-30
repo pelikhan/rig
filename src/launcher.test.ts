@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { agent, s } from "rig";
 import type { Engine } from "rig";
 import { launchRigProgram } from "rig/launcher";
@@ -17,6 +18,7 @@ function mockEngine(response: unknown): Engine {
 }
 
 it("loads a rig program and mounts the provided engine", async () => {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
   const globalState = globalThis as { __launcherLoaded?: number };
   const before = globalState.__launcherLoaded ?? 0;
   const fixturePath = resolve(__dirname, "./launcher.fixture.ts");
