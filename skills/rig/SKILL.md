@@ -5,7 +5,7 @@ Minimal TypeScript harness for structured agent calls.
 ## Preferred imports
 
 ```ts
-import { agent, p, s, useEngine } from "rig";
+import { agent, p, s } from "rig";
 ```
 
 ## Recommended default pattern
@@ -231,16 +231,10 @@ Pass `--server` to have the harness start the Copilot server automatically befor
 echo "Review this diff" | node skills/rig/rig.ts src/program.ts --server
 ```
 
-## Engines
+## Copilot SDK runtime
 
-Use `useEngine(engine)` to install a custom engine.
-The Copilot SDK engine is exported directly from `rig`.
-
-```ts
-import { copilotEngine, useEngine } from "rig";
-
-useEngine(copilotEngine());
-```
+`rig` is specialized for Copilot SDK sessions and no longer exposes a custom engine mount API.
+Use `--server` at launch time when you want the harness to start the Copilot server via stdio.
 
 ## Patterns to prefer
 

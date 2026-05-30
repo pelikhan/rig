@@ -15,7 +15,6 @@ import {
   agent,
   p,
   s,
-  useEngine,
 } from "rig";
 ```
 
@@ -23,7 +22,6 @@ import {
 - `s.*` defines input/output schemas.
 - `p.*` creates shell/file intents for inputs or prompt templates.
 - `p\`...\`` inlines intent renderings into instruction text.
-- `useEngine(engine)` sets the runtime engine.
 
 ## Quick start
 
@@ -95,29 +93,12 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 
 Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 
-## Engine
+## Copilot SDK runtime
 
-`rig` uses the Copilot engine by default. You can override with:
+`rig` is specialized for Copilot SDK sessions.
 
-```ts
-import { copilotEngine, useEngine } from "rig";
-
-useEngine(copilotEngine());
-```
-
-By default, the Copilot engine connects to an already-running Copilot server via HTTP. Pass `server: true` to spawn the server via stdio instead.
-
-Engine contract:
-
-```ts
-type Engine = {
-  createSession(options: { model: string }): EngineSession;
-};
-
-type EngineSession = {
-  send(prompt: string, options: { signal?: AbortSignal }): Promise<string>;
-};
-```
+By default it connects to an already-running Copilot server via HTTP (`AGENT_HTTP_URL` or `localhost:7777`).
+Pass `--server` to spawn the server over stdio when launching a program.
 
 For runnable programs, execute `rig.ts` directly and pass the root agent input on stdin (assumes the Copilot server is already running):
 

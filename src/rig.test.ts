@@ -1,17 +1,50 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { AgentError, agent, p, s, useEngine } from "rig";
-import type { Engine } from "rig";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-function mockEngine(response: unknown): Engine {
-  return {
-    createSession() {
-      return { async send() { return JSON.stringify(response); } };
+const mocks = vi.hoisted(() => {
+  let sendAndWaitImpl: (request: { prompt: string; signal?: AbortSignal }) => unknown | Promise<unknown> = async () => ({ text: "default" });
+  let onImpl: ((handler: (event: unknown) => void) => void) | undefined;
+
+  const createSession = vi.fn(async () => ({
+    on: onImpl ? ((handler: (event: unknown) => void) => {
+      onImpl?.(handler);
+      return () => {};
+    }) : undefined,
+    sendAndWait: async (request: { prompt: string; signal?: AbortSignal }) => {
+      const response = await sendAndWaitImpl(request);
+      return typeof response === "string" ? response : JSON.stringify(response);
     },
+  }));
+  const forUri = vi.fn(() => ({ kind: "uri", url: "localhost:7777" }));
+  const forStdio = vi.fn(() => ({ kind: "stdio" }));
+  const copilotClientCtor = vi.fn();
+  const CopilotClient = function (this: unknown, options: unknown) {
+    copilotClientCtor(options);
+    return { createSession };
   };
-}
+  const setSendAndWaitImpl = (impl: (request: { prompt: string; signal?: AbortSignal }) => unknown | Promise<unknown>) => {
+    sendAndWaitImpl = impl;
+  };
+  const setOnImpl = (impl?: (handler: (event: unknown) => void) => void) => {
+    onImpl = impl;
+  };
+  return { createSession, forUri, forStdio, copilotClientCtor, CopilotClient, setSendAndWaitImpl, setOnImpl };
+});
+
+vi.mock("@github/copilot-sdk", () => ({
+  CopilotClient: mocks.CopilotClient,
+  RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
+}));
+
+import { AgentError, agent, p, s } from "rig";
 
 beforeEach(() => {
-  useEngine(mockEngine({ text: "default" }));
+  mocks.createSession.mockClear();
+  mocks.forUri.mockClear();
+  mocks.forStdio.mockClear();
+  mocks.copilotClientCtor.mockClear();
+  mocks.setOnImpl(undefined);
+  mocks.setSendAndWaitImpl(async () => ({ text: "default" }));
+  vi.restoreAllMocks();
 });
 
 describe("agent", () => {
@@ -38,7 +71,7 @@ describe("agent", () => {
   });
 
   it("preserves type inference for schema helpers", async () => {
-    useEngine(mockEngine({
+    mocks.setSendAndWaitImpl(async () => ({
       summary: "Looks good",
       risk: "low",
       findings: [{ file: "src/index.ts", message: "Check edge case" }],
@@ -93,8 +126,8 @@ describe("agent", () => {
 });
 
 describe("agent invocation", () => {
-  it("calls the engine and returns validated data", async () => {
-    useEngine(mockEngine({ text: "hello world" }));
+  it("calls the copilot sdk and returns validated data", async () => {
+    mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
     const greet = agent({
       name: "greeter",
       input: s.object({ text: s.string }),
@@ -108,16 +141,10 @@ describe("agent invocation", () => {
     const prompts: string[] = [];
     let calls = 0;
 
-    useEngine({
-      createSession() {
-        return {
-          async send(prompt) {
-            prompts.push(prompt);
-            calls += 1;
-            return calls === 1 ? "not json" : JSON.stringify({ text: "repaired" });
-          },
-        };
-      },
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      calls += 1;
+      return calls === 1 ? "not json" : { text: "repaired" };
     });
 
     const repairable = agent({
@@ -135,16 +162,10 @@ describe("agent invocation", () => {
     const prompts: string[] = [];
     let calls = 0;
 
-    useEngine({
-      createSession() {
-        return {
-          async send(prompt) {
-            prompts.push(prompt);
-            calls += 1;
-            return calls === 1 ? JSON.stringify({ wrong: true }) : JSON.stringify({ text: "fixed" });
-          },
-        };
-      },
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      calls += 1;
+      return calls === 1 ? { wrong: true } : { text: "fixed" };
     });
 
     const repairable = agent({
@@ -160,11 +181,7 @@ describe("agent invocation", () => {
   });
 
   it("throws AgentError when repair is disabled", async () => {
-    useEngine({
-      createSession() {
-        return { async send() { return "not json"; } };
-      },
-    });
+    mocks.setSendAndWaitImpl(async () => "not json");
 
     const strict = agent({
       name: "strict",
@@ -175,33 +192,22 @@ describe("agent invocation", () => {
     await expect(strict({ text: "go" })).rejects.toMatchObject({ kind: "parse" });
   });
 
-  it("supports per-call engine overrides", async () => {
-    let model = "";
-    useEngine({
-      createSession(options) {
-        model = options.model;
-        return { async send() { return JSON.stringify({ text: "ok" }); } };
-      },
-    });
+  it("supports per-call model overrides", async () => {
+    mocks.setSendAndWaitImpl(async () => ({ text: "ok" }));
 
     const call = agent({ name: "model-test", model: "gpt-4.1" });
     await call({ text: "x" }, { model: "o3-mini" });
-    expect(model).toBe("o3-mini");
+
+    expect(mocks.createSession).toHaveBeenCalledWith({ model: "o3-mini", streaming: false });
   });
 
   it("supports timeout and abort signals", async () => {
-    useEngine({
-      createSession() {
-        return {
-          async send(_prompt, options) {
-            await new Promise((_, reject) => {
-              options.signal?.addEventListener("abort", () => reject(options.signal?.reason), { once: true });
-              setTimeout(() => reject(new Error("should have aborted")), 5000);
-            });
-            return "";
-          },
-        };
-      },
+    mocks.setSendAndWaitImpl(async ({ signal }) => {
+      await new Promise((_, reject) => {
+        signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+        setTimeout(() => reject(new Error("should have aborted")), 5000);
+      });
+      return "";
     });
 
     const slow = agent({ name: "timeout-test" });
@@ -211,15 +217,9 @@ describe("agent invocation", () => {
   it("inlines shell prompts and omits top-level prompt metadata", async () => {
     const prompts: string[] = [];
 
-    useEngine({
-      createSession() {
-        return {
-          async send(prompt) {
-            prompts.push(prompt);
-            return JSON.stringify({ text: "ok" });
-          },
-        };
-      },
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      return { text: "ok" };
     });
 
     const inspect = agent({
@@ -245,15 +245,9 @@ describe("agent invocation", () => {
   it("supports shell helpers inside instruction templates", async () => {
     const prompts: string[] = [];
 
-    useEngine({
-      createSession() {
-        return {
-          async send(prompt) {
-            prompts.push(prompt);
-            return JSON.stringify({ text: "ok" });
-          },
-        };
-      },
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      return { text: "ok" };
     });
 
     const inspect = agent({
