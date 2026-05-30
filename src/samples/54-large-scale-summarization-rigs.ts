@@ -1,13 +1,13 @@
 import { agent, p, s } from "rig";
 
-const large = "large";
-const mini = "mini";
-const nano = "nano";
+const LARGE = "large";
+const MINI = "mini";
+const NANO = "nano";
 
 // Agent role: summarize a bounded evidence shard using a small, low-cost model.
 const summarizeShard = agent({
   name: "summarizeShard",
-  model: mini,
+  model: MINI,
   input: s.object({
     scenario: s.string,
     shardLabel: s.string,
@@ -24,7 +24,7 @@ const summarizeShard = agent({
 // Agent role: combine shard summaries into one final scenario summary.
 const reduceScenario = agent({
   name: "reduceScenario",
-  model: large,
+  model: LARGE,
   input: s.object({
     scenario: s.string,
     shardSummaries: s.array(s.object({
@@ -45,7 +45,7 @@ const reduceScenario = agent({
 // Agent role: generate deterministic search patterns before any model-heavy summarization.
 const planDeterministicSearch = agent({
   name: "planDeterministicSearch",
-  model: nano,
+  model: NANO,
   input: s.object({
     query: s.string,
   }),
@@ -59,7 +59,10 @@ const planDeterministicSearch = agent({
 // Agent role: orchestrate large-scale summarization scenarios with map/reduce and parallel fan-out.
 const summarizeAtScale = agent({
   name: "summarizeAtScale",
-  model: large,
+  model: LARGE,
+  input: s.object({
+    text: s.string,
+  }),
   output: s.object({
     scenarios: s.array(s.object({
       id: s.string,
@@ -88,11 +91,11 @@ Use deterministic evidence collection first, then parallel Promise fan-out with 
 Use evidence such as ${p.bash("git diff -- .")} and ${p.bash("git log --since='24 hours ago' --name-status --pretty=format:'%h %s'")} and ${p.bash("git log --since='24 hours ago' -- src '*.md' '*.ts' '*.js' --name-only --pretty=format:'%h %s' || true")}.`,
 });
 
-await planDeterministicSearch({
+const searchPlanPromise = planDeterministicSearch({
   query: "Where did auth, exports, and schema behavior change in the last 24h?",
 });
 
-const [diffShard, commitsShard, docsShard] = await Promise.all([
+const [diffShard, commitsShard, docsShard, searchPlan] = await Promise.all([
   summarizeShard({
     scenario: "git-diff-summary",
     shardLabel: "diff",
@@ -106,13 +109,22 @@ const [diffShard, commitsShard, docsShard] = await Promise.all([
   summarizeShard({
     scenario: "docs-exported-changes-24h",
     shardLabel: "exports-and-docs",
-    evidence: p.bash("git log --since='24 hours ago' -- src docs --name-only --pretty=format:'%h %s' || true"),
+    evidence: p.bash("git log --since='24 hours ago' -- 'src/**' 'docs/**' --name-only --pretty=format:'%h %s' || true"),
   }),
+  searchPlanPromise,
 ]);
+
+const semanticSearchShard = await summarizeShard({
+  scenario: "semantic-search-pipeline",
+  shardLabel: "search-plan",
+  evidence: JSON.stringify(searchPlan),
+});
 
 await reduceScenario({
   scenario: "core-scenarios",
-  shardSummaries: [diffShard, commitsShard, docsShard],
+  shardSummaries: [diffShard, commitsShard, docsShard, semanticSearchShard],
 });
+
+await summarizeAtScale({ text: p`` });
 
 export default summarizeAtScale;
