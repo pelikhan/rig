@@ -113,6 +113,20 @@ it("rejects stdin mode when root agent expects JSON input but stdin is not JSON"
   ).rejects.toThrow("Expected stdin to contain JSON for the root agent input schema.");
 });
 
+it("requires stdin-mode root agent to be a default export", async () => {
+  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin-named-root.fixture.ts");
+  const stdin = Readable.from(["Review this patch"]);
+  const stdout = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+
+  await expect(
+    runLauncherCli([fixturePath, "--stdin"], { engine: mockEngine({ text: "ignored" }) }, { stdin, stdout }),
+  ).rejects.toThrow("Expected program to export a root agent as default export.");
+});
+
 it("rejects stdin mode when prompt is empty", async () => {
   const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin.fixture.ts");
   const stdin = Readable.from(["   \n\t"]);

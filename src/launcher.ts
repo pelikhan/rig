@@ -93,9 +93,9 @@ async function runRootAgentFromStdin(
 
   useEngine(engine);
   const mod = await import(pathToFileURL(resolvedPath).href);
-  const rootAgent = asRootAgent(mod.default) ?? asRootAgent(mod.root);
+  const rootAgent = asRootAgent(mod.default);
   if (!rootAgent) {
-    throw new Error("Expected program to export a root agent as default export (or named export `root`).");
+    throw new Error("Expected program to export a root agent as default export.");
   }
 
   const result = await rootAgent(coerceStdinInput(rootAgent, prompt));
