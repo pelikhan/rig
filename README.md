@@ -20,8 +20,8 @@ import {
 
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas.
-- `p.*` creates declarative shell/file intents for inputs or prompt templates.
-- `p\`...\`` inlines intent renderings into instruction text.
+- `p.*` creates declarative shell/file intents for prompt templates or inputs.
+- `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
 
 ## Embedding in markdown
 
@@ -49,77 +49,23 @@ awk '/^```rig$/{in_block=1;next}/^```$/{if(in_block){exit}}in_block' ./program.m
 ```ts
 import { agent, p, s } from "rig";
 
-const FileNotes = s.object({
-  file: s.string,
-  summary: s.string,
-  evidence: s.array(s.string),
-});
-
-// Agent role: choose the files most relevant to the research question.
-const discoverFiles = agent({
-  name: "discoverFiles",
+// Agent role: extract package scripts and summarize what they do.
+const extractScripts = agent({
+  name: "extractScripts",
   model: "nano",
-  instructions: "Choose the files most relevant to the research question.",
-  input: s.object({
-    question: s.string,
-    files: s.string,
-  }),
+  instructions: p`Read ${p.read("package.json")} and summarize the package scripts. Use ${p.bash("find src -name '*.ts' -type f | sort")} only to call out source files that look relevant.`,
+  input: s.object({}),
   output: s.object({
-    candidateFiles: s.array(s.string),
+    scriptsByName: s.record(s.string),
+    summary: s.string,
+    relatedFiles: s.array(s.string),
   }),
 });
 
-// Agent role: extract the facts from one file that answer the research question.
-const readFile = agent({
-  name: "readFile",
-  model: "nano",
-  instructions: "Extract the facts from one file that answer the research question.",
-  input: s.object({
-    question: s.string,
-    file: s.string,
-    contents: s.string,
-  }),
-  output: FileNotes,
-});
-
-// Agent role: combine the per-file notes into a concise research answer.
-const synthesizeResearch = agent({
-  name: "synthesizeResearch",
-  model: "mini",
-  instructions: "Combine the per-file notes into a concise research answer.",
-  input: s.object({
-    question: s.string,
-    notes: s.array(FileNotes),
-  }),
-  output: s.object({
-    answer: s.string,
-    keyFiles: s.array(s.string),
-    openQuestions: s.array(s.string),
-  }),
-});
-
-const question = "How does the launcher choose a tsconfig file?";
-
-const { candidateFiles } = await discoverFiles({
-  question,
-  files: p.bash("find src skills -name '*.ts' -type f 2>/dev/null | sort"),
-});
-
-const notes = await Promise.all(
-  candidateFiles.map((file) =>
-    readFile({
-      question,
-      file,
-      contents: p.read(file),
-    }),
-  ),
-);
-
-await synthesizeResearch({
-  question,
-  notes,
-});
+await extractScripts({});
 ```
+
+When the context already lives in the workspace, prefer intent templates like the example above over adding `input` fields just to shuttle shell output or file contents. Favor `p.read("path")` over `p.bash("cat path")`, and let the harness work from files instead of assembling large in-memory strings first.
 
 ## Schemas
 
@@ -147,6 +93,12 @@ p.bash("git status --short")
 p.result("npm test")
 p.read("README.md")
 p.write("README.md", "# Updated\n")
+
+const reviewWorkspace = agent({
+  name: "reviewWorkspace",
+  instructions: p`Review ${p.read("README.md")} against ${p.bash("git status --short")}.`,
+  output: s.object({ summary: s.string }),
+});
 ```
 
 ## Evaluating agentic performance
@@ -155,7 +107,7 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 
 - `skills/rig/samples/20-issue-reproducer.md` — chained diagnose/fix flow
 - `skills/rig/samples/36-subagent-delegation.md` — delegation between focused agents
-- `skills/rig/samples/47-shell-intents.md` — shell/file intents as structured inputs
+- `skills/rig/samples/47-shell-intents.md` — shell/file intents embedded directly in prompt templates
 - `skills/rig/samples/50-end-to-end-release-agent.md` — multi-step release planning workflow
 
 ## Agent behavior

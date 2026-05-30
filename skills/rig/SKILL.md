@@ -44,7 +44,7 @@ Use this checklist before finalizing generated code:
 4. Keep output schema strict (enums/literals for constrained values).
 5. Add a `// Agent role: ...` comment above each agent declaration.
 6. Set `model` explicitly to `"large"`, `"mini"`, or `"nano"`.
-7. Use `p.*` placeholders for shell/file context instead of free-form shell prose.
+7. Prefer `${p.read(...)}` / `${p.bash(...)}` inside `p\`\`` templates when the context source is already known; add input fields only for true caller-provided data.
 8. Put stable defaults in spec; put per-call overrides in call options.
 9. Add `permissions`/`agents` only when required by the scenario.
 10. Avoid `console.log(...)` in snippets.
@@ -56,7 +56,7 @@ Use this order to reduce syntax drift:
 
 1. Core agent shape: `agent({ name, instructions, input, output })`.
 2. Explicit typed schemas with `s.object(...)` and `s.*`.
-3. Shell intents with `p.*` (inputs or `p`` templates).
+3. Shell/file context with `p\`\`` and `${p.*}` before adding extra input plumbing.
 4. Advanced spec fields (`permissions`, `agents`) when scenario needs them.
 5. Invocation overrides (`model`, `timeout`, `maxTurns`, `signal`) at call time.
 
@@ -124,6 +124,8 @@ s.record(s.string)
 
 `p` is both the prompt template tag and the shell/file helper namespace.
 These helpers are declarative placeholders, not direct shell execution in the core harness.
+Prefer template expressions when the context source is already known.
+Prefer `p.read("path")` over `p.bash("cat path")`, and keep large context in files instead of building in-memory strings just to feed an agent.
 
 ```ts
 p.bash("git diff -- .")
@@ -135,11 +137,13 @@ p.write("README.md", "# Hello\n")
 Use `p.*` helpers:
 
 - in input values
-- inside `p\`\`` instruction templates
+- inside `p\`\`` instruction templates, preferably as the default pattern
 
 ```ts
 const prompt = p`Review the repository status using ${p.bash("git status --short")}.`;
 ```
+
+Only introduce `input` fields for data the caller truly supplies at runtime. Do not require inputs just to thread known file or shell context into the prompt.
 
 ## Call-time options
 
@@ -299,7 +303,8 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 - Prefer `s.object(...)` for important examples.
 - Keep outputs small, typed, and explicit.
 - Use `s.enum(...)` and `s.literal(...)` when exact values matter.
-- Use `p.*` in inputs instead of embedding command text in prose.
+- Prefer `p.*` inside `p\`\`` templates; fall back to inputs only for real caller-provided data.
+- Prefer `p.read(...)` for existing files instead of shelling out through `cat`.
 - Put durable defaults in the agent spec and per-run overrides in call options.
 - Introduce `permissions` and `agents` only when the scenario needs them.
 
@@ -307,8 +312,10 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 
 - Do not invent deprecated hooks or compatibility layers.
 - Do not import shell helpers from anywhere except `rig`.
+- Do not require `input` fields just to pass `p.read(...)` / `p.bash(...)` context into instructions.
 - Do not leave outputs as unstructured prose when a schema would help.
 - Do not invent alternate schema syntaxes when explicit `s.*` is available.
+- Do not replace file reads with `cat`-style shell commands or large in-memory strings when a file path already exists.
 - Do not put call-time overrides (`model`, `timeout`, `maxTurns`, `signal`) into unrelated config objects.
 
 ## API direction
