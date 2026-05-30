@@ -1,21 +1,19 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 import { p } from "rig";
-
 const planner = agent({
-  name: "testPlanner",
-  input: {
-    diff: "git diff text",
-    packageJson: "package metadata",
-  },
-  output: {
-    commands: ["npm test"],
-    manualChecks: ["Manual check"],
-    rationale: "Why these tests are enough",
-  },
-  instructions: `Create a focused validation plan for the current changes.`,
+    name: "testPlanner",
+    input: s.object({
+        diff: s.string,
+        packageJson: s.string
+    }),
+    output: s.object({
+        commands: s.array(s.string),
+        manualChecks: s.array(s.string),
+        rationale: s.string
+    }),
+    instructions: `Create a focused validation plan for the current changes.`,
 });
-
 console.log(await planner({
-  diff: p.text("git diff -- ."),
-  packageJson: p.text("cat package.json"),
+    diff: p.text("git diff -- ."),
+    packageJson: p.text("cat package.json"),
 }));

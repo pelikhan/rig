@@ -65,10 +65,8 @@ s.nullable(shape)
 s.optional(shape)
 ```
 
-Shorthand object schemas are normalized:
-- `{"name": ""}` -> required string field
-- `{"name_": ""}` -> optional string field `name`
-- `{"*": ""}` -> `Record<string, string>`
+Use declarative `s.*` helpers for every schema node.
+Implicit object literals, trailing-underscore optional fields, and `{"*": ...}` record sugar are not supported.
 
 ## Shell intents
 

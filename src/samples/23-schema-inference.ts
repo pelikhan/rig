@@ -1,16 +1,16 @@
 import { agent, s } from "rig";
 import { p } from "rig";
-
 const normalize = agent({
-  name: "normalizeConfig",
-  input: { config: "raw JSON or JS config" },
-  output: {
-    normalized: s.unknown,
-    warnings: ["warning"],
-  },
-  instructions: `Normalize the config into a JSON-compatible object.`,
+    name: "normalizeConfig",
+    input: s.object({
+        config: s.string
+    }),
+    output: s.object({
+        normalized: s.unknown,
+        warnings: s.array(s.string)
+    }),
+    instructions: `Normalize the config into a JSON-compatible object.`,
 });
-
 console.log(await normalize({
-  config: p.text("cat config.json 2>/dev/null || cat config.js"),
+    config: p.text("cat config.json 2>/dev/null || cat config.js"),
 }));

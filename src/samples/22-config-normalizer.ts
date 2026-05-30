@@ -1,17 +1,17 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 import { p } from "rig";
-
 const ciDiagnosis = agent({
-  name: "ciDiagnosis",
-  input: { log: "CI log text" },
-  output: {
-    failure: "Failure summary",
-    likelyCause: "Likely cause",
-    commandsToTry: ["command"],
-  },
-  instructions: `Diagnose the CI log. Prefer the first real failure over cascading errors.`,
+    name: "ciDiagnosis",
+    input: s.object({
+        log: s.string
+    }),
+    output: s.object({
+        failure: s.string,
+        likelyCause: s.string,
+        commandsToTry: s.array(s.string)
+    }),
+    instructions: `Diagnose the CI log. Prefer the first real failure over cascading errors.`,
 });
-
 console.log(await ciDiagnosis({
-  log: p.text("cat ci.log", { purpose: "read CI log" }),
+    log: p.text("cat ci.log", { purpose: "read CI log" }),
 }));

@@ -1,20 +1,23 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 import { p } from "rig";
-
 const upgradePlan = agent({
-  name: "upgradePlan",
-  input: {
-    packageJson: "package.json",
-    outdated: "npm outdated output",
-  },
-  output: {
-    upgrades: [{ package: "name", from: "old", to: "new", risk: "risk" }],
-    order: ["package"],
-  },
-  instructions: `Plan safe dependency upgrades.`,
+    name: "upgradePlan",
+    input: s.object({
+        packageJson: s.string,
+        outdated: s.string
+    }),
+    output: s.object({
+        upgrades: s.array(s.object({
+            package: s.string,
+            from: s.string,
+            to: s.string,
+            risk: s.string
+        })),
+        order: s.array(s.string)
+    }),
+    instructions: `Plan safe dependency upgrades.`,
 });
-
 console.log(await upgradePlan({
-  packageJson: p.text("cat package.json"),
-  outdated: p.text("npm outdated || true"),
+    packageJson: p.text("cat package.json"),
+    outdated: p.text("npm outdated || true"),
 }));

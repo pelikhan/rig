@@ -7,16 +7,16 @@ export type StringSchema = { kind: "string" };
 export type NumberSchema = { kind: "number" };
 export type BooleanSchema = { kind: "boolean" };
 export type UnknownSchema = { kind: "unknown" };
-export type ArraySchema<Item extends SchemaLike = SchemaLike> = { kind: "array"; item: Item };
-export type ObjectSchema<Fields extends Record<string, SchemaLike> = Record<string, SchemaLike>> = {
+export type ArraySchema<Item extends Schema = Schema> = { kind: "array"; item: Item };
+export type ObjectSchema<Fields extends Record<string, Schema> = Record<string, Schema>> = {
   kind: "object";
   fields: Fields;
 };
-export type RecordSchema<Value extends SchemaLike = SchemaLike> = { kind: "record"; value: Value };
+export type RecordSchema<Value extends Schema = Schema> = { kind: "record"; value: Value };
 export type EnumSchema<Values extends readonly Json[] = readonly Json[]> = { kind: "enum"; values: Values };
 export type LiteralSchema<Value extends Json = Json> = { kind: "literal"; value: Value };
-export type NullableSchema<Inner extends SchemaLike = SchemaLike> = { kind: "nullable"; inner: Inner };
-export type OptionalSchema<Inner extends SchemaLike = SchemaLike> = { kind: "optional"; inner: Inner };
+export type NullableSchema<Inner extends Schema = Schema> = { kind: "nullable"; inner: Inner };
+export type OptionalSchema<Inner extends Schema = Schema> = { kind: "optional"; inner: Inner };
 
 export type Schema =
   | StringSchema
@@ -30,8 +30,6 @@ export type Schema =
   | LiteralSchema<any>
   | NullableSchema<any>
   | OptionalSchema<any>;
-
-export type SchemaLike = Schema | string | number | boolean | readonly [SchemaLike] | { [key: string]: SchemaLike };
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
@@ -57,15 +55,6 @@ export type InferSchema<T> =
     & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? never : K]: InferSchema<Fields[K]> }
     & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? K : never]?: Fields[K] extends { kind: "optional"; inner: infer Inner } ? InferSchema<Inner> : never }
   > :
-  T extends string ? string :
-  T extends number ? number :
-  T extends boolean ? boolean :
-  T extends readonly [infer Item] ? InferSchema<Item>[] :
-  T extends { "*": infer Value } ? Record<string, InferSchema<Value>> :
-  T extends Record<string, unknown> ? Simplify<
-    & { [K in keyof T as K extends `${infer _Name}_` ? never : K]: InferSchema<T[K]> }
-    & { [K in keyof T as K extends `${infer Name}_` ? Name : never]?: InferSchema<T[K]> }
-  > :
   unknown;
 
 export const s = {
@@ -73,13 +62,13 @@ export const s = {
   number: { kind: "number" } as NumberSchema,
   boolean: { kind: "boolean" } as BooleanSchema,
   unknown: { kind: "unknown" } as UnknownSchema,
-  array<Item extends SchemaLike>(item: Item): ArraySchema<Item> {
+  array<Item extends Schema>(item: Item): ArraySchema<Item> {
     return { kind: "array", item };
   },
-  object<Fields extends Record<string, SchemaLike>>(fields: Fields): ObjectSchema<Fields> {
+  object<Fields extends Record<string, Schema>>(fields: Fields): ObjectSchema<Fields> {
     return { kind: "object", fields };
   },
-  record<Value extends SchemaLike>(value: Value): RecordSchema<Value> {
+  record<Value extends Schema>(value: Value): RecordSchema<Value> {
     return { kind: "record", value };
   },
   enum<const Values extends readonly Json[]>(...values: Values): EnumSchema<Values> {
@@ -88,10 +77,10 @@ export const s = {
   literal<Value extends Json>(value: Value): LiteralSchema<Value> {
     return { kind: "literal", value };
   },
-  nullable<Inner extends SchemaLike>(inner: Inner): NullableSchema<Inner> {
+  nullable<Inner extends Schema>(inner: Inner): NullableSchema<Inner> {
     return { kind: "nullable", inner };
   },
-  optional<Inner extends SchemaLike>(inner: Inner): OptionalSchema<Inner> {
+  optional<Inner extends Schema>(inner: Inner): OptionalSchema<Inner> {
     return { kind: "optional", inner };
   },
 };
@@ -106,7 +95,7 @@ export type EngineSession = {
 
 export type RepairHandler = false | "default" | ((error: AgentError) => string);
 
-export type AgentSpec<Input extends SchemaLike = ObjectSchema<{ text: StringSchema }>, Output extends SchemaLike = ObjectSchema<{ text: StringSchema }>> = {
+export type AgentSpec<Input extends Schema = ObjectSchema<{ text: StringSchema }>, Output extends Schema = ObjectSchema<{ text: StringSchema }>> = {
   name: string;
   instructions?: string;
   input?: Input;
@@ -256,8 +245,8 @@ export function useEngine(engine: Engine): void {
 }
 
 export function agent<
-  const Input extends SchemaLike = ObjectSchema<{ text: StringSchema }>,
-  const Output extends SchemaLike = ObjectSchema<{ text: StringSchema }>
+  const Input extends Schema = ObjectSchema<{ text: StringSchema }>,
+  const Output extends Schema = ObjectSchema<{ text: StringSchema }>
 >(spec: AgentSpec<Input, Output>): AgentFn<InferSchema<Input>, InferSchema<Output>>;
 export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const normalizedSpec = normalizeSpec(spec);
@@ -349,8 +338,8 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
 
 export type AgentFactory = typeof agent;
 
-function validate(value: unknown, schemaLike: SchemaLike): ValidationResult {
-  return validateSchema(value, normalizeSchema(schemaLike), "$", false);
+function validate(value: unknown, schema: Schema): ValidationResult {
+  return validateSchema(value, schema, "$", false);
 }
 
 function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
@@ -358,8 +347,14 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
     name: specOrName.name,
   };
   if (specOrName.instructions !== undefined) spec.instructions = specOrName.instructions;
-  if (specOrName.input !== undefined) spec.input = normalizeSchema(specOrName.input);
-  if (specOrName.output !== undefined) spec.output = normalizeSchema(specOrName.output);
+  if (specOrName.input !== undefined) {
+    assertValidSchema(specOrName.input, specOrName.name, "input");
+    spec.input = specOrName.input;
+  }
+  if (specOrName.output !== undefined) {
+    assertValidSchema(specOrName.output, specOrName.name, "output");
+    spec.output = specOrName.output;
+  }
   if (specOrName.model !== undefined) spec.model = specOrName.model;
   if (specOrName.timeout !== undefined) spec.timeout = specOrName.timeout;
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
@@ -377,39 +372,6 @@ function normalizeInput(input: unknown, schema: Schema): unknown {
     return {};
   }
   return input ?? null;
-}
-
-function normalizeSchema(schemaLike: SchemaLike): Schema {
-  if (isSchema(schemaLike)) {
-    return schemaLike;
-  }
-  if (typeof schemaLike === "string") {
-    return s.string;
-  }
-  if (typeof schemaLike === "number") {
-    return s.number;
-  }
-  if (typeof schemaLike === "boolean") {
-    return s.boolean;
-  }
-  if (Array.isArray(schemaLike)) {
-    return s.array(normalizeSchema(schemaLike[0] ?? s.unknown));
-  }
-  if (schemaLike && typeof schemaLike === "object") {
-    if ("*" in schemaLike) {
-      return s.record(normalizeSchema(schemaLike["*"]));
-    }
-    const fields = Object.fromEntries(
-      Object.entries(schemaLike).map(([key, value]) => {
-        if (key.endsWith("_")) {
-          return [key.slice(0, -1), s.optional(normalizeSchema(value))];
-        }
-        return [key, normalizeSchema(value)];
-      }),
-    );
-    return s.object(fields);
-  }
-  return s.unknown;
 }
 
 function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
@@ -505,15 +467,15 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
         ? ok()
         : bad(path, schema.values.map((item: Json) => JSON.stringify(item)).join(" | "), value);
     case "nullable":
-      return value === null ? ok() : validateSchema(value, normalizeSchema(schema.inner), path, false);
+      return value === null ? ok() : validateSchema(value, schema.inner, path, false);
     case "optional":
-      return validateSchema(value, normalizeSchema(schema.inner), path, true);
+      return validateSchema(value, schema.inner, path, true);
     case "array": {
       if (!Array.isArray(value)) {
         return bad(path, "array", value);
       }
       for (let index = 0; index < value.length; index += 1) {
-        const result = validateSchema(value[index], normalizeSchema(schema.item), `${path}[${index}]`, false);
+        const result = validateSchema(value[index], schema.item, `${path}[${index}]`, false);
         if (!result.ok) {
           return result;
         }
@@ -525,7 +487,7 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
         return bad(path, "object", value);
       }
       for (const [key, item] of Object.entries(value)) {
-        const result = validateSchema(item, normalizeSchema(schema.value), `${path}.${key}`, false);
+        const result = validateSchema(item, schema.value, `${path}.${key}`, false);
         if (!result.ok) {
           return result;
         }
@@ -539,7 +501,7 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
       for (const [key, fieldSchema] of Object.entries(schema.fields)) {
         const result = validateSchema(
           (value as Record<string, unknown>)[key],
-          normalizeSchema(fieldSchema as SchemaLike),
+          fieldSchema,
           `${path}.${key}`,
           false,
         );
@@ -552,8 +514,7 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
   }
 }
 
-function renderSchema(schemaLike: SchemaLike): string {
-  const schema = normalizeSchema(schemaLike);
+function renderSchema(schema: Schema): string {
   return renderSchemaNode(schema, 0);
 }
 
@@ -573,20 +534,20 @@ function renderSchemaNode(schema: Schema, indent: number): string {
     case "enum":
       return schema.values.map((value: Json) => JSON.stringify(value)).join(" | ");
     case "nullable":
-      return `${renderSchemaNode(normalizeSchema(schema.inner), indent)} | null`;
+      return `${renderSchemaNode(schema.inner, indent)} | null`;
     case "optional":
-      return `${renderSchemaNode(normalizeSchema(schema.inner), indent)} | undefined`;
+      return `${renderSchemaNode(schema.inner, indent)} | undefined`;
     case "array":
-      return `${renderSchemaNode(normalizeSchema(schema.item), indent)}[]`;
+      return `${renderSchemaNode(schema.item, indent)}[]`;
     case "record":
-      return `{\n${pad}  [key: string]: ${renderSchemaNode(normalizeSchema(schema.value), indent + 1)};\n${pad}}`;
+      return `{\n${pad}  [key: string]: ${renderSchemaNode(schema.value, indent + 1)};\n${pad}}`;
     case "object": {
       const lines = ["{"];
       for (const [key, value] of Object.entries(schema.fields)) {
-        if (isSchema(value) && value.kind === "optional") {
-          lines.push(`${pad}  ${key}?: ${renderSchemaNode(normalizeSchema(value.inner), indent + 1)};`);
+        if (value.kind === "optional") {
+          lines.push(`${pad}  ${key}?: ${renderSchemaNode(value.inner, indent + 1)};`);
         } else {
-          lines.push(`${pad}  ${key}: ${renderSchemaNode(normalizeSchema(value as SchemaLike), indent + 1)};`);
+          lines.push(`${pad}  ${key}: ${renderSchemaNode(value, indent + 1)};`);
         }
       }
       lines.push(`${pad}}`);
@@ -674,6 +635,31 @@ function isSchema(value: unknown): value is Schema {
     && typeof value === "object"
     && "kind" in value
     && ["string", "number", "boolean", "unknown", "array", "object", "record", "enum", "literal", "nullable", "optional"].includes((value as { kind: string }).kind);
+}
+
+function assertValidSchema(schema: Schema, agentName: string, slot: "input" | "output", path = slot): void {
+  if (!isSchema(schema)) {
+    throw new Error(`Invalid ${slot} schema for agent "${agentName}" at ${path}. Use declarative s.* schema helpers.`);
+  }
+  switch (schema.kind) {
+    case "array":
+      assertValidSchema(schema.item, agentName, slot, `${path}[]`);
+      return;
+    case "record":
+      assertValidSchema(schema.value, agentName, slot, `${path}.*`);
+      return;
+    case "nullable":
+    case "optional":
+      assertValidSchema(schema.inner, agentName, slot, path);
+      return;
+    case "object":
+      for (const [key, value] of Object.entries(schema.fields)) {
+        assertValidSchema(value, agentName, slot, `${path}.${key}`);
+      }
+      return;
+    default:
+      return;
+  }
 }
 
 function isAnyIntent(value: unknown): value is AnyIntent {
