@@ -40,4 +40,4 @@ const { draft } = await writer({ request });
 const critique = await critic({ request, draft });
 await reviser({ request, draft, issues: critique.issues });
 
-export default writer;
+export default reviser;
