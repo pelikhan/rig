@@ -5,12 +5,13 @@ import { expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   const createSession = vi.fn();
   const copilotClientCtor = vi.fn();
-  const forUri = vi.fn(() => ({ kind: "uri", url: "localhost:0" }));
+  const defaultForUri = () => ({ kind: "uri", url: "localhost:0" });
+  const forUri = vi.fn(defaultForUri);
   const CopilotClient = function (this: unknown, options: unknown) {
     copilotClientCtor(options);
     return { createSession };
   };
-  return { createSession, copilotClientCtor, forUri, CopilotClient };
+  return { createSession, copilotClientCtor, defaultForUri, forUri, CopilotClient };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
@@ -60,11 +61,11 @@ it("uses COPILOT_SDK_URI when mounting the default copilot engine", async () => 
     expect(mocks.forUri).toHaveBeenCalledWith("http://127.0.0.1:4141");
     expect(mocks.copilotClientCtor).toHaveBeenCalledWith(
       expect.objectContaining({
-        connection: { kind: "uri", url: "localhost:0" },
+        connection: { kind: "uri", url: "http://127.0.0.1:4141" },
       }),
     );
   } finally {
     delete process.env["COPILOT_SDK_URI"];
-    mocks.forUri.mockImplementation(() => ({ kind: "uri", url: "localhost:0" }));
+    mocks.forUri.mockImplementation(mocks.defaultForUri);
   }
 });
