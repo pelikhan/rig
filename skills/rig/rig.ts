@@ -1,6 +1,8 @@
 import { basename, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
 import type { CopilotClientOptions } from "@github/copilot-sdk";
 
@@ -156,6 +158,7 @@ export type CallOptions = {
 export type LaunchOptions = {
   cwd?: string;
   startServer?: boolean;
+  typecheck?: boolean;
 };
 
 export type LauncherIo = {
@@ -259,6 +262,7 @@ type CopilotSession = {
   on?: (handler: (event: unknown) => void) => unknown;
   sendAndWait(request: { prompt: string; signal?: AbortSignal }): Promise<unknown>;
 };
+const execFileAsync = promisify(execFile);
 
 /**
  * Mounts an engine and executes a rig program file.
@@ -365,6 +369,30 @@ function renderStdout(value: unknown): string {
   return JSON.stringify(value);
 }
 
+async function typecheckProgram(programPath: string, cwd: string): Promise<void> {
+  const tempRoot = resolve(cwd, ".tmp");
+  await mkdir(tempRoot, { recursive: true });
+  const tempDir = await mkdtemp(resolve(tempRoot, "rig-typecheck-"));
+  const projectPath = resolve(tempDir, "tsconfig.typecheck.json");
+  try {
+    await writeFile(projectPath, JSON.stringify({
+      extends: resolve(cwd, "tsconfig.json"),
+      include: [programPath],
+    }), "utf8");
+    await execFileAsync("npx", ["tsc", "--project", projectPath, "--pretty", "false"], { cwd });
+  } catch (error) {
+    const failure = error as { stdout?: string; stderr?: string };
+    const diagnostics = [failure.stdout, failure.stderr]
+      .filter((entry) => typeof entry === "string" && entry.trim())
+      .join("\n")
+      .trim();
+    const detail = diagnostics ? `\n${diagnostics}` : "";
+    throw new Error(`Typecheck failed for ${programPath}.${detail}`);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function runRootAgentFromStdin(
   programPath: string,
   options: LaunchOptions = {},
@@ -378,6 +406,9 @@ async function runRootAgentFromStdin(
 
   const cwd = options.cwd ?? process.cwd();
   const resolvedPath = isAbsolute(programPath) ? programPath : resolve(cwd, programPath);
+  if (options.typecheck) {
+    await typecheckProgram(resolvedPath, cwd);
+  }
 
   configureCopilot(resolveCopilotOptions(cwd, options));
   const mod = await import(pathToFileURL(resolvedPath).href);
@@ -397,7 +428,7 @@ async function runProgramCodeFromStdin(
 ): Promise<void> {
   const programCode = await readStdin(io.stdin);
   if (!programCode.trim()) {
-    throw new Error(`Usage: ${scriptName} <program-file> [--server]`);
+    throw new Error(`Usage: ${scriptName} <program-file> [--server] [--typecheck]`);
   }
 
   const cwd = options.cwd ?? process.cwd();
@@ -408,6 +439,9 @@ async function runProgramCodeFromStdin(
   const transformedProgramCode = withInjectedDefaultRootAgent(withInjectedRigImport(programCode));
   await writeFile(tempProgramPath, transformedProgramCode, "utf8");
   try {
+    if (options.typecheck) {
+      await typecheckProgram(tempProgramPath, cwd);
+    }
     configureCopilot(resolveCopilotOptions(cwd, options));
     const mod = await import(pathToFileURL(tempProgramPath).href);
     const rootAgent = asRootAgent(mod.default);
@@ -433,12 +467,17 @@ export async function runLauncherCli(
   const positionalArgs = argv.filter((arg) => !arg.startsWith("--"));
   const flags = argv.filter((arg) => arg.startsWith("--"));
   const serverFlag = flags.includes("--server");
-  const unknownFlags = flags.filter((f) => f !== "--server");
+  const typecheckFlag = flags.includes("--typecheck") || flags.includes("--type-check");
+  const unknownFlags = flags.filter((f) => f !== "--server" && f !== "--typecheck" && f !== "--type-check");
   const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
   if (positionalArgs.length > 1 || unknownFlags.length > 0) {
-    throw new Error(`Usage: ${scriptName} <program-file> [--server]`);
+    throw new Error(`Usage: ${scriptName} <program-file> [--server] [--typecheck]`);
   }
-  const mergedOptions: LaunchOptions = serverFlag ? { ...options, startServer: true } : options;
+  const mergedOptions: LaunchOptions = {
+    ...options,
+    ...(serverFlag ? { startServer: true } : {}),
+    ...(typecheckFlag ? { typecheck: true } : {}),
+  };
   if (positionalArgs.length === 1) {
     await runRootAgentFromStdin(positionalArgs[0]!, mergedOptions, io, scriptName);
     return;

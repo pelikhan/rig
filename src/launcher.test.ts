@@ -177,6 +177,42 @@ it("accepts --server flag without rejecting", async () => {
   expect(mocks.forStdio).toHaveBeenCalled();
 });
 
+it("accepts --typecheck flag without rejecting", async () => {
+  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin.fixture.ts");
+  const stdin = Readable.from(["Review this patch"]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  await runLauncherCli([fixturePath, "--typecheck"], {}, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
+});
+
+it("rejects --typecheck when inline program fails typecheck", async () => {
+  const stdin = Readable.from([`
+const root = agent({
+  name: "launcher-stdin-program",
+  instructions: 42,
+  output: s.object({ text: s.string }),
+});
+export default root;
+`]);
+  const stdout = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+
+  await expect(runLauncherCli(["--typecheck"], {}, { stdin, stdout })).rejects.toThrow(
+    /Typecheck failed/,
+  );
+});
+
 it("runs an inlined stdin program by invoking the default no-input root agent", async () => {
   const stdin = Readable.from([`
 const root = agent({

@@ -269,16 +269,23 @@ Pass `--server` to have the harness start the Copilot server automatically befor
 echo "Review this diff" | node skills/rig/rig.ts src/program.ts --server
 ```
 
-To typecheck a rig program before running it, write the snippet to a `.ts` file under this repository and run TypeScript in no-emit mode:
+Pass `--typecheck` to typecheck the rig program before execution:
 
 ```bash
-cat <<'RIG' > skills/rig/samples/.tmp-program.ts
-import { agent, s } from "rig";
-const root = agent({ name: "review", model: "mini", output: s.object({ text: s.string }) });
+cat <<'RIG' | node skills/rig/rig.ts --typecheck
+const root = agent({
+  name: "review",
+  model: "mini",
+  output: s.object({ text: s.string }),
+});
 export default root;
 RIG
-npx tsc --noEmit --pretty false
-rm skills/rig/samples/.tmp-program.ts
+```
+
+Program-file mode also supports `--typecheck`:
+
+```bash
+echo "Review this diff" | node skills/rig/rig.ts src/program.ts --typecheck
 ```
 
 ## Copilot SDK runtime

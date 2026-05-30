@@ -145,10 +145,22 @@ Pass `--server` to start the Copilot server automatically as part of the run:
 cat ./program.ts | node skills/rig/rig.ts --server
 ```
 
+Pass `--typecheck` to typecheck the rig program before execution:
+
+```bash
+cat ./program.ts | node skills/rig/rig.ts --typecheck
+```
+
 To run a root agent from a program file, export the root agent as the default export and pass input on stdin:
 
 ```bash
 echo "Summarize this repository" | node skills/rig/rig.ts src/program.ts
+```
+
+Program-file mode also supports `--typecheck`:
+
+```bash
+echo "Summarize this repository" | node skills/rig/rig.ts src/program.ts --typecheck
 ```
 
 For program-file mode stdin coercion:
