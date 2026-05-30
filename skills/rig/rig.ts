@@ -548,6 +548,8 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
       "subagents",
       json(Object.entries(spec.agents).map(([name, subagent]) => ({
         name,
+        instructions: subagent.spec.instructions ?? null,
+        model: subagent.spec.model ?? null,
         input: renderSchema(subagent.inputSchema),
         output: renderSchema(subagent.outputSchema),
       }))),
