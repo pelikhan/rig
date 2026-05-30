@@ -498,7 +498,7 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
       if (!value || typeof value !== "object" || Array.isArray(value)) {
         return bad(path, "object", value);
       }
-      for (const [key, fieldSchema] of Object.entries(schema.fields)) {
+      for (const [key, fieldSchema] of Object.entries(schema.fields) as [string, Schema][]) {
         const result = validateSchema(
           (value as Record<string, unknown>)[key],
           fieldSchema,
@@ -543,7 +543,7 @@ function renderSchemaNode(schema: Schema, indent: number): string {
       return `{\n${pad}  [key: string]: ${renderSchemaNode(schema.value, indent + 1)};\n${pad}}`;
     case "object": {
       const lines = ["{"];
-      for (const [key, value] of Object.entries(schema.fields)) {
+      for (const [key, value] of Object.entries(schema.fields) as [string, Schema][]) {
         if (value.kind === "optional") {
           lines.push(`${pad}  ${key}?: ${renderSchemaNode(value.inner, indent + 1)};`);
         } else {
@@ -637,7 +637,7 @@ function isSchema(value: unknown): value is Schema {
     && ["string", "number", "boolean", "unknown", "array", "object", "record", "enum", "literal", "nullable", "optional"].includes((value as { kind: string }).kind);
 }
 
-function assertValidSchema(schema: Schema, agentName: string, slot: "input" | "output", path = slot): void {
+function assertValidSchema(schema: Schema, agentName: string, slot: "input" | "output", path: string = slot): void {
   if (!isSchema(schema)) {
     throw new Error(`Invalid ${slot} schema for agent "${agentName}" at ${path}. Use declarative s.* schema helpers.`);
   }
@@ -653,7 +653,7 @@ function assertValidSchema(schema: Schema, agentName: string, slot: "input" | "o
       assertValidSchema(schema.inner, agentName, slot, path);
       return;
     case "object":
-      for (const [key, value] of Object.entries(schema.fields)) {
+      for (const [key, value] of Object.entries(schema.fields) as [string, Schema][]) {
         assertValidSchema(value, agentName, slot, `${path}.${key}`);
       }
       return;

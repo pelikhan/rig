@@ -6,7 +6,7 @@ const parseEvent = agent({
     }),
     output: s.object({
         title: s.string,
-        deletedAt: s.optional(s.nullable("2026-05-28T00:00:00Z"))
+        deletedAt: s.optional(s.nullable(s.string))
     }),
     instructions: `Extract event metadata. Use null when deletedAt is absent.`,
 });
