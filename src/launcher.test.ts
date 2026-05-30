@@ -42,6 +42,19 @@ beforeEach(() => {
   mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
 });
 
+async function runCliAndCaptureStdout(argv: string[], stdinChunks: string[] = [""]): Promise<string> {
+  const stdin = Readable.from(stdinChunks);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+  await runLauncherCli(argv, {}, { stdin, stdout });
+  return output.join("");
+}
+
 it("loads a rig program and mounts a copilot client", async () => {
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const globalState = globalThis as { __launcherLoaded?: number };
@@ -160,6 +173,15 @@ it("rejects unknown cli arguments", async () => {
   await expect(runLauncherCli([fixturePath, "--file"])).rejects.toThrow(
     /<program-file>/,
   );
+});
+
+it("prints launcher help for common help invocations", async () => {
+  for (const argv of [["--help"], ["-h"], ["help"], ["/help"], ["/?"]]) {
+    const output = await runCliAndCaptureStdout(argv);
+    expect(output).toContain("Usage:");
+    expect(output).toContain("[<program-file>]");
+  }
+  expect(mocks.createSession).not.toHaveBeenCalled();
 });
 
 it("accepts --server flag without rejecting", async () => {

@@ -173,6 +173,7 @@ Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 
 By default it connects to an already-running Copilot server via HTTP (`COPILOT_SDK_URI`, then `localhost:7777`).
 Pass `--server` to spawn the server over stdio when launching a program.
+Run `node skills/rig/rig.ts --help` for CLI usage; the launcher also accepts common help aliases such as `-h`, `help`, `/help`, and `/?`.
 
 For runnable programs, you can pipe a rig program directly on stdin (assumes the Copilot server is already running):
 
