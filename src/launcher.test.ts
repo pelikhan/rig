@@ -66,14 +66,20 @@ it("supports stdin mode and writes the final answer to stdout", async () => {
   expect(output.join("")).toBe("{\"text\":\"done\"}");
 });
 
+it("rejects stdin mode when prompt is empty", async () => {
+  const stdin = Readable.from(["   \n\t"]);
+  const stdout = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+  await expect(
+    runLauncherCli(["--stdin"], { engine: mockEngine({ text: "ignored" }) }, { stdin, stdout }),
+  ).rejects.toThrow(/\[<program-file> \| --stdin\]/);
+});
+
 it("requires a program path in cli mode", async () => {
-  const originalArgv1 = process.argv[1];
-  process.argv[1] = "/tmp/launcher.ts";
-  try {
-    await expect(runLauncherCli([], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
-      "Usage: launcher.ts [<program-file> | --stdin]",
-    );
-  } finally {
-    process.argv[1] = originalArgv1;
-  }
+  await expect(runLauncherCli([], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
+    /\[<program-file> \| --stdin\]/,
+  );
 });
