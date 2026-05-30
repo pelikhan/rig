@@ -85,10 +85,10 @@ const summarizeAtScale = agent({
 - summarize 24h of cross-package monorepo changes by owner area
 
 Use deterministic evidence collection first, then parallel Promise fan-out with small models, and finish with one large-model reducer only when needed.
-Use evidence such as ${p.bash("git diff -- .")} and ${p.bash("git log --since='24 hours ago' --name-status --pretty=format:'%h %s'")} and ${p.bash("git log --since='24 hours ago' -- src '*.md' '*.ts' '*.js' --name-only --pretty=format:'%h %s' || true")}.",
+Use evidence such as ${p.bash("git diff -- .")} and ${p.bash("git log --since='24 hours ago' --name-status --pretty=format:'%h %s'")} and ${p.bash("git log --since='24 hours ago' -- src '*.md' '*.ts' '*.js' --name-only --pretty=format:'%h %s' || true")}.`,
 });
 
-const searchPlan = await planDeterministicSearch({
+await planDeterministicSearch({
   query: "Where did auth, exports, and schema behavior change in the last 24h?",
 });
 
@@ -114,7 +114,5 @@ await reduceScenario({
   scenario: "core-scenarios",
   shardSummaries: [diffShard, commitsShard, docsShard],
 });
-
-await summarizeAtScale({});
 
 export default summarizeAtScale;
