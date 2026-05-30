@@ -37,12 +37,10 @@ export type Schema =
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
-export type AnyIntent = ShIntent;
-
 export type AgentInputValue<T> =
-  T extends readonly (infer Item)[] ? AnyIntent | AgentInputValue<Item>[] :
-  T extends object ? AnyIntent | { [K in keyof T]: AgentInputValue<T[K]> } :
-  T | AnyIntent;
+  T extends readonly (infer Item)[] ? Intent | AgentInputValue<Item>[] :
+  T extends object ? Intent | { [K in keyof T]: AgentInputValue<T[K]> } :
+  T | Intent;
 
 export type InferSchema<T> =
   T extends { kind: "string" } ? string :
@@ -175,7 +173,7 @@ export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValu
   _namespace: string;
 };
 
-export type ShOptions = {
+export type IntentOptions = {
   cwd?: string;
   env?: Record<string, string>;
   timeout?: number;
@@ -183,47 +181,47 @@ export type ShOptions = {
   signal?: AbortSignal;
 };
 
-export type ShIntent = {
+export type Intent = {
   __rig: "sh";
   id: string;
   mode: "sh.text" | "sh.result" | "sh.read" | "sh.write";
   command?: string;
   path?: string;
   contents?: string;
-  options?: Omit<ShOptions, "signal">;
+  options?: Omit<IntentOptions, "signal">;
 };
 
 let nextIntentId = 1;
 
 type PromptHelpers = {
   (strings: TemplateStringsArray, ...values: unknown[]): string;
-  bash(command: string, options?: ShOptions): ShIntent;
-  result(command: string, options?: ShOptions): ShIntent;
-  read(path: string, options?: ShOptions): ShIntent;
-  write(path: string, contents: string, options?: ShOptions): ShIntent;
+  bash(command: string, options?: IntentOptions): Intent;
+  result(command: string, options?: IntentOptions): Intent;
+  read(path: string, options?: IntentOptions): Intent;
+  write(path: string, contents: string, options?: IntentOptions): Intent;
 };
 
 function renderPromptTemplate(strings: TemplateStringsArray, ...values: unknown[]): string {
   let result = strings[0] ?? "";
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
-    result += isAnyIntent(value) ? renderAnyIntent(value) : String(value);
+    result += isIntent(value) ? renderIntent(value) : String(value);
     result += strings[index + 1] ?? "";
   }
   return result;
 }
 
 export const p: PromptHelpers = Object.assign(renderPromptTemplate, {
-  bash(command: string, options?: ShOptions): ShIntent {
+  bash(command: string, options?: IntentOptions): Intent {
     return createIntent("sh.text", withOptions({ command }, options));
   },
-  result(command: string, options?: ShOptions): ShIntent {
+  result(command: string, options?: IntentOptions): Intent {
     return createIntent("sh.result", withOptions({ command }, options));
   },
-  read(path: string, options?: ShOptions): ShIntent {
+  read(path: string, options?: IntentOptions): Intent {
     return createIntent("sh.read", withOptions({ path }, options));
   },
-  write(path: string, contents: string, options?: ShOptions): ShIntent {
+  write(path: string, contents: string, options?: IntentOptions): Intent {
     return createIntent("sh.write", withOptions({ path, contents }, options));
   },
 });
@@ -719,8 +717,8 @@ function inlineShellPrompts<T>(value: T): T {
   const seen = new WeakSet<object>();
 
   const walk = (current: unknown): unknown => {
-    if (isAnyIntent(current)) {
-      return renderAnyIntent(current);
+    if (isIntent(current)) {
+      return renderIntent(current);
     }
     if (!current || typeof current !== "object") {
       return current;
@@ -774,7 +772,7 @@ function analyzeResponse(response: string, outputSchema: Schema, agentName: stri
   return { ok: true, output: parsed.value };
 }
 
-function renderShellPrompt(intent: ShIntent): string {
+function renderShellPrompt(intent: Intent): string {
   const options = formatShellOptions(intent.options);
   switch (intent.mode) {
     case "sh.text":
@@ -790,11 +788,11 @@ function renderShellPrompt(intent: ShIntent): string {
   }
 }
 
-function formatShellOptions(options: ShIntent["options"]): string {
+function formatShellOptions(options: Intent["options"]): string {
   return options ? `\nOptions: ${json(options)}` : "";
 }
 
-function requiredPath(intent: ShIntent): string {
+function requiredPath(intent: Intent): string {
   if (!intent.path) {
     throw new Error(`Shell mode ${intent.mode} requires a path.`);
   }
@@ -802,21 +800,21 @@ function requiredPath(intent: ShIntent): string {
 }
 
 function createIntent(
-  mode: ShIntent["mode"],
-  args: Omit<Partial<ShIntent>, "__rig" | "id" | "mode">,
-): ShIntent {
+  mode: Intent["mode"],
+  args: Omit<Partial<Intent>, "__rig" | "id" | "mode">,
+): Intent {
   return { __rig: "sh", id: `intent_${nextIntentId++}`, mode, ...args };
 }
 
-function stripSignal(options: ShOptions): Omit<ShOptions, "signal"> {
+function stripSignal(options: IntentOptions): Omit<IntentOptions, "signal"> {
   const { signal: _signal, ...rest } = options;
   return rest;
 }
 
-function withOptions<T extends Omit<Partial<ShIntent>, "__rig" | "id" | "mode">>(
+function withOptions<T extends Omit<Partial<Intent>, "__rig" | "id" | "mode">>(
   value: T,
-  options?: ShOptions,
-): T | (T & { options: Omit<ShOptions, "signal"> }) {
+  options?: IntentOptions,
+): T | (T & { options: Omit<IntentOptions, "signal"> }) {
   return options ? { ...value, options: stripSignal(options) } : value;
 }
 
@@ -899,14 +897,14 @@ function assertValidSchema(schema: Schema, agentName: string, slot: "input" | "o
   }
 }
 
-function isAnyIntent(value: unknown): value is AnyIntent {
+function isIntent(value: unknown): value is Intent {
   return !!value
     && typeof value === "object"
     && (value as { __rig?: unknown }).__rig === "sh"
     && typeof (value as { mode?: unknown }).mode === "string";
 }
 
-function renderAnyIntent(intent: AnyIntent): string {
+function renderIntent(intent: Intent): string {
   return renderShellPrompt(intent);
 }
 
