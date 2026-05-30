@@ -1,6 +1,6 @@
 import { basename, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { copilotEngine } from "./engines/copilot.ts";
+import { copilotEngine } from "../../src/engines/copilot.ts";
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type ValidationResult = { ok: true } | { ok: false; error: string };
@@ -122,6 +122,7 @@ export type CallOptions = {
 export type LaunchOptions = {
   cwd?: string;
   engine?: Engine;
+  startServer?: boolean;
 };
 
 export type LauncherIo = {
@@ -260,7 +261,8 @@ export function useEngine(engine: Engine): void {
  */
 export async function launchRigProgram(programPath: string, options: LaunchOptions = {}): Promise<void> {
   const cwd = options.cwd ?? process.cwd();
-  const engine = options.engine ?? copilotEngine({ workingDirectory: cwd });
+  const engineOptions = options.startServer ? { workingDirectory: cwd, server: true as const } : { workingDirectory: cwd };
+  const engine = options.engine ?? copilotEngine(engineOptions);
   const resolvedPath = isAbsolute(programPath) ? programPath : resolve(cwd, programPath);
 
   useEngine(engine);
@@ -328,7 +330,8 @@ async function runRootAgentFromStdin(
   }
 
   const cwd = options.cwd ?? process.cwd();
-  const engine = options.engine ?? copilotEngine({ workingDirectory: cwd });
+  const engineOptions = options.startServer ? { workingDirectory: cwd, server: true as const } : { workingDirectory: cwd };
+  const engine = options.engine ?? copilotEngine(engineOptions);
   const resolvedPath = isAbsolute(programPath) ? programPath : resolve(cwd, programPath);
 
   useEngine(engine);
@@ -349,12 +352,14 @@ export async function runLauncherCli(
 ): Promise<void> {
   const programPath = argv[0];
   const flags = argv.slice(1);
-  const hasInvalidFlags = flags.length > 0;
+  const serverFlag = flags.includes("--server");
+  const unknownFlags = flags.filter((f) => f !== "--server");
   const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
-  if (!programPath || hasInvalidFlags) {
-    throw new Error(`Usage: ${scriptName} <program-file>`);
+  if (!programPath || unknownFlags.length > 0) {
+    throw new Error(`Usage: ${scriptName} <program-file> [--server]`);
   }
-  await runRootAgentFromStdin(programPath, options, io, scriptName);
+  const mergedOptions: LaunchOptions = serverFlag ? { ...options, startServer: true } : options;
+  await runRootAgentFromStdin(programPath, mergedOptions, io, scriptName);
 }
 
 export function agent<

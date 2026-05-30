@@ -1,13 +1,17 @@
 import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
 import type { CopilotClientOptions } from "@github/copilot-sdk";
-import type { Engine, EngineSession } from "../rig.ts";
+import type { Engine, EngineSession } from "../../skills/rig/rig.ts";
 
-export type CopilotEngineOptions = CopilotClientOptions;
+export type CopilotEngineOptions = Omit<CopilotClientOptions, "connection"> & {
+  connection?: CopilotClientOptions["connection"];
+  server?: boolean;
+};
 
 export function copilotEngine(options: CopilotEngineOptions = {}): Engine {
+  const { server, connection, ...clientOptions } = options;
   const client = new CopilotClient({
-    ...options,
-    connection: options.connection ?? RuntimeConnection.forTcp(),
+    ...clientOptions,
+    connection: connection ?? (server ? RuntimeConnection.forStdio() : RuntimeConnection.forTcp()),
   });
 
   return {

@@ -2,15 +2,15 @@
 
 ## Project Overview
 
-Rig is a minimal TypeScript agent harness. The core runtime (`src/rig.ts`) provides declarative agent construction with typed input/output shapes, shell intents, and a pluggable LLM engine. The Copilot SDK engine lives in a sibling module.
+Rig is a minimal TypeScript agent harness. The core runtime (`skills/rig/rig.ts`) provides declarative agent construction with typed input/output shapes, shell intents, and a pluggable LLM engine. The Copilot SDK engine lives in a sibling module.
 
 ## Architecture
 
 ```
-src/rig.ts             — Core runtime (agent, sh, p, validate, useEngine, schemas)
+skills/rig/rig.ts      — Core runtime (agent, sh, p, validate, useEngine, schemas)
+skills/rig/samples/    — 51 sample agents demonstrating patterns
 src/engines/copilot.ts — Copilot SDK engine (rig/engines/copilot)
 src/rig.test.ts        — Unit tests (vitest)
-src/samples/           — 50 sample agents demonstrating patterns
 scripts/run-sample.test.ts — Sample runner with a stub engine (dry-run)
 skills/rig/SKILL.md    — Framework reference docs
 ```
@@ -25,11 +25,11 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 | Unit tests | `npm test` |
 | Run samples (stub) | `npm run sample` |
 | Run single sample (stub) | `RIG_SAMPLE=02 npm run sample` |
-| Run a sample for real | `echo "<input>" \| node src/rig.ts <program-file>` (`npm run sample:run`) |
+| Run a sample for real | `echo "<input>" \| node skills/rig/rig.ts <program-file>` (`npm run sample:run`) |
 
 ## Code Style
 
-- Keep the core (`src/rig.ts`) self-contained and free of runtime dependencies
+- Keep the core (`skills/rig/rig.ts`) self-contained and free of runtime dependencies
 - Only `@github/copilot-sdk` is allowed, and only inside `src/engines/copilot.ts`
 - Engines live in their own files, not in the core
 - Minimal comments; code should be self-explanatory

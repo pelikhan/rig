@@ -3,17 +3,18 @@ import { beforeEach, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   const createSession = vi.fn();
   const forTcp = vi.fn(() => ({ kind: "tcp", port: 0 }));
+  const forStdio = vi.fn(() => ({ kind: "stdio" }));
   const copilotClientCtor = vi.fn();
   const CopilotClient = function (this: unknown, options: unknown) {
     copilotClientCtor(options);
     return { createSession };
   };
-  return { createSession, forTcp, copilotClientCtor, CopilotClient };
+  return { createSession, forTcp, forStdio, copilotClientCtor, CopilotClient };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
   CopilotClient: mocks.CopilotClient,
-  RuntimeConnection: { forTcp: mocks.forTcp },
+  RuntimeConnection: { forTcp: mocks.forTcp, forStdio: mocks.forStdio },
 }));
 
 import { copilotEngine } from "./copilot.ts";
@@ -22,6 +23,8 @@ beforeEach(() => {
   mocks.createSession.mockReset();
   mocks.forTcp.mockClear();
   mocks.forTcp.mockImplementation(() => ({ kind: "tcp", port: 0 }));
+  mocks.forStdio.mockClear();
+  mocks.forStdio.mockImplementation(() => ({ kind: "stdio" }));
   mocks.copilotClientCtor.mockClear();
   vi.restoreAllMocks();
 });
@@ -80,4 +83,16 @@ it("creates and subscribes only once per engine session", async () => {
   expect(mocks.createSession).toHaveBeenCalledTimes(1);
   expect(on).toHaveBeenCalledTimes(1);
   expect(sendAndWait).toHaveBeenCalledTimes(2);
+});
+
+it("uses a stdio connection when server option is true", async () => {
+  const sendAndWait = vi.fn().mockResolvedValue({ text: "stdio-mode" });
+  mocks.createSession.mockResolvedValue({ sendAndWait });
+
+  const session = copilotEngine({ server: true }).createSession({ model: "gpt-4.1" });
+
+  await expect(session.send("hello", {})).resolves.toBe("stdio-mode");
+  expect(mocks.forStdio).toHaveBeenCalledOnce();
+  expect(mocks.forTcp).not.toHaveBeenCalled();
+  expect(mocks.copilotClientCtor).toHaveBeenCalledWith({ connection: { kind: "stdio" } });
 });

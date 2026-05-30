@@ -19,7 +19,7 @@ vi.mock("./engines/copilot.ts", () => ({
   copilotEngine: mocks.copilotEngine,
 }));
 
-import { launchRigProgram } from "./rig.ts";
+import { launchRigProgram } from "../skills/rig/rig.ts";
 
 it("uses the launcher cwd when mounting the default copilot engine", async () => {
   const cwd = "/tmp/workspace/pelikhan/rig/src";
