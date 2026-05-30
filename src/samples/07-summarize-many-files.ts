@@ -1,4 +1,4 @@
-import { agent, s, sh } from "rig";
+import { agent, s, p } from "rig";
 
 const summarizeFiles = agent({
   name: "summarizeFiles",
@@ -12,7 +12,7 @@ const summarizeFiles = agent({
 });
 
 const result = await summarizeFiles({
-  files: sh.text("find src -name '*.ts' -type f | sort"),
+  files: p.text("find src -name '*.ts' -type f | sort"),
 });
 
 console.log(result.summary);

@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const actionReview = agent({
   name: "actionReview",
@@ -13,5 +13,5 @@ const actionReview = agent({
 });
 
 console.log(await actionReview({
-  workflow: sh.text("cat .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true"),
+  workflow: p.text("cat .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true"),
 }));

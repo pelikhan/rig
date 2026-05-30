@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const owners = agent({
   name: "owners",
@@ -15,6 +15,6 @@ const owners = agent({
 });
 
 console.log(await owners({
-  codeowners: sh.text("cat CODEOWNERS .github/CODEOWNERS 2>/dev/null || true"),
-  changedFiles: sh.text("git diff --name-only origin/main...HEAD"),
+  codeowners: p.text("cat CODEOWNERS .github/CODEOWNERS 2>/dev/null || true"),
+  changedFiles: p.text("git diff --name-only origin/main...HEAD"),
 }));

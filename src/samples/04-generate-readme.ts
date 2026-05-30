@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const ShResult = {
   ok: true,
@@ -24,7 +24,7 @@ const diagnose = agent({
 });
 
 const result = await diagnose({
-  test: sh.result("npm test"),
+  test: p.result("npm test"),
 });
 
 console.log(result);

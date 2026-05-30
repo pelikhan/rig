@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const summarizeDiff = agent({
   name: "summarizeDiff",
@@ -17,5 +17,5 @@ const reviewer = agent({
 });
 
 console.log(await reviewer({
-  diff: sh.text("git diff -- ."),
+  diff: p.text("git diff -- ."),
 }));

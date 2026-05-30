@@ -1,5 +1,5 @@
 import { agent, s } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const normalize = agent({
   name: "normalizeConfig",
@@ -12,5 +12,5 @@ const normalize = agent({
 });
 
 console.log(await normalize({
-  config: sh.text("cat config.json 2>/dev/null || cat config.js"),
+  config: p.text("cat config.json 2>/dev/null || cat config.js"),
 }));

@@ -5,8 +5,7 @@ Minimal TypeScript harness for structured agent calls.
 ## Preferred imports
 
 ```ts
-import { agent, collectIntents, p, s, useEngine, validate } from "rig";
-import { sh } from "rig";
+import { agent, p, s, useEngine } from "rig";
 import type { RigEvent } from "rig";
 ```
 
@@ -15,8 +14,7 @@ import type { RigEvent } from "rig";
 Prefer this shape when generating a new rig program:
 
 ```ts
-import { agent, s } from "rig";
-import { sh } from "rig";
+import { agent, p, s } from "rig";
 
 const reviewDiff = agent({
   name: "reviewDiff",
@@ -37,8 +35,8 @@ const reviewDiff = agent({
 });
 
 const result = await reviewDiff({
-  diff: sh.text("git diff -- ."),
-  status: sh.text("git status --short"),
+  diff: p.text("git diff -- ."),
+  status: p.text("git status --short"),
 });
 ```
 
@@ -49,7 +47,7 @@ Use this checklist before finalizing generated code:
 1. Use `agent({ ... })` with explicit `name`, `instructions`, `input`, and `output`.
 2. Define input/output with `s.object(...)` and explicit `s.*` helpers.
 3. Keep output schema strict (enums/literals for constrained values).
-4. Use `sh.*` placeholders for shell/file context instead of free-form shell prose.
+4. Use `p.*` placeholders for shell/file context instead of free-form shell prose.
 5. Put stable defaults in spec; put per-call overrides in call options.
 6. Add `permissions`/`agents` only when required by the scenario.
 
@@ -59,7 +57,7 @@ Use this order to reduce syntax drift:
 
 1. Core agent shape: `agent({ name, instructions, input, output })`.
 2. Explicit typed schemas with `s.object(...)` and `s.*`.
-3. Shell intents with `sh.*` (inputs or `p`` templates).
+3. Shell intents with `p.*` (inputs or `p`` templates).
 4. Advanced spec fields (`permissions`, `agents`) when scenario needs them.
 5. Invocation overrides (`model`, `timeout`, `maxTurns`, `signal`) at call time.
 
@@ -123,26 +121,27 @@ s.optional(s.number)
 s.record(s.string)
 ```
 
-## Shell intents
+## Prompt helpers
 
-`sh` lives in core `rig`.
-These are declarative placeholders, not direct shell execution in the core harness.
+`p` is both the prompt template tag and the shell/file helper namespace.
+These helpers are declarative placeholders, not direct shell execution in the core harness.
 
 ```ts
-sh.text("git diff -- .")
-sh.result("npm test")
-sh.read("README.md")
-sh.write("README.md", "# Hello\n")
+p.text("git diff -- .")
+p.result("npm test")
+p.read("README.md")
+p.write("README.md", "# Hello\n")
 ```
 
-Use shell intents:
+`p.shell(...)` is an alias of `p.text(...)`.
+
+Use `p.*` helpers:
 
 - in input values
 - inside `p\`\`` instruction templates
-- with `collectIntents(...)`
 
 ```ts
-const prompt = p`Review the repository status using ${sh.text("git status --short")}.`;
+const prompt = p`Review the repository status using ${p.text("git status --short")}.`;
 ```
 
 ## Call-time options
@@ -221,21 +220,6 @@ Use:
 - `repair: false` to disable repair
 - `repair(error) => string` for custom repair instructions
 
-## Validation helpers
-
-Use `validate(value, schema)` to validate parsed data explicitly.
-
-```ts
-const result = validate({ label: "bug" }, s.object({ label: s.string }));
-```
-
-Use `collectIntents(value)` when you need both the normalized value and extracted intents.
-
-```ts
-const input = { diff: sh.text("git diff -- .") };
-const { value, intents } = collectIntents(input);
-```
-
 ## Engines
 
 Use `useEngine(engine)` to install a custom engine.
@@ -269,7 +253,7 @@ registerIntentRenderer("http", (intent) => {
 });
 ```
 
-Custom intents work in input values, `p` templates, and `collectIntents`.
+Custom intents work in input values and `p` templates.
 
 ### Event subscription
 
@@ -296,7 +280,7 @@ Event types:
 - Prefer `s.object(...)` for important examples.
 - Keep outputs small, typed, and explicit.
 - Use `s.enum(...)` and `s.literal(...)` when exact values matter.
-- Use `sh.*` in inputs instead of embedding command text in prose.
+- Use `p.*` in inputs instead of embedding command text in prose.
 - Put durable defaults in the agent spec and per-run overrides in call options.
 - Introduce `permissions` and `agents` only when the scenario needs them.
 
@@ -313,9 +297,8 @@ Event types:
 Use only the current API:
 
 - `agent({ name, ... })`
-- `sh.*` from `rig`
+- `p.*` and `p\`...\`` from `rig`
 - `s.*` for explicit schema helpers
-- `collectIntents(value)` for extracted intents
 - `myAgent.subscribe(listener)` for lifecycle observation
 - `registerIntentRenderer(ns, fn)` for custom intent rendering
 

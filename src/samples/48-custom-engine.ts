@@ -1,4 +1,4 @@
-import { agent, s, useEngine, validate } from "rig";
+import { agent, s, useEngine } from "rig";
 import type { Engine } from "rig";
 
 const customEngine: Engine = {
@@ -25,4 +25,3 @@ const review = agent({
 
 const result = await review({ diff: "..." });
 console.log(result);
-console.log(validate(result, review.outputSchema));

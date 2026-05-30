@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const writer = agent({
   name: "writer",
@@ -24,7 +24,7 @@ const writer = agent({
 });
 
 const result = await writer({
-  write: sh.write("README.md", "# Project\n\nGenerated README.\n", {
+  write: p.write("README.md", "# Project\n\nGenerated README.\n", {
     purpose: "create project README",
   }),
 });

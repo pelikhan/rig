@@ -1,5 +1,5 @@
 import { agent, s } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const securityReview = agent({
   name: "securityReview",
@@ -15,6 +15,6 @@ const securityReview = agent({
 });
 
 console.log(await securityReview({
-  dependencies: sh.text("npm ls --depth=0"),
-  audit: sh.text("npm audit --json", { purpose: "security audit" }),
+  dependencies: p.text("npm ls --depth=0"),
+  audit: p.text("npm audit --json", { purpose: "security audit" }),
 }));

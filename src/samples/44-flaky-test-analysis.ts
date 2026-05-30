@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const snapshotReview = agent({
   name: "snapshotReview",
@@ -16,6 +16,6 @@ const snapshotReview = agent({
 });
 
 console.log(await snapshotReview({
-  testResult: sh.result("npm test -- --runInBand"),
-  diff: sh.text("git diff -- '*snap*'"),
+  testResult: p.result("npm test -- --runInBand"),
+  diff: p.text("git diff -- '*snap*'"),
 }));

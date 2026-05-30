@@ -15,20 +15,15 @@ import {
   agent,
   p,
   s,
-  sh,
   useEngine,
-  validate,
-  collectIntents,
   registerIntentRenderer,
 } from "rig";
 ```
 
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas.
-- `sh.*` embeds shell/file intents in inputs or prompt templates.
+- `p.*` creates shell/file intents for inputs or prompt templates.
 - `p\`...\`` inlines intent renderings into instruction text.
-- `validate(value, schema)` validates JSON-like values.
-- `collectIntents(value)` extracts intents and replaces them with `$intent` references.
 - `useEngine(engine)` sets the runtime engine.
 - `registerIntentRenderer(namespace, fn)` adds custom intent rendering.
 
@@ -80,13 +75,13 @@ Shorthand object schemas are normalized:
 ## Shell intents
 
 ```ts
-sh.text("git status --short")
-sh.result("npm test")
-sh.read("README.md")
-sh.write("README.md", "# Updated\n")
+p.text("git status --short")
+p.result("npm test")
+p.read("README.md")
+p.write("README.md", "# Updated\n")
 ```
 
-`sh.shell(...)` is an alias of `sh.text(...)`.
+`p.shell(...)` is an alias of `p.text(...)`.
 
 ## Agent behavior
 

@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const Diagnosis = {
   rootCause: "Likely root cause",
@@ -28,8 +28,8 @@ const review = agent({
   instructions: `Review the patch against the diagnosis.`,
 });
 
-const d = await diagnose({ test: sh.result("npm test") });
+const d = await diagnose({ test: p.result("npm test") });
 const f = await fix({ diagnosis: d });
-const r = await review({ diff: sh.text("git diff -- ."), diagnosis: d });
+const r = await review({ diff: p.text("git diff -- ."), diagnosis: d });
 
 console.log({ d, f, r });

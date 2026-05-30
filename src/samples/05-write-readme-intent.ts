@@ -1,5 +1,5 @@
 import { agent, s } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const readmeWriter = agent({
   name: "readmeWriter",
@@ -18,8 +18,8 @@ const readmeWriter = agent({
 });
 
 const { path, contents } = await readmeWriter({
-  packageJson: sh.text("cat package.json"),
-  files: sh.text("find . -maxdepth 2 -type f | sort"),
+  packageJson: p.text("cat package.json"),
+  files: p.text("find . -maxdepth 2 -type f | sort"),
 });
 
 console.log(path, contents);

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { AgentError, agent, collectIntents, p, registerIntentRenderer, s, sh, useEngine, validate } from "rig";
+import { AgentError, agent, p, registerIntentRenderer, s, useEngine } from "rig";
 import type { Engine, RigEvent } from "rig";
 
 function mockEngine(response: unknown): Engine {
@@ -217,8 +217,8 @@ describe("agent invocation", () => {
     });
 
     await inspect({
-      status: sh.text("git status --short"),
-      diff: sh.result("git diff --stat", { cwd: "/tmp/workspace" }),
+      status: p.text("git status --short"),
+      diff: p.result("git diff --stat", { cwd: "/tmp/workspace" }),
     });
 
     expect(prompts[0]).not.toContain("<intents>");
@@ -246,7 +246,7 @@ describe("agent invocation", () => {
 
     const inspect = agent({
       name: "inspect",
-      instructions: p`Review the repo using ${sh.shell("git status --short", { cwd: "/tmp/workspace" })} before answering.`,
+      instructions: p`Review the repo using ${p.shell("git status --short", { cwd: "/tmp/workspace" })} before answering.`,
       output: s.object({ text: s.string }),
     });
 
@@ -369,15 +369,6 @@ describe("custom intents", () => {
     expect(result).toBe("Prefix [tpl:hello] suffix");
   });
 
-  it("collects custom intents via collectIntents", () => {
-    const customIntent = { __rig: "col-ns", id: "intent_col_1", value: "x" };
-    const { intents, value } = collectIntents({ a: customIntent });
-
-    expect(intents).toHaveLength(1);
-    expect(intents[0]).toBe(customIntent);
-    expect(value).toEqual({ a: { $intent: "intent_col_1" } });
-  });
-
   it("throws on unknown custom intent namespace", async () => {
     useEngine(mockEngine({ text: "ok" }));
     const unknownIntent = { __rig: "unknown-ns-xyz", id: "intent_unk_1" };
@@ -391,68 +382,31 @@ describe("custom intents", () => {
   });
 });
 
-describe("validate", () => {
-  it("validates primitive helpers", () => {
-    expect(validate("hello", s.string)).toEqual({ ok: true });
-    expect(validate(42, s.number)).toEqual({ ok: true });
-    expect(validate(true, s.boolean)).toEqual({ ok: true });
-  });
-
-  it("validates object, optional, and record schemas", () => {
-    const schema = s.object({
-      name: s.string,
-      bio: s.optional(s.string),
-      metadata: s.record(s.string),
-    });
-
-    expect(validate({ name: "Alice", metadata: { role: "admin" } }, schema)).toEqual({ ok: true });
-    expect(validate({ name: "Alice", bio: 1, metadata: {} }, schema).ok).toBe(false);
-    expect(validate({ name: "Alice", metadata: { role: 1 } }, schema).ok).toBe(false);
-  });
-
-  it("validates enum, literal, nullable, and unknown helpers", () => {
-    expect(validate("low", s.enum("low", "medium", "high"))).toEqual({ ok: true });
-    expect(validate(true, s.literal(true))).toEqual({ ok: true });
-    expect(validate(null, s.nullable(s.string))).toEqual({ ok: true });
-    expect(validate({ anything: [1, 2, 3] }, s.unknown)).toEqual({ ok: true });
-  });
-
-  it("accepts legacy exemplar compatibility", () => {
-    expect(validate({ name: "Alice", bio: "hi" }, { name: "", bio_: "" })).toEqual({ ok: true });
-    expect(validate({ a: "x", b: "y" }, { "*": "" })).toEqual({ ok: true });
-  });
-});
-
 describe("shell intents", () => {
-  it("exports shell helpers from rig", async () => {
+  it("exports shell helpers from p and hides internal helpers", async () => {
     const compat = await import("rig");
-    expect(compat.sh.read("README.md").mode).toBe("sh.read");
-    expect(compat.sh.shell("git status --short").mode).toBe("sh.text");
+    expect(compat.p.read("README.md").mode).toBe("sh.read");
+    expect(compat.p.shell("git status --short").mode).toBe("sh.text");
     expect(typeof compat.p).toBe("function");
+    expect((compat as Record<string, unknown>)["sh"]).toBeUndefined();
+    expect((compat as Record<string, unknown>)["validate"]).toBeUndefined();
+    expect((compat as Record<string, unknown>)["collectIntents"]).toBeUndefined();
   });
 
-  it("collects intents from nested input", () => {
-    const input = {
-      diff: sh.text("git diff"),
-      result: sh.result("npm test", { cwd: "/tmp/workspace" }),
-      readme: sh.read("README.md"),
-    };
+  it("creates shell intents via p helpers", () => {
+    const diff = p.text("git diff");
+    const result = p.result("npm test", { cwd: "/tmp/workspace" });
+    const readme = p.read("README.md");
 
-    const { value, intents } = collectIntents(input);
-    expect(intents).toHaveLength(3);
-    expect((intents[0] as any).mode).toBe("sh.text");
-    expect((intents[1] as any).mode).toBe("sh.result");
-    expect((intents[2] as any).mode).toBe("sh.read");
-    expect(value).toEqual({
-      diff: { $intent: (intents[0] as any).id },
-      result: { $intent: (intents[1] as any).id },
-      readme: { $intent: (intents[2] as any).id },
-    });
+    expect(diff.mode).toBe("sh.text");
+    expect(result.mode).toBe("sh.result");
+    expect(result.options).toEqual({ cwd: "/tmp/workspace" });
+    expect(readme.mode).toBe("sh.read");
   });
 
   it("strips AbortSignal from sh options", () => {
     const controller = new AbortController();
-    const intent = sh.text("echo hi", { cwd: "/tmp", signal: controller.signal });
+    const intent = p.text("echo hi", { cwd: "/tmp", signal: controller.signal });
 
     expect(intent.options).toEqual({ cwd: "/tmp" });
   });

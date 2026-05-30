@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const upgradePlan = agent({
   name: "upgradePlan",
@@ -15,6 +15,6 @@ const upgradePlan = agent({
 });
 
 console.log(await upgradePlan({
-  packageJson: sh.text("cat package.json"),
-  outdated: sh.text("npm outdated || true"),
+  packageJson: p.text("cat package.json"),
+  outdated: p.text("npm outdated || true"),
 }));
