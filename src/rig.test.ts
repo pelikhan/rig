@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { AgentError, agent, collectIntents, p, s, sh, useEngine, validate } from "rig";
-import type { Engine } from "rig";
+import { AgentError, agent, collectIntents, p, registerIntentRenderer, s, sh, useEngine, validate } from "rig";
+import type { Engine, RigEvent } from "rig";
 
 function mockEngine(response: unknown): Engine {
   return {
@@ -72,6 +72,11 @@ describe("agent", () => {
   it("does not expose deprecated hook APIs in core", () => {
     expect((agent as { on?: unknown }).on).toBeUndefined();
     expect((agent as { use?: unknown }).use).toBeUndefined();
+  });
+
+  it("exposes subscribe on the returned agent function", () => {
+    const myAgent = agent({ name: "test-subscribe" });
+    expect(typeof myAgent.subscribe).toBe("function");
   });
 });
 
@@ -254,6 +259,138 @@ describe("agent invocation", () => {
   });
 });
 
+describe("subscribe", () => {
+  it("fires call and result events on a successful run", async () => {
+    useEngine(mockEngine({ text: "hello" }));
+    const events: RigEvent[] = [];
+    const myAgent = agent({ name: "observable", output: s.object({ text: s.string }) });
+    myAgent.subscribe((e) => { events.push(e); });
+
+    await myAgent({ text: "go" });
+
+    expect(events.map((e) => e.type)).toEqual(["call", "send", "response", "result"]);
+    expect(events[0]).toMatchObject({ type: "call", agent: "observable" });
+    expect(events[3]).toMatchObject({ type: "result", agent: "observable", output: { text: "hello" } });
+  });
+
+  it("fires error event on failure and re-throws", async () => {
+    useEngine({
+      createSession() {
+        return { async send() { return "not json"; } };
+      },
+    });
+    const events: RigEvent[] = [];
+    const strict = agent({ name: "strict", repair: false });
+    strict.subscribe((e) => { events.push(e); });
+
+    await expect(strict({ text: "go" })).rejects.toBeInstanceOf(AgentError);
+    expect(events.some((e) => e.type === "error")).toBe(true);
+  });
+
+  it("fires send and response events for each repair turn", async () => {
+    let calls = 0;
+    useEngine({
+      createSession() {
+        return {
+          async send() {
+            calls += 1;
+            return calls === 1 ? "bad json" : JSON.stringify({ text: "ok" });
+          },
+        };
+      },
+    });
+    const events: RigEvent[] = [];
+    const repairable = agent({ name: "repairable", maxTurns: 2 });
+    repairable.subscribe((e) => { events.push(e); });
+
+    await repairable({ text: "go" });
+
+    const sends = events.filter((e) => e.type === "send");
+    const responses = events.filter((e) => e.type === "response");
+    expect(sends.length).toBe(2);
+    expect(responses.length).toBe(2);
+  });
+
+  it("unsubscribes correctly", async () => {
+    useEngine(mockEngine({ text: "hi" }));
+    const events: RigEvent[] = [];
+    const myAgent = agent({ name: "unsub-test" });
+    const unsub = myAgent.subscribe((e) => { events.push(e); });
+
+    unsub();
+    await myAgent({ text: "go" });
+
+    expect(events).toHaveLength(0);
+  });
+
+  it("supports async listeners", async () => {
+    useEngine(mockEngine({ text: "hi" }));
+    const log: string[] = [];
+    const myAgent = agent({ name: "async-listener" });
+    myAgent.subscribe(async (e) => {
+      await Promise.resolve();
+      log.push(e.type);
+    });
+
+    await myAgent({ text: "go" });
+    expect(log).toContain("result");
+  });
+});
+
+describe("custom intents", () => {
+  it("renders custom intents via registerIntentRenderer in prompt input", async () => {
+    const prompts: string[] = [];
+    useEngine({
+      createSession() {
+        return {
+          async send(prompt) {
+            prompts.push(prompt);
+            return JSON.stringify({ text: "ok" });
+          },
+        };
+      },
+    });
+
+    registerIntentRenderer("test-ns", (intent) => `CUSTOM:${JSON.stringify(intent)}`);
+
+    const customIntent = { __rig: "test-ns", id: "intent_custom_1", value: 42 };
+    const myAgent = agent({ name: "custom-intent-agent", output: s.object({ text: s.string }) });
+
+    await myAgent({ text: customIntent as any });
+
+    expect(prompts[0]).toContain("CUSTOM:");
+  });
+
+  it("renders custom intents in p template", () => {
+    registerIntentRenderer("tpl-ns", (intent) => `[tpl:${(intent as { value: string }).value}]`);
+    const customIntent = { __rig: "tpl-ns", id: "intent_tpl_1", value: "hello" };
+
+    const result = p`Prefix ${customIntent as any} suffix`;
+    expect(result).toBe("Prefix [tpl:hello] suffix");
+  });
+
+  it("collects custom intents via collectIntents", () => {
+    const customIntent = { __rig: "col-ns", id: "intent_col_1", value: "x" };
+    const { intents, value } = collectIntents({ a: customIntent });
+
+    expect(intents).toHaveLength(1);
+    expect(intents[0]).toBe(customIntent);
+    expect(value).toEqual({ a: { $intent: "intent_col_1" } });
+  });
+
+  it("throws on unknown custom intent namespace", async () => {
+    useEngine(mockEngine({ text: "ok" }));
+    const unknownIntent = { __rig: "unknown-ns-xyz", id: "intent_unk_1" };
+    const myAgent = agent({ name: "unknown-intent-agent" });
+
+    await expect(myAgent({ text: unknownIntent as any })).rejects.toThrow(/unknown-ns-xyz/);
+  });
+
+  it("throws when overriding the built-in sh renderer", () => {
+    expect(() => registerIntentRenderer("sh", () => "")).toThrow(/Cannot override/);
+  });
+});
+
 describe("validate", () => {
   it("validates primitive helpers", () => {
     expect(validate("hello", s.string)).toEqual({ ok: true });
@@ -303,13 +440,13 @@ describe("shell intents", () => {
 
     const { value, intents } = collectIntents(input);
     expect(intents).toHaveLength(3);
-    expect(intents[0]?.mode).toBe("sh.text");
-    expect(intents[1]?.mode).toBe("sh.result");
-    expect(intents[2]?.mode).toBe("sh.read");
+    expect((intents[0] as any).mode).toBe("sh.text");
+    expect((intents[1] as any).mode).toBe("sh.result");
+    expect((intents[2] as any).mode).toBe("sh.read");
     expect(value).toEqual({
-      diff: { $intent: intents[0]?.id },
-      result: { $intent: intents[1]?.id },
-      readme: { $intent: intents[2]?.id },
+      diff: { $intent: (intents[0] as any).id },
+      result: { $intent: (intents[1] as any).id },
+      readme: { $intent: (intents[2] as any).id },
     });
   });
 

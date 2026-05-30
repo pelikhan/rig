@@ -135,9 +135,57 @@ import { copilotEngine } from "rig/engines/copilot";
 useEngine(copilotEngine());
 ```
 
-## API direction
+## Extensibility
 
-Rig only documents and supports the current API:
+Rig's extensibility model mirrors pi-agent's: **declaration merging** for custom types and **event subscription** for lifecycle observation.
+
+### Custom intent types
+
+Extend the intent system for new instruction categories without modifying core.
+
+```ts
+import { registerIntentRenderer } from "rig";
+
+declare module "rig" {
+  interface CustomIntents {
+    http: HttpIntent;
+  }
+}
+
+interface HttpIntent {
+  __rig: "http";
+  id: string;
+  method: string;
+  url: string;
+}
+
+registerIntentRenderer("http", (intent) => {
+  const { method, url } = intent as HttpIntent;
+  return `Fetch ${method} ${url} and return the response body`;
+});
+```
+
+Custom intents work anywhere `sh.*` intents work: inline in input values, in `p\`\`` templates, and with `collectIntents`.
+
+### Event subscription
+
+Subscribe to agent lifecycle events with `myAgent.subscribe(listener)`. Returns an unsubscribe function.
+
+```ts
+import type { RigEvent } from "rig";
+
+const unsubscribe = myAgent.subscribe((event: RigEvent) => {
+  if (event.type === "result") console.log("output:", event.output);
+  if (event.type === "error") console.error("error:", event.error);
+});
+
+// Detach when done
+unsubscribe();
+```
+
+Event types: `call`, `send`, `response`, `result`, `error`. Listeners can be async and are awaited in registration order.
+
+
 
 - define agents with `agent({ name, ... })`
 - import shell helpers from `rig`
