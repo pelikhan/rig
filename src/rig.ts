@@ -1,4 +1,4 @@
-import { copilotEngine } from "./engines/copilot.js";
+import { copilotEngine } from "./engines/copilot.ts";
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type ValidationResult = { ok: true } | { ok: false; error: string };

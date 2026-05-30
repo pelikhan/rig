@@ -115,6 +115,11 @@ type EngineSession = {
 };
 ```
 
+For runnable programs, use the launcher CLI to mount the Copilot engine and execute a file:
+
+```bash
+node src/launcher.ts src/samples/02-review-git-diff.ts
+```
 ## Extensibility
 
 - Custom intents: declaration merging + `registerIntentRenderer(...)`
