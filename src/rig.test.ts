@@ -182,15 +182,15 @@ describe("agent invocation", () => {
       },
     });
 
-    it("configures the built-in Copilot engine helper", async () => {
-      useCopilotEngine();
-      const run = agent({ name: "built-in-copilot" });
-      await expect(run({ text: "hello" })).resolves.toEqual({ text: "copilot" });
-    });
-
     const call = agent({ name: "model-test", model: "gpt-4.1" });
     await call({ text: "x" }, { model: "o3-mini" });
     expect(model).toBe("o3-mini");
+  });
+
+  it("configures the built-in Copilot engine helper", async () => {
+    useCopilotEngine();
+    const run = agent({ name: "built-in-copilot" });
+    await expect(run({ text: "hello" })).resolves.toEqual({ text: "copilot" });
   });
 
   it("supports timeout and abort signals", async () => {
