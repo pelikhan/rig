@@ -18,3 +18,5 @@ console.log(await triage({
     diff: p.bash("git diff origin/main...HEAD"),
     files: p.bash("git diff --name-only origin/main...HEAD"),
 }));
+
+export default triage;

@@ -16,3 +16,5 @@ console.log(await owners({
     codeowners: p.bash("cat CODEOWNERS .github/CODEOWNERS 2>/dev/null || true"),
     changedFiles: p.bash("git diff --name-only origin/main...HEAD"),
 }));
+
+export default owners;

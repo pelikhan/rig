@@ -20,3 +20,5 @@ console.log(await securityReview({
     dependencies: p.bash("npm ls --depth=0"),
     audit: p.bash("npm audit --json", { purpose: "security audit" }),
 }));
+
+export default securityReview;

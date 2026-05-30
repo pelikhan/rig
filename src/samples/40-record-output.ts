@@ -14,3 +14,5 @@ const extractJson = agent({
 console.log(await extractJson({
     text: p.bash("node ./scripts/print-config.js"),
 }));
+
+export default extractJson;

@@ -32,3 +32,5 @@ const research = await researcher({
 const plan = await planner(research);
 
 console.log({ research, plan });
+
+export default researcher;

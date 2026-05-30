@@ -13,9 +13,7 @@ const summarizeDiff = agent({
 });
 const reviewer = agent({
     name: "reviewer",
-    input: s.object({
-        diff: s.string
-    }),
+    input: s.string,
     output: s.object({
         summary: s.string,
         issues: s.array(s.string)
@@ -23,6 +21,6 @@ const reviewer = agent({
     agents: { summarizeDiff },
     instructions: `Review the diff. You may use the provided subagent conceptually.`,
 });
-console.log(await reviewer({
-    diff: p.bash("git diff -- ."),
-}));
+console.log(await reviewer(p.bash("git diff -- .")));
+
+export default reviewer;

@@ -27,3 +27,5 @@ const review = await reviewer({
     status: p.bash("git status --short"),
 });
 console.log(review);
+
+export default reviewer;

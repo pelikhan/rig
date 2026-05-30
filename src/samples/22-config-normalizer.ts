@@ -15,3 +15,5 @@ const ciDiagnosis = agent({
 console.log(await ciDiagnosis({
     log: p.bash("cat ci.log", { purpose: "read CI log" }),
 }));
+
+export default ciDiagnosis;

@@ -23,3 +23,5 @@ console.log(await envReader({
         purpose: "list current directory",
     }),
 }));
+
+export default envReader;

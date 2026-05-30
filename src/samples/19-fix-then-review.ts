@@ -21,3 +21,5 @@ const patch = await patcher({
     contents: p.bash("cat src/index.ts"),
 });
 console.log(patch);
+
+export default patcher;

@@ -15,3 +15,5 @@ const designReview = agent({
 console.log(await designReview({
     proposal: "Add a direct p.run helper for local execution.",
 }));
+
+export default designReview;

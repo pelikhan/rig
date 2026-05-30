@@ -20,3 +20,5 @@ const { path, contents } = await readmeWriter({
     files: p.bash("find . -maxdepth 2 -type f | sort"),
 });
 console.log(path, contents);
+
+export default readmeWriter;

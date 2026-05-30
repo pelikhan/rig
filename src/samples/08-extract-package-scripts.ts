@@ -40,3 +40,5 @@ const { files } = await listFiles({
 });
 const fileSummaries = await Promise.all(files.map((file) => summarizeFile({ file, contents: p.bash(`cat ${file}`) })));
 console.log(await corpus({ files: fileSummaries }));
+
+export default listFiles;

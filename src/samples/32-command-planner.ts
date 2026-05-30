@@ -22,3 +22,5 @@ const packageMap = agent({
 console.log(await packageMap({
     manifests: p.bash("find . -name package.json -maxdepth 4 -print -exec cat {} \\\;"),
 }));
+
+export default packageMap;

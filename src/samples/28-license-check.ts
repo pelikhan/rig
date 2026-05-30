@@ -21,3 +21,5 @@ console.log(await upgradePlan({
     packageJson: p.bash("cat package.json"),
     outdated: p.bash("npm outdated || true"),
 }));
+
+export default upgradePlan;

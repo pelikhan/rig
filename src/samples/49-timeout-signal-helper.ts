@@ -18,3 +18,5 @@ const worker = agent({
 });
 
 console.log(await worker({ text: "hello" }));
+
+export default worker;

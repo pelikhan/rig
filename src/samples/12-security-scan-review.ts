@@ -16,3 +16,5 @@ const releaseNotes = agent({
 console.log(await releaseNotes({
     commits: p.bash("git log --oneline --decorate -50"),
 }));
+
+export default releaseNotes;

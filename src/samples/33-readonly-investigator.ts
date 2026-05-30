@@ -16,3 +16,5 @@ const commandPlanner = agent({
 console.log(await commandPlanner({
     goal: "Understand why TypeScript declarations changed.",
 }));
+
+export default commandPlanner;

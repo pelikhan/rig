@@ -17,3 +17,5 @@ console.log(await apiDiff({
     before: p.bash("git show origin/main:dist/index.d.ts"),
     after: p.bash("cat dist/index.d.ts"),
 }));
+
+export default apiDiff;

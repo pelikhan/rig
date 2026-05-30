@@ -19,3 +19,5 @@ const licenseCheck = agent({
 console.log(await licenseCheck({
     packages: p.bash("npm ls --json --all", { purpose: "collect dependency tree" }),
 }));
+
+export default licenseCheck;

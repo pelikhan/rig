@@ -21,3 +21,5 @@ console.log(await migration({
     toVersion: "0.2",
     changes: ["Agents now always receive input objects."],
 }));
+
+export default migration;

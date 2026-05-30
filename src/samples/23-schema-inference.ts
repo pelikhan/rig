@@ -14,3 +14,5 @@ const normalize = agent({
 console.log(await normalize({
     config: p.bash("cat config.json 2>/dev/null || cat config.js"),
 }));
+
+export default normalize;

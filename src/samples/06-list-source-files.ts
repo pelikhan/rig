@@ -27,3 +27,5 @@ const result = await writer({
     }),
 });
 console.log(result);
+
+export default writer;
