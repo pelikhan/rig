@@ -178,7 +178,7 @@ describe("skill markdown samples", () => {
   for (const file of markdownTargets) {
     it(file, async () => {
       const code = extractRigCode(readFileSync(resolve(markdownDir, file), "utf8"));
-      expect(code.split("\n")).toHaveLength.lessThanOrEqual?.(30);
+      expect(code.split("\n").length).toBeLessThanOrEqual(30);
       expect(code).toContain("export default");
       expect(code).toContain("// Agent role:");
       expect(code).toContain('model: "');
