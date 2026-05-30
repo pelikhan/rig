@@ -349,7 +349,7 @@ export async function runLauncherCli(
 ): Promise<void> {
   const programPath = argv[0];
   const useStdin = argv.includes("--stdin");
-  const scriptName = process.argv[1] ? basename(process.argv[1]) : "rig";
+  const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
   if (!programPath) {
     throw new Error(`Usage: ${scriptName} <program-file> [--stdin]`);
   }
