@@ -152,6 +152,14 @@ describe("agent", () => {
     expect(line).toBeUndefined();
     expect(result.scores["quality"]).toBe(3);
     expect(result.findings[0]?.line).toBeUndefined();
+
+    mocks.setSendAndWaitImpl(async () => ({
+      summary: "Looks good",
+      risk: "urgent",
+      scores: { quality: 3 },
+      findings: [{ file: "src/index.ts", message: "Check edge case" }],
+    }));
+    await expect(review({ diff: "..." })).rejects.toMatchObject({ kind: "validation" });
   });
 
   it("rejects invalid shorthand schema syntax at runtime", () => {
