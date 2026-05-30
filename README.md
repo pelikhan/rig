@@ -54,7 +54,6 @@ const extractScripts = agent({
   name: "extractScripts",
   model: "nano",
   instructions: p`Read ${p.read("package.json")} and summarize the package scripts. Use ${p.bash("find src -name '*.ts' -type f | sort")} only to call out source files that look relevant.`,
-  input: s.object({}),
   output: s.object({
     scriptsByName: s.record(s.string),
     summary: s.string,
@@ -62,7 +61,7 @@ const extractScripts = agent({
   }),
 });
 
-await extractScripts({});
+export default extractScripts;
 ```
 
 When the context already lives in the workspace, prefer intent templates like the example above over adding `input` fields just to shuttle shell output or file contents. Favor `p.read("path")` over `p.bash("cat path")`, and let the harness work from files instead of assembling large in-memory strings first.
