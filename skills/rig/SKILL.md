@@ -201,6 +201,17 @@ const reviewer = agent({
 });
 ```
 
+When delegating task resolution, keep each subagent narrow and explicit (for example: `analyzeTask`, `draftRigProgram`, `verifySchema`) and make the root agent instructions require combining their outputs into one final response.
+
+## Task harness pattern for rig markdown
+
+When the task asks for a runnable markdown example, require exactly one fenced ````rig` block that is valid inline harness input:
+
+- include `import { ... } from "rig"` (or rely on inline injection intentionally)
+- define one default-exported no-input root agent
+- avoid calling the root agent directly in the snippet
+- keep the block aligned with this skill's construction order and checklist
+
 ## Repair and retries
 
 Agents retry invalid output up to `maxTurns`.

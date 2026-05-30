@@ -287,6 +287,41 @@ describe("agent invocation", () => {
     expect(prompts[0]).toContain("/tmp/workspace");
     expect(prompts[0]).toContain("before answering.");
   });
+
+  it("renders subagent metadata for delegated task-solving prompts", async () => {
+    const prompts: string[] = [];
+
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      return { markdown: "```rig\nexport default agent({ name: \"root\" });\n```" };
+    });
+
+    const draftRigMarkdown = agent({
+      name: "draft-rig-markdown",
+      model: "mini",
+      instructions: "Generate a markdown response containing one ```rig block that solves the task.",
+      input: s.object({ task: s.string }),
+      output: s.object({ markdown: s.string }),
+    });
+
+    const orchestrator = agent({
+      name: "orchestrator",
+      model: "large",
+      instructions: "Use the delegated subagents to solve the task and return the markdown program.",
+      input: s.object({ task: s.string }),
+      output: s.object({ markdown: s.string }),
+      agents: { draftRigMarkdown },
+    });
+
+    await orchestrator({ task: "Create a rig markdown program that reviews a pull request diff." });
+
+    expect(prompts[0]).toContain("<subagents>");
+    expect(prompts[0]).toContain('"name": "draftRigMarkdown"');
+    expect(prompts[0]).toContain('"instructions": "Generate a markdown response containing one ```rig block that solves the task."');
+    expect(prompts[0]).toContain('"model": "mini"');
+    expect(prompts[0]).toContain('"input": "{');
+    expect(prompts[0]).toContain('"output": "{');
+  });
 });
 
 describe("shell intents", () => {
