@@ -272,7 +272,7 @@ echo "Review this diff" | node skills/rig/rig.ts src/program.ts --server
 ## Copilot SDK runtime
 
 `rig` is specialized for Copilot SDK sessions and no longer exposes a custom engine mount API.
-By default it connects over HTTP using `COPILOT_SDK_URI`, then `AGENT_HTTP_URL`, then `localhost:7777`.
+By default it connects over HTTP using `COPILOT_SDK_URI`, then `localhost:7777`.
 Use `--server` at launch time when you want the harness to start the Copilot server via stdio.
 
 ## Patterns to prefer

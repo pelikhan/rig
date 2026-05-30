@@ -95,7 +95,7 @@ export type CopilotEngineOptions = Omit<CopilotClientOptions, "connection"> & {
 };
 
 function resolveDefaultCopilotUri(): string {
-  return process.env["COPILOT_SDK_URI"] ?? process.env["AGENT_HTTP_URL"] ?? "localhost:7777";
+  return process.env["COPILOT_SDK_URI"] ?? "localhost:7777";
 }
 
 export function copilotEngine(options: CopilotEngineOptions = {}): CopilotClient {
