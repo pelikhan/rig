@@ -77,7 +77,15 @@ p.read("README.md")
 p.write("README.md", "# Updated\n")
 ```
 
-`p.shell(...)` is an alias of `p.bash(...)`.
+## Evaluating agentic performance
+
+Use these samples to quickly gauge how well `rig` supports increasingly agentic workflows:
+
+- `src/samples/20-issue-reproducer.ts` — chained diagnose/fix/review flow
+- `src/samples/36-subagent-delegation.ts` — delegation between focused agents
+- `src/samples/47-shell-intents.ts` — shell/file intents as structured inputs
+- `src/samples/50-end-to-end-release-agent.ts` — multi-step release planning workflow
+- `src/samples/51-extensibility.ts` — lifecycle instrumentation for observing runs
 
 ## Agent behavior
 

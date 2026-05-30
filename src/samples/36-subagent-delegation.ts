@@ -1,23 +1,34 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 
-const worker = agent({
-  name: "worker",
-  model: "gpt-4.1",
-  timeout: 120_000,
-  maxTurns: 4,
-  instructions: `Answer input.text as concise JSON text output.`,
+const researcher = agent({
+  name: "researcher",
+  instructions: "Extract the most important implementation details from the topic.",
+  input: s.object({
+    topic: s.string,
+  }),
+  output: s.object({
+    summary: s.string,
+    risks: s.array(s.string),
+  }),
 });
 
-const controller = new AbortController();
+const planner = agent({
+  name: "planner",
+  instructions: "Turn the research summary into concrete next steps for the caller.",
+  input: s.object({
+    summary: s.string,
+    risks: s.array(s.string),
+  }),
+  output: s.object({
+    decision: s.string,
+    nextSteps: s.array(s.string),
+  }),
+});
 
-const result = await worker(
-  { text: "Explain runtime-visible schemas in one paragraph." },
-  {
-    model: "gpt-4.1",
-    timeout: 30_000,
-    maxTurns: 2,
-    signal: controller.signal,
-  },
-);
+const research = await researcher({
+  topic: "Explain runtime-visible schemas in one paragraph.",
+});
 
-console.log(result.text);
+const plan = await planner(research);
+
+console.log({ research, plan });

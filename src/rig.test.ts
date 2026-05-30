@@ -258,7 +258,7 @@ describe("agent invocation", () => {
 
     const inspect = agent({
       name: "inspect",
-      instructions: p`Review the repo using ${p.shell("git status --short", { cwd: "/tmp/workspace" })} before answering.`,
+      instructions: p`Review the repo using ${p.bash("git status --short", { cwd: "/tmp/workspace" })} before answering.`,
       output: s.object({ text: s.string }),
     });
 
@@ -353,7 +353,7 @@ describe("shell intents", () => {
   it("exports shell helpers from p and hides internal helpers", async () => {
     const compat = await import("rig");
     expect(compat.p.read("README.md").mode).toBe("sh.read");
-    expect(compat.p.shell("git status --short").mode).toBe("sh.text");
+    expect(compat.p.bash("git status --short").mode).toBe("sh.text");
     expect(typeof compat.p).toBe("function");
     expect((compat as Record<string, unknown>)["sh"]).toBeUndefined();
     expect((compat as Record<string, unknown>)["validate"]).toBeUndefined();
