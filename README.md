@@ -71,13 +71,13 @@ Implicit object literals, trailing-underscore optional fields, and `{"*": ...}` 
 ## Shell intents
 
 ```ts
-p.text("git status --short")
+p.bash("git status --short")
 p.result("npm test")
 p.read("README.md")
 p.write("README.md", "# Updated\n")
 ```
 
-`p.shell(...)` is an alias of `p.text(...)`.
+`p.shell(...)` is an alias of `p.bash(...)`.
 
 ## Agent behavior
 

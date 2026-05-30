@@ -18,6 +18,6 @@ const upgradePlan = agent({
     instructions: `Plan safe dependency upgrades.`,
 });
 console.log(await upgradePlan({
-    packageJson: p.text("cat package.json"),
-    outdated: p.text("npm outdated || true"),
+    packageJson: p.bash("cat package.json"),
+    outdated: p.bash("npm outdated || true"),
 }));

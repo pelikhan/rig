@@ -12,5 +12,5 @@ const normalize = agent({
     instructions: `Normalize the config into a JSON-compatible object.`,
 });
 console.log(await normalize({
-    config: p.text("cat config.json 2>/dev/null || cat config.js"),
+    config: p.bash("cat config.json 2>/dev/null || cat config.js"),
 }));

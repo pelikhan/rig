@@ -13,6 +13,6 @@ const owners = agent({
     instructions: `Suggest owners for changed files.`,
 });
 console.log(await owners({
-    codeowners: p.text("cat CODEOWNERS .github/CODEOWNERS 2>/dev/null || true"),
-    changedFiles: p.text("git diff --name-only origin/main...HEAD"),
+    codeowners: p.bash("cat CODEOWNERS .github/CODEOWNERS 2>/dev/null || true"),
+    changedFiles: p.bash("git diff --name-only origin/main...HEAD"),
 }));

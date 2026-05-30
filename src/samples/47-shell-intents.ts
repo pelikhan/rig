@@ -1,8 +1,8 @@
 import { p } from "rig";
 
 const input = {
-  diff: p.text("git diff -- ."),
-  status: p.text("git status --short"),
+  diff: p.bash("git diff -- ."),
+  status: p.bash("git status --short"),
 };
 
 console.log(JSON.stringify(input, null, 2));

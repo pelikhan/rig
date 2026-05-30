@@ -17,6 +17,6 @@ const securityReview = agent({
     instructions: `Review dependency security posture from the provided outputs.`,
 });
 console.log(await securityReview({
-    dependencies: p.text("npm ls --depth=0"),
-    audit: p.text("npm audit --json", { purpose: "security audit" }),
+    dependencies: p.bash("npm ls --depth=0"),
+    audit: p.bash("npm audit --json", { purpose: "security audit" }),
 }));

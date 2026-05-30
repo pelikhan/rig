@@ -14,6 +14,6 @@ const refactorPlan = agent({
     instructions: `Plan a minimal, low-risk refactor. Do not edit files.`,
 });
 console.log(await refactorPlan({
-    files: p.text("find src -type f | sort"),
+    files: p.bash("find src -type f | sort"),
     target: "Split validation helpers out of the main runtime file.",
 }));

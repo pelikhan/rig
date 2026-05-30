@@ -15,6 +15,6 @@ const triage = agent({
     instructions: `Triage the pull request and recommend reviewers.`,
 });
 console.log(await triage({
-    diff: p.text("git diff origin/main...HEAD"),
-    files: p.text("git diff --name-only origin/main...HEAD"),
+    diff: p.bash("git diff origin/main...HEAD"),
+    files: p.bash("git diff --name-only origin/main...HEAD"),
 }));

@@ -14,6 +14,6 @@ const planner = agent({
     instructions: `Create a focused validation plan for the current changes.`,
 });
 console.log(await planner({
-    diff: p.text("git diff -- ."),
-    packageJson: p.text("cat package.json"),
+    diff: p.bash("git diff -- ."),
+    packageJson: p.bash("cat package.json"),
 }));

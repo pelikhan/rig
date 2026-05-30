@@ -17,5 +17,5 @@ const licenseCheck = agent({
     instructions: `Flag unknown or concerning dependency licenses.`,
 });
 console.log(await licenseCheck({
-    packages: p.text("npm ls --json --all", { purpose: "collect dependency tree" }),
+    packages: p.bash("npm ls --json --all", { purpose: "collect dependency tree" }),
 }));

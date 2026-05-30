@@ -15,5 +15,5 @@ const coverage = agent({
     instructions: `Parse coverage by file path.`,
 });
 console.log(await coverage({
-    report: p.text("cat coverage/coverage-summary.json"),
+    report: p.bash("cat coverage/coverage-summary.json"),
 }));

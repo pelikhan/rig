@@ -13,5 +13,5 @@ const flaky = agent({
     instructions: `Analyze whether the test failure appears flaky.`,
 });
 console.log(await flaky({
-    history: p.text("cat test-runs/*.log 2>/dev/null || true"),
+    history: p.bash("cat test-runs/*.log 2>/dev/null || true"),
 }));

@@ -16,5 +16,5 @@ const inferShape = agent({
     instructions: `Infer a practical runtime-visible schema from the samples.`,
 });
 console.log(await inferShape({
-    jsonSamples: p.text("head -100 data/events.ndjson"),
+    jsonSamples: p.bash("head -100 data/events.ndjson"),
 }));
