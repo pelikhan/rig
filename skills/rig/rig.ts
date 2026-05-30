@@ -261,8 +261,7 @@ export function useEngine(engine: Engine): void {
  */
 export async function launchRigProgram(programPath: string, options: LaunchOptions = {}): Promise<void> {
   const cwd = options.cwd ?? process.cwd();
-  const engineOptions = options.startServer ? { workingDirectory: cwd, server: true as const } : { workingDirectory: cwd };
-  const engine = options.engine ?? copilotEngine(engineOptions);
+  const engine = options.engine ?? copilotEngine(resolveEngineOptions(cwd, options));
   const resolvedPath = isAbsolute(programPath) ? programPath : resolve(cwd, programPath);
 
   useEngine(engine);
@@ -275,6 +274,10 @@ async function readStdin(stream: NodeJS.ReadableStream): Promise<string> {
     chunks.push(typeof chunk === "string" ? chunk : chunk.toString());
   }
   return chunks.join("");
+}
+
+function resolveEngineOptions(cwd: string, options: LaunchOptions): { workingDirectory: string } | { workingDirectory: string; server: true } {
+  return options.startServer ? { workingDirectory: cwd, server: true } : { workingDirectory: cwd };
 }
 
 function asRootAgent(value: unknown): AgentFn | undefined {
@@ -330,8 +333,7 @@ async function runRootAgentFromStdin(
   }
 
   const cwd = options.cwd ?? process.cwd();
-  const engineOptions = options.startServer ? { workingDirectory: cwd, server: true as const } : { workingDirectory: cwd };
-  const engine = options.engine ?? copilotEngine(engineOptions);
+  const engine = options.engine ?? copilotEngine(resolveEngineOptions(cwd, options));
   const resolvedPath = isAbsolute(programPath) ? programPath : resolve(cwd, programPath);
 
   useEngine(engine);
