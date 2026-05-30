@@ -43,6 +43,7 @@ it("uses COPILOT_SDK_URI when mounting the default copilot engine", async () => 
   const sendAndWait = vi.fn().mockResolvedValue(JSON.stringify({ text: "env-mounted" }));
   mocks.createSession.mockResolvedValue({ sendAndWait });
   process.env["COPILOT_SDK_URI"] = "http://127.0.0.1:4141";
+  mocks.forUri.mockImplementation(((url: string) => ({ kind: "uri", url })) as any);
 
   const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.fixture.ts");
 
@@ -64,5 +65,6 @@ it("uses COPILOT_SDK_URI when mounting the default copilot engine", async () => 
     );
   } finally {
     delete process.env["COPILOT_SDK_URI"];
+    mocks.forUri.mockImplementation(() => ({ kind: "uri", url: "localhost:0" }));
   }
 });
