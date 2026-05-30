@@ -19,7 +19,7 @@ const shellIntents = agent({
   }),
 });
 
-const result = await shellIntents({
+await shellIntents({
   diff: p.bash("git diff -- ."),
   status: p.bash("git status --short"),
 });

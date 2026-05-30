@@ -14,7 +14,7 @@ const summarizeFiles = agent({
   }),
 });
 
-const result = await summarizeFiles({
+await summarizeFiles({
   files: p.bash("find src -name '*.ts' -type f | sort"),
 });
 

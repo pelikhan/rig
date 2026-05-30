@@ -16,7 +16,7 @@ const patcher = agent({
     instructions: `Return a complete replacement for the target file.`,
     permissions: { write: "workspace" },
 });
-const patch = await patcher({
+await patcher({
     diagnosis: "The parser accepts trailing prose after JSON.",
     file: "src/index.ts",
     contents: p.bash("cat src/index.ts"),

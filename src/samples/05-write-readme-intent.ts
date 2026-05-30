@@ -16,7 +16,7 @@ const readmeWriter = agent({
     Include install, usage, and API sections.
   `,
 });
-const { path, contents } = await readmeWriter({
+await readmeWriter({
     packageJson: p.bash("cat package.json"),
     files: p.bash("find . -maxdepth 2 -type f | sort"),
 });

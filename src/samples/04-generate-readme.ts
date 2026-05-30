@@ -23,7 +23,7 @@ const diagnose = agent({
     Do not edit files.
   `,
 });
-const result = await diagnose({
+await diagnose({
     test: p.result("npm test"),
 });
 

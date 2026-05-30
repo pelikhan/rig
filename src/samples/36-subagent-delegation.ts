@@ -35,6 +35,6 @@ const research = await researcher({
   topic: "Explain runtime-visible schemas in one paragraph.",
 });
 
-const plan = await planner(research);
+await planner(research);
 
 export default researcher;

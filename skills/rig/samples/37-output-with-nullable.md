@@ -1,7 +1,7 @@
 # 37 - Output With Nullable
 
 ```rig
-import { agent, p, s } from "rig";
+import { agent, s } from "rig";
 // Agent role: summarize the diff.
 const summarizeDiff = agent({
     name: "summarizeDiff",

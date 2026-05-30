@@ -25,7 +25,7 @@ const writer = agent({
         write: "workspace",
     },
 });
-const result = await writer({
+await writer({
     write: p.write("README.md", "# Project\n\nGenerated README.\n", {
         purpose: "create project README",
     }),

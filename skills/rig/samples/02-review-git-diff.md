@@ -23,7 +23,7 @@ const reviewDiff = agent({
   }),
 });
 
-const result = await reviewDiff({
+await reviewDiff({
   diff: p.bash("git diff --stat"),
   status: p.bash("git status --short"),
 });

@@ -12,6 +12,6 @@ const review = agent({
   }),
 });
 
-const result = await review({ diff: "..." });
+await review({ diff: "..." });
 
 export default review;

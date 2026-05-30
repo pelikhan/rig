@@ -47,7 +47,7 @@ const review = agent({
     instructions: `Review the patch against the diagnosis.`,
 });
 const d = await diagnose({ test: p.result("npm test") });
-const f = await fix({ diagnosis: d });
-const r = await review({ diff: p.bash("git diff -- ."), diagnosis: d });
+await fix({ diagnosis: d });
+await review({ diff: p.bash("git diff -- ."), diagnosis: d });
 
 export default diagnose;

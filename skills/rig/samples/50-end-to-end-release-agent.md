@@ -61,7 +61,7 @@ const analysis = await analyzeChanges({
 
 const version = await chooseVersion(analysis);
 
-const release = await draftRelease({
+await draftRelease({
   ...analysis,
   ...version,
 });

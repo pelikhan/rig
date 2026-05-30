@@ -23,7 +23,7 @@ const reviewer = agent({
     Return only the declared output shape.
   `,
 });
-const review = await reviewer({
+await reviewer({
     diff: p.bash("git diff -- ."),
     status: p.bash("git status --short"),
 });

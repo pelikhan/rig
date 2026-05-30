@@ -19,7 +19,7 @@ const classifyIssue = agent({
   }),
 });
 
-const result = await classifyIssue({
+await classifyIssue({
   title: "Crash on start",
   body: "segfault",
 });
