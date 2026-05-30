@@ -18,8 +18,8 @@ const reviewDiff = agent({
 });
 
 const result = await reviewDiff({
-  diff: p.text("git diff --stat"),
-  status: p.text("git status --short"),
+  diff: p.bash("git diff --stat"),
+  status: p.bash("git status --short"),
 });
 
 console.log(result.summary);

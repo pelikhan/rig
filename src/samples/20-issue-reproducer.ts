@@ -43,5 +43,5 @@ const review = agent({
 });
 const d = await diagnose({ test: p.result("npm test") });
 const f = await fix({ diagnosis: d });
-const r = await review({ diff: p.text("git diff -- ."), diagnosis: d });
+const r = await review({ diff: p.bash("git diff -- ."), diagnosis: d });
 console.log({ d, f, r });

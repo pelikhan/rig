@@ -36,7 +36,7 @@ const corpus = agent({
     instructions: `Combine file summaries into a repository overview.`,
 });
 const { files } = await listFiles({
-    text: p.text("find src -name '*.ts' -type f | sort"),
+    text: p.bash("find src -name '*.ts' -type f | sort"),
 });
-const fileSummaries = await Promise.all(files.map((file) => summarizeFile({ file, contents: p.text(`cat ${file}`) })));
+const fileSummaries = await Promise.all(files.map((file) => summarizeFile({ file, contents: p.bash(`cat ${file}`) })));
 console.log(await corpus({ files: fileSummaries }));

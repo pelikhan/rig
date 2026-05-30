@@ -35,8 +35,8 @@ const reviewDiff = agent({
 });
 
 const result = await reviewDiff({
-  diff: p.text("git diff -- ."),
-  status: p.text("git status --short"),
+  diff: p.bash("git diff -- ."),
+  status: p.bash("git status --short"),
 });
 ```
 
@@ -127,13 +127,13 @@ s.record(s.string)
 These helpers are declarative placeholders, not direct shell execution in the core harness.
 
 ```ts
-p.text("git diff -- .")
+p.bash("git diff -- .")
 p.result("npm test")
 p.read("README.md")
 p.write("README.md", "# Hello\n")
 ```
 
-`p.shell(...)` is an alias of `p.text(...)`.
+`p.shell(...)` is an alias of `p.bash(...)`.
 
 Use `p.*` helpers:
 
@@ -141,7 +141,7 @@ Use `p.*` helpers:
 - inside `p\`\`` instruction templates
 
 ```ts
-const prompt = p`Review the repository status using ${p.text("git status --short")}.`;
+const prompt = p`Review the repository status using ${p.bash("git status --short")}.`;
 ```
 
 ## Call-time options

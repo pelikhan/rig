@@ -13,5 +13,5 @@ const actionReview = agent({
     instructions: `Review the workflow for reliability, caching, and least privilege.`,
 });
 console.log(await actionReview({
-    workflow: p.text("cat .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true"),
+    workflow: p.bash("cat .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true"),
 }));

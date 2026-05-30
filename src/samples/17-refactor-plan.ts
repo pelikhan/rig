@@ -14,6 +14,6 @@ const docsGap = agent({
     instructions: `Find documentation gaps against the source API.`,
 });
 console.log(await docsGap({
-    source: p.text("grep -R \"export \" -n src || true"),
-    docs: p.text("cat README.md docs/*.md 2>/dev/null || true"),
+    source: p.bash("grep -R \"export \" -n src || true"),
+    docs: p.bash("cat README.md docs/*.md 2>/dev/null || true"),
 }));

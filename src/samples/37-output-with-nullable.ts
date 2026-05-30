@@ -24,5 +24,5 @@ const reviewer = agent({
     instructions: `Review the diff. You may use the provided subagent conceptually.`,
 });
 console.log(await reviewer({
-    diff: p.text("git diff -- ."),
+    diff: p.bash("git diff -- ."),
 }));

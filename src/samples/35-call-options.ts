@@ -13,12 +13,12 @@ const envReader = agent({
     instructions: `Parse environment outputs.`,
 });
 console.log(await envReader({
-    nodeVersion: p.text("node --version", {
+    nodeVersion: p.bash("node --version", {
         cwd: ".",
         timeout: 10000,
         purpose: "check Node version",
     }),
-    cwdFiles: p.text("ls -la", {
+    cwdFiles: p.bash("ls -la", {
         env: { FORCE_COLOR: "0" },
         purpose: "list current directory",
     }),

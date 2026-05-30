@@ -23,7 +23,7 @@ const reviewer = agent({
   `,
 });
 const review = await reviewer({
-    diff: p.text("git diff -- ."),
-    status: p.text("git status --short"),
+    diff: p.bash("git diff -- ."),
+    status: p.bash("git status --short"),
 });
 console.log(review);

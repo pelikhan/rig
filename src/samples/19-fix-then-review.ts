@@ -18,6 +18,6 @@ const patcher = agent({
 const patch = await patcher({
     diagnosis: "The parser accepts trailing prose after JSON.",
     file: "src/index.ts",
-    contents: p.text("cat src/index.ts"),
+    contents: p.bash("cat src/index.ts"),
 });
 console.log(patch);

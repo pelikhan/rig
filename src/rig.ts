@@ -177,7 +177,7 @@ let nextIntentId = 1;
 type PromptHelpers = {
   (strings: TemplateStringsArray, ...values: unknown[]): string;
   shell(command: string, options?: ShOptions): ShIntent;
-  text(command: string, options?: ShOptions): ShIntent;
+  bash(command: string, options?: ShOptions): ShIntent;
   result(command: string, options?: ShOptions): ShIntent;
   read(path: string, options?: ShOptions): ShIntent;
   write(path: string, contents: string, options?: ShOptions): ShIntent;
@@ -197,7 +197,7 @@ export const p: PromptHelpers = Object.assign(renderPromptTemplate, {
   shell(command: string, options?: ShOptions): ShIntent {
     return createIntent("sh.text", withOptions({ command }, options));
   },
-  text(command: string, options?: ShOptions): ShIntent {
+  bash(command: string, options?: ShOptions): ShIntent {
     return createIntent("sh.text", withOptions({ command }, options));
   },
   result(command: string, options?: ShOptions): ShIntent {

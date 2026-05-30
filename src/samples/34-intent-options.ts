@@ -15,7 +15,7 @@ const investigator = agent({
     permissions: { shell: "readonly", write: "deny" },
 });
 console.log(await investigator({
-    tree: p.text("find . -maxdepth 3 -type f | sort"),
-    packageJson: p.text("cat package.json"),
-    tests: p.text("find . -name '*test*' -o -name '*spec*'"),
+    tree: p.bash("find . -maxdepth 3 -type f | sort"),
+    packageJson: p.bash("cat package.json"),
+    tests: p.bash("find . -name '*test*' -o -name '*spec*'"),
 }));

@@ -12,7 +12,7 @@ const summarizeFiles = agent({
 });
 
 const result = await summarizeFiles({
-  files: p.text("find src -name '*.ts' -type f | sort"),
+  files: p.bash("find src -name '*.ts' -type f | sort"),
 });
 
 console.log(result.summary);

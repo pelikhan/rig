@@ -14,5 +14,5 @@ const releaseNotes = agent({
     instructions: `Write release notes from commits. Omit empty sections as empty arrays.`,
 });
 console.log(await releaseNotes({
-    commits: p.text("git log --oneline --decorate -50"),
+    commits: p.bash("git log --oneline --decorate -50"),
 }));

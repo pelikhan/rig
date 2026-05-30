@@ -229,7 +229,7 @@ describe("agent invocation", () => {
     });
 
     await inspect({
-      status: p.text("git status --short"),
+      status: p.bash("git status --short"),
       diff: p.result("git diff --stat", { cwd: "/tmp/workspace" }),
     });
 
@@ -361,7 +361,7 @@ describe("shell intents", () => {
   });
 
   it("creates shell intents via p helpers", () => {
-    const diff = p.text("git diff");
+    const diff = p.bash("git diff");
     const result = p.result("npm test", { cwd: "/tmp/workspace" });
     const readme = p.read("README.md");
 
@@ -373,7 +373,7 @@ describe("shell intents", () => {
 
   it("strips AbortSignal from sh options", () => {
     const controller = new AbortController();
-    const intent = p.text("echo hi", { cwd: "/tmp", signal: controller.signal });
+    const intent = p.bash("echo hi", { cwd: "/tmp", signal: controller.signal });
 
     expect(intent.options).toEqual({ cwd: "/tmp" });
   });

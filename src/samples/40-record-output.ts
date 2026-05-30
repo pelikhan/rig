@@ -12,5 +12,5 @@ const extractJson = agent({
     instructions: `Extract any JSON object from input.text into raw.`,
 });
 console.log(await extractJson({
-    text: p.text("node ./scripts/print-config.js"),
+    text: p.bash("node ./scripts/print-config.js"),
 }));
