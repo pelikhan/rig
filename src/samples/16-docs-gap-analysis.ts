@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const apiDiff = agent({
   name: "apiDiff",
@@ -16,6 +16,6 @@ const apiDiff = agent({
 });
 
 console.log(await apiDiff({
-  before: sh.text("git show origin/main:dist/index.d.ts"),
-  after: sh.text("cat dist/index.d.ts"),
+  before: p.text("git show origin/main:dist/index.d.ts"),
+  after: p.text("cat dist/index.d.ts"),
 }));

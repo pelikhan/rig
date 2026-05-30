@@ -1,5 +1,5 @@
 import { agent, s } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const extractJson = agent({
   name: "extractJson",
@@ -12,5 +12,5 @@ const extractJson = agent({
 });
 
 console.log(await extractJson({
-  text: sh.text("node ./scripts/print-config.js"),
+  text: p.text("node ./scripts/print-config.js"),
 }));

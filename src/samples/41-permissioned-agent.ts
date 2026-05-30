@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const coverage = agent({
   name: "coverage",
@@ -17,5 +17,5 @@ const coverage = agent({
 });
 
 console.log(await coverage({
-  report: sh.text("cat coverage/coverage-summary.json"),
+  report: p.text("cat coverage/coverage-summary.json"),
 }));

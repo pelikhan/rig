@@ -1,5 +1,5 @@
 import { agent, s } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const triage = agent({
   name: "triage",
@@ -17,6 +17,6 @@ const triage = agent({
 });
 
 console.log(await triage({
-  diff: sh.text("git diff origin/main...HEAD"),
-  files: sh.text("git diff --name-only origin/main...HEAD"),
+  diff: p.text("git diff origin/main...HEAD"),
+  files: p.text("git diff --name-only origin/main...HEAD"),
 }));

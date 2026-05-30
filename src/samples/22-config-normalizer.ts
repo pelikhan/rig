@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const ciDiagnosis = agent({
   name: "ciDiagnosis",
@@ -13,5 +13,5 @@ const ciDiagnosis = agent({
 });
 
 console.log(await ciDiagnosis({
-  log: sh.text("cat ci.log", { purpose: "read CI log" }),
+  log: p.text("cat ci.log", { purpose: "read CI log" }),
 }));

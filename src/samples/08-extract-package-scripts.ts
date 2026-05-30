@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const FileSummary = {
   file: "src/index.ts",
@@ -34,11 +34,11 @@ const corpus = agent({
 });
 
 const { files } = await listFiles({
-  text: sh.text("find src -name '*.ts' -type f | sort"),
+  text: p.text("find src -name '*.ts' -type f | sort"),
 });
 
 const fileSummaries = await Promise.all(
-  files.map((file) => summarizeFile({ file, contents: sh.text(`cat ${file}`) })),
+  files.map((file) => summarizeFile({ file, contents: p.text(`cat ${file}`) })),
 );
 
 console.log(await corpus({ files: fileSummaries }));

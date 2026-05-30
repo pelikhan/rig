@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const packageMap = agent({
   name: "packageMap",
@@ -12,5 +12,5 @@ const packageMap = agent({
 });
 
 console.log(await packageMap({
-  manifests: sh.text("find . -name package.json -maxdepth 4 -print -exec cat {} \\\;"),
+  manifests: p.text("find . -name package.json -maxdepth 4 -print -exec cat {} \\\;"),
 }));

@@ -1,4 +1,4 @@
-import { agent, s, sh } from "rig";
+import { agent, s, p } from "rig";
 
 const reviewDiff = agent({
   name: "reviewDiff",
@@ -18,8 +18,8 @@ const reviewDiff = agent({
 });
 
 const result = await reviewDiff({
-  diff: sh.text("git diff --stat"),
-  status: sh.text("git status --short"),
+  diff: p.text("git diff --stat"),
+  status: p.text("git status --short"),
 });
 
 console.log(result.summary);

@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const docsGap = agent({
   name: "docsGap",
@@ -16,6 +16,6 @@ const docsGap = agent({
 });
 
 console.log(await docsGap({
-  source: sh.text("grep -R \"export \" -n src || true"),
-  docs: sh.text("cat README.md docs/*.md 2>/dev/null || true"),
+  source: p.text("grep -R \"export \" -n src || true"),
+  docs: p.text("cat README.md docs/*.md 2>/dev/null || true"),
 }));

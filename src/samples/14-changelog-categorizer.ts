@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const planner = agent({
   name: "testPlanner",
@@ -16,6 +16,6 @@ const planner = agent({
 });
 
 console.log(await planner({
-  diff: sh.text("git diff -- ."),
-  packageJson: sh.text("cat package.json"),
+  diff: p.text("git diff -- ."),
+  packageJson: p.text("cat package.json"),
 }));

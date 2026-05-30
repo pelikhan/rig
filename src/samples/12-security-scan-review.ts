@@ -1,5 +1,5 @@
 import { agent } from "rig";
-import { sh } from "rig";
+import { p } from "rig";
 
 const releaseNotes = agent({
   name: "releaseNotes",
@@ -14,5 +14,5 @@ const releaseNotes = agent({
 });
 
 console.log(await releaseNotes({
-  commits: sh.text("git log --oneline --decorate -50"),
+  commits: p.text("git log --oneline --decorate -50"),
 }));
