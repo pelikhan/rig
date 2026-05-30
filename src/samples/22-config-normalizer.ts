@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: diagnose the CI log. Prefer the first real failure over cascading errors.
 const ciDiagnosis = agent({
     name: "ciDiagnosis",
+    model: "mini",
     input: s.object({
         log: s.string
     }),
@@ -12,8 +13,8 @@ const ciDiagnosis = agent({
     }),
     instructions: `Diagnose the CI log. Prefer the first real failure over cascading errors.`,
 });
-console.log(await ciDiagnosis({
+await ciDiagnosis({
     log: p.bash("cat ci.log", { purpose: "read CI log" }),
-}));
+});
 
 export default ciDiagnosis;

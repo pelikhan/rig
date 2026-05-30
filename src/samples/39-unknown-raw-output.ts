@@ -1,6 +1,8 @@
 import { agent, s } from "rig";
+// Agent role: convert the finding into a typed review record.
 const reviewRecord = agent({
     name: "reviewRecord",
+    model: "mini",
     input: s.object({
         finding: s.string
     }),
@@ -11,6 +13,5 @@ const reviewRecord = agent({
     }),
     instructions: `Convert the finding into a typed review record.`,
 });
-console.log(await reviewRecord({ finding: "No regression test covers the parser repair path." }));
 
 export default reviewRecord;

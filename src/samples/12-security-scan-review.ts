@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: write release notes from commits. Omit empty sections as empty arrays.
 const releaseNotes = agent({
     name: "releaseNotes",
+    model: "mini",
     input: s.object({
         commits: s.string
     }),
@@ -13,8 +14,8 @@ const releaseNotes = agent({
     }),
     instructions: `Write release notes from commits. Omit empty sections as empty arrays.`,
 });
-console.log(await releaseNotes({
+await releaseNotes({
     commits: p.bash("git log --oneline --decorate -50"),
-}));
+});
 
 export default releaseNotes;

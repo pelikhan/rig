@@ -1,10 +1,11 @@
 # 11 - Release Notes
 
 ```rig
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: triage the pull request and recommend reviewers.
 const triage = agent({
     name: "triage",
+    model: "mini",
     input: s.object({
         diff: s.string,
         files: s.string
@@ -17,10 +18,10 @@ const triage = agent({
     }),
     instructions: `Triage the pull request and recommend reviewers.`,
 });
-console.log(await triage({
+await triage({
     diff: p.bash("git diff origin/main...HEAD"),
     files: p.bash("git diff --name-only origin/main...HEAD"),
-}));
+});
 
 export default triage;
 ```

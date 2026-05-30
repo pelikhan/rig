@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: draft a GitHub bug report from the failure details.
 const bugReport = agent({
     name: "bugReport",
+    model: "mini",
     input: s.object({
         failure: s.string,
         environment: s.string
@@ -13,9 +14,9 @@ const bugReport = agent({
     }),
     instructions: `Draft a GitHub bug report from the failure details.`,
 });
-console.log(await bugReport({
+await bugReport({
     failure: p.bash("npm test 2>&1 || true"),
     environment: p.bash("node --version && npm --version && uname -a"),
-}));
+});
 
 export default bugReport;

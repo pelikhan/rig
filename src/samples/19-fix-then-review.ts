@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: return a complete replacement for the target file.
 const patcher = agent({
     name: "patcher",
+    model: "mini",
     input: s.object({
         diagnosis: s.string,
         file: s.string,
@@ -20,6 +21,5 @@ const patch = await patcher({
     file: "src/index.ts",
     contents: p.bash("cat src/index.ts"),
 });
-console.log(patch);
 
 export default patcher;

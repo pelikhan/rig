@@ -2,8 +2,10 @@
 
 ```rig
 import { agent, s } from "rig";
+// Agent role: convert the change description to Keep a Changelog style.
 const categorize = agent({
     name: "categorizeChange",
+    model: "mini",
     input: s.object({
         text: s.string
     }),
@@ -13,7 +15,6 @@ const categorize = agent({
     }),
     instructions: `Convert the change description to Keep a Changelog style.`,
 });
-console.log(await categorize({ text: "Fix crash when config is missing." }));
 
 export default categorize;
 ```

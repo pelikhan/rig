@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: review input.diff for correctness and regression risks. Return only the declared output shape.
 const reviewer = agent({
     name: "reviewer",
+    model: "mini",
     input: s.object({
         diff: s.string,
         status: s.optional(s.string)
@@ -26,6 +27,5 @@ const review = await reviewer({
     diff: p.bash("git diff -- ."),
     status: p.bash("git status --short"),
 });
-console.log(review);
 
 export default reviewer;

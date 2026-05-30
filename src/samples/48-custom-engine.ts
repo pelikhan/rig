@@ -1,7 +1,10 @@
 import { agent, s } from "rig";
 
+// Agent role: review the provided input and return the declared output.
+
 const review = agent({
   name: "review",
+  model: "mini",
   input: s.object({ diff: s.string }),
   output: s.object({
     summary: s.string,
@@ -10,6 +13,5 @@ const review = agent({
 });
 
 const result = await review({ diff: "..." });
-console.log(result);
 
 export default review;

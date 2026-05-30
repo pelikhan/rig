@@ -15,8 +15,10 @@ Prefer this shape when generating a new rig program:
 ```ts
 import { agent, p, s } from "rig";
 
+// Agent role: review the diff and return only the declared output.
 const reviewDiff = agent({
   name: "reviewDiff",
+  model: "mini",
   instructions: "Review the diff and return only the declared output.",
   input: s.object({
     diff: s.string,
@@ -33,23 +35,29 @@ const reviewDiff = agent({
   }),
 });
 
-const result = await reviewDiff({
+await reviewDiff({
   diff: p.bash("git diff -- ."),
   status: p.bash("git status --short"),
 });
+
+export default reviewDiff;
 ```
 
 ## Fast generation checklist
 
 Use this checklist before finalizing generated code:
 
-1. Use `agent({ ... })` with explicit `name`, `instructions`, `input`, and `output`.
-2. Define input/output with `s.object(...)` and explicit `s.*` helpers.
-3. Keep output schema strict (enums/literals for constrained values).
-4. Use `p.*` placeholders for shell/file context instead of free-form shell prose.
-5. Put stable defaults in spec; put per-call overrides in call options.
-6. Add `permissions`/`agents` only when required by the scenario.
-7. For inline markdown programs, export exactly one default root agent with no input.
+1. Use a single `import { ... } from "rig"` statement.
+2. Use `agent({ ... })` with explicit `name`, `instructions`, `input`, and `output`.
+3. Define input/output with `s.object(...)` and explicit `s.*` helpers.
+4. Keep output schema strict (enums/literals for constrained values).
+5. Add a `// Agent role: ...` comment above each agent declaration.
+6. Set `model` explicitly to `"large"`, `"mini"`, or `"nano"`.
+7. Use `p.*` placeholders for shell/file context instead of free-form shell prose.
+8. Put stable defaults in spec; put per-call overrides in call options.
+9. Add `permissions`/`agents` only when required by the scenario.
+10. Avoid `console.log(...)` in snippets; prefer awaiting the call directly.
+11. For inline markdown programs, export exactly one default root agent with no input.
 
 ## Canonical construction order
 
@@ -73,7 +81,7 @@ Declare a structured agent.
 | `instructions` | Prompt instructions |
 | `input` | Input schema |
 | `output` | Output schema |
-| `model` | Default model name, falling back to `"gpt-4.1"` |
+| `model` | Default model name; examples should use `"large"`, `"mini"`, or `"nano"` |
 | `timeout` | Default timeout in milliseconds |
 | `maxTurns` | Retry budget for invalid JSON or invalid output |
 | `repair` | `false`, `"default"`, or `(error) => string` |
@@ -150,7 +158,7 @@ Pass overrides when calling an agent:
 const controller = new AbortController();
 
 const result = await myAgent(input, {
-  model: "gpt-4.1",
+  model: "mini",
   timeout: 30_000,
   maxTurns: 2,
   signal: controller.signal,
@@ -180,14 +188,18 @@ Valid values:
 Expose subagents with `agents`:
 
 ```ts
+// Agent role: extract the most important changes from the diff.
 const summarizeDiff = agent({
   name: "summarizeDiff",
+  model: "mini",
   input: s.object({ diff: s.string }),
   output: s.object({ summary: s.string }),
 });
 
+// Agent role: review the diff using the provided subagent when helpful.
 const reviewer = agent({
   name: "reviewer",
+  model: "mini",
   input: s.object({ diff: s.string }),
   output: s.object({
     summary: s.string,
@@ -203,8 +215,10 @@ const reviewer = agent({
 Agents retry invalid output up to `maxTurns`.
 
 ```ts
+// Agent role: repair invalid output and return a stable summary.
 const summarize = agent({
   name: "summarize",
+  model: "mini",
   input: s.object({ diff: s.string }),
   output: s.object({ summary: s.string }),
   maxTurns: 3,
@@ -226,8 +240,10 @@ Inline programs run a no-input root agent and write stdout. If `export default` 
 
 ```bash
 cat <<'RIG' | node skills/rig/rig.ts
+// Agent role: summarize this repository in one sentence.
 const root = agent({
   name: "review",
+  model: "mini",
   instructions: "Summarize this repository in one sentence.",
   output: s.object({ text: s.string }),
 });

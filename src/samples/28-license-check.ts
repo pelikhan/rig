@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: plan safe dependency upgrades.
 const upgradePlan = agent({
     name: "upgradePlan",
+    model: "mini",
     input: s.object({
         packageJson: s.string,
         outdated: s.string
@@ -17,9 +18,9 @@ const upgradePlan = agent({
     }),
     instructions: `Plan safe dependency upgrades.`,
 });
-console.log(await upgradePlan({
+await upgradePlan({
     packageJson: p.bash("cat package.json"),
     outdated: p.bash("npm outdated || true"),
-}));
+});
 
 export default upgradePlan;

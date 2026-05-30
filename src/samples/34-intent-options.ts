@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: investigate the project using only readonly evidence.
 const investigator = agent({
     name: "investigator",
+    model: "mini",
     input: s.object({
         tree: s.string,
         packageJson: s.string,
@@ -14,10 +15,10 @@ const investigator = agent({
     instructions: `Investigate the project using only readonly evidence.`,
     permissions: { shell: "readonly", write: "deny" },
 });
-console.log(await investigator({
+await investigator({
     tree: p.bash("find . -maxdepth 3 -type f | sort"),
     packageJson: p.bash("cat package.json"),
     tests: p.bash("find . -name '*test*' -o -name '*spec*'"),
-}));
+});
 
 export default investigator;

@@ -1,6 +1,8 @@
 import { agent, s } from "rig";
+// Agent role: plan shell commands for the goal. Prefer readonly commands.
 const commandPlanner = agent({
     name: "commandPlanner",
+    model: "mini",
     input: s.object({
         goal: s.string
     }),
@@ -13,8 +15,8 @@ const commandPlanner = agent({
     }),
     instructions: `Plan shell commands for the goal. Prefer readonly commands.`,
 });
-console.log(await commandPlanner({
+await commandPlanner({
     goal: "Understand why TypeScript declarations changed.",
-}));
+});
 
 export default commandPlanner;

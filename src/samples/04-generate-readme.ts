@@ -1,13 +1,14 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
 const ShResult = s.object({
     ok: s.boolean,
     stdout: s.string,
     stderr: s.string,
     exitCode: s.number
 });
+// Agent role: diagnose the failing test result. Do not edit files.
 const diagnose = agent({
     name: "diagnose",
+    model: "mini",
     input: s.object({
         test: ShResult
     }),
@@ -25,6 +26,5 @@ const diagnose = agent({
 const result = await diagnose({
     test: p.result("npm test"),
 });
-console.log(result);
 
 export default diagnose;

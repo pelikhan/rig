@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: parse environment outputs.
 const envReader = agent({
     name: "envReader",
+    model: "mini",
     input: s.object({
         nodeVersion: s.string,
         cwdFiles: s.string
@@ -12,7 +13,7 @@ const envReader = agent({
     }),
     instructions: `Parse environment outputs.`,
 });
-console.log(await envReader({
+await envReader({
     nodeVersion: p.bash("node --version", {
         cwd: ".",
         timeout: 10000,
@@ -22,6 +23,6 @@ console.log(await envReader({
         env: { FORCE_COLOR: "0" },
         purpose: "list current directory",
     }),
-}));
+});
 
 export default envReader;

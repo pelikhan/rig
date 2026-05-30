@@ -1,10 +1,11 @@
 # 32 - Command Planner
 
 ```rig
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: build a package map for a JavaScript monorepo.
 const packageMap = agent({
     name: "packageMap",
+    model: "mini",
     input: s.object({
         manifests: s.string
     }),
@@ -22,9 +23,9 @@ const packageMap = agent({
     }),
     instructions: `Build a package map for a JavaScript monorepo.`,
 });
-console.log(await packageMap({
+await packageMap({
     manifests: p.bash("find . -name package.json -maxdepth 4 -print -exec cat {} \\\;"),
-}));
+});
 
 export default packageMap;
 ```

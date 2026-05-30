@@ -2,8 +2,10 @@
 
 ```rig
 import { agent, s } from "rig";
+// Agent role: extract event metadata. Use null when deletedAt is absent.
 const parseEvent = agent({
     name: "parseEvent",
+    model: "mini",
     input: s.object({
         text: s.string
     }),
@@ -13,7 +15,6 @@ const parseEvent = agent({
     }),
     instructions: `Extract event metadata. Use null when deletedAt is absent.`,
 });
-console.log(await parseEvent({ text: "Created event: release planning" }));
 
 export default parseEvent;
 ```

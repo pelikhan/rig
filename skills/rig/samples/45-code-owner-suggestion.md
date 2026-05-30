@@ -1,10 +1,11 @@
 # 45 - Code Owner Suggestion
 
 ```rig
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: analyze whether the test failure appears flaky.
 const flaky = agent({
     name: "flakyAnalysis",
+    model: "mini",
     input: s.object({
         history: s.string
     }),
@@ -15,9 +16,9 @@ const flaky = agent({
     }),
     instructions: `Analyze whether the test failure appears flaky.`,
 });
-console.log(await flaky({
+await flaky({
     history: p.bash("cat test-runs/*.log 2>/dev/null || true"),
-}));
+});
 
 export default flaky;
 ```

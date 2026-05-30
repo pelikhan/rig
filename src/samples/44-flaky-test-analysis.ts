@@ -1,7 +1,8 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: decide whether snapshot updates are legitimate.
 const snapshotReview = agent({
     name: "snapshotReview",
+    model: "mini",
     input: s.object({
         testResult: s.object({
             ok: s.boolean,
@@ -18,9 +19,9 @@ const snapshotReview = agent({
     }),
     instructions: `Decide whether snapshot updates are legitimate.`,
 });
-console.log(await snapshotReview({
+await snapshotReview({
     testResult: p.result("npm test -- --runInBand"),
     diff: p.bash("git diff -- '*snap*'"),
-}));
+});
 
 export default snapshotReview;

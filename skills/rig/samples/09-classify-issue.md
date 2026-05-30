@@ -3,8 +3,11 @@
 ```rig
 import { agent, s } from "rig";
 
+// Agent role: classify the issue.
+
 const classifyIssue = agent({
   name: "classifyIssue",
+  model: "mini",
   instructions: "Classify the issue.",
   input: s.object({
     title: s.string,
@@ -20,8 +23,6 @@ const result = await classifyIssue({
   title: "Crash on start",
   body: "segfault",
 });
-
-console.log(result.label, result.confidence);
 
 export default classifyIssue;
 ```

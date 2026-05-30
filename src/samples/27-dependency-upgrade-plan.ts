@@ -1,6 +1,8 @@
 import { agent, s } from "rig";
+// Agent role: review the design proposal for simplicity and maintainability.
 const designReview = agent({
     name: "designReview",
+    model: "mini",
     input: s.object({
         proposal: s.string
     }),
@@ -12,8 +14,8 @@ const designReview = agent({
     }),
     instructions: `Review the design proposal for simplicity and maintainability.`,
 });
-console.log(await designReview({
+await designReview({
     proposal: "Add a direct p.run helper for local execution.",
-}));
+});
 
 export default designReview;

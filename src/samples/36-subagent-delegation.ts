@@ -1,7 +1,10 @@
 import { agent, s } from "rig";
 
+// Agent role: extract the most important implementation details from the topic.
+
 const researcher = agent({
   name: "researcher",
+  model: "mini",
   instructions: "Extract the most important implementation details from the topic.",
   input: s.object({
     topic: s.string,
@@ -12,8 +15,11 @@ const researcher = agent({
   }),
 });
 
+// Agent role: turn the research summary into concrete next steps for the caller.
+
 const planner = agent({
   name: "planner",
+  model: "mini",
   instructions: "Turn the research summary into concrete next steps for the caller.",
   input: s.object({
     summary: s.string,
@@ -30,7 +36,5 @@ const research = await researcher({
 });
 
 const plan = await planner(research);
-
-console.log({ research, plan });
 
 export default researcher;

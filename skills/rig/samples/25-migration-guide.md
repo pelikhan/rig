@@ -2,8 +2,10 @@
 
 ```rig
 import { agent, s } from "rig";
+// Agent role: rewrite the error to be actionable and precise.
 const improve = agent({
     name: "improveError",
+    model: "mini",
     input: s.object({
         message: s.string,
         context: s.optional(s.string)
@@ -14,10 +16,10 @@ const improve = agent({
     }),
     instructions: `Rewrite the error to be actionable and precise.`,
 });
-console.log(await improve({
+await improve({
     message: "bad output",
     context: "Validation failed for optional underscore field.",
-}));
+});
 
 export default improve;
 ```

@@ -1,10 +1,11 @@
 # 29 - Bug Report Draft
 
 ```rig
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, p, s } from "rig";
+// Agent role: flag unknown or concerning dependency licenses.
 const licenseCheck = agent({
     name: "licenseCheck",
+    model: "mini",
     input: s.object({
         packages: s.string
     }),
@@ -19,9 +20,9 @@ const licenseCheck = agent({
     }),
     instructions: `Flag unknown or concerning dependency licenses.`,
 });
-console.log(await licenseCheck({
+await licenseCheck({
     packages: p.bash("npm ls --json --all", { purpose: "collect dependency tree" }),
-}));
+});
 
 export default licenseCheck;
 ```

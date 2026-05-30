@@ -1,7 +1,10 @@
-import { agent, s, p } from "rig";
+import { agent, p, s } from "rig";
+
+// Agent role: review the repository diff and return a structured summary.
 
 const reviewDiff = agent({
   name: "reviewDiff",
+  model: "mini",
   instructions: "Review the repository diff and return a structured summary.",
   input: s.object({
     diff: s.string,
@@ -21,8 +24,5 @@ const result = await reviewDiff({
   diff: p.bash("git diff --stat"),
   status: p.bash("git status --short"),
 });
-
-console.log(result.summary);
-console.log(result.findings);
 
 export default reviewDiff;
