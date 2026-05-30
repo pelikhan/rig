@@ -2,34 +2,15 @@
 
 ```rig
 import { agent, s } from "rig";
-
 // Agent role: extract the most important implementation details from the topic.
-
-const researcher = agent({
-  name: "researcher",
-  model: "mini",
-  instructions: "Extract the most important implementation details from the topic.",
-  output: s.object({
-    summary: s.string,
-    risks: s.array(s.string),
-  }),
-});
-
-// Agent role: turn the research summary into concrete next steps for the caller.
-
+const researcher = agent({ name: "researcher", model: "mini", input: s.object({ topic: s.string }), output: s.object({ summary: s.string, risks: s.array(s.string) }), instructions: "Extract the most important implementation details from the topic." });
+// Agent role: plan the next steps and use the researcher when helpful.
 const planner = agent({
   name: "planner",
   model: "mini",
-  instructions: "Turn the research summary into concrete next steps for the caller.",
-  input: s.object({
-    summary: s.string,
-    risks: s.array(s.string),
-  }),
-  output: s.object({
-    decision: s.string,
-    nextSteps: s.array(s.string),
-  }),
+  instructions: "Plan the next steps for explaining runtime-visible schemas in one paragraph. Use the researcher when helpful.",
+  output: s.object({ decision: s.string, nextSteps: s.array(s.string) }),
+  agents: { researcher },
 });
-
-export default researcher;
+export default planner;
 ```

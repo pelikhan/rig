@@ -1,18 +1,15 @@
-# 48 - Custom Engine
+# 48 - Copilot Runtime
+
+Launch this sample with `node skills/rig/rig.ts --server` when you want stdio mode.
 
 ```rig
 import { agent, s } from "rig";
-
-// Agent role: review the provided input and return the declared output.
-
+// Agent role: explain when to launch rig with --server.
 const review = agent({
   name: "review",
   model: "mini",
-  output: s.object({
-    summary: s.string,
-    risk: s.enum("low", "medium", "high"),
-  }),
+  instructions: "Explain when to launch rig with --server instead of connecting to an HTTP Copilot server.",
+  output: s.object({ summary: s.string, recommendedMode: s.enum("http", "server") }),
 });
-
 export default review;
 ```

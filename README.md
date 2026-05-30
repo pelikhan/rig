@@ -100,10 +100,10 @@ p.write("README.md", "# Updated\n")
 
 Use these samples to quickly gauge how well `rig` supports increasingly agentic workflows:
 
-- `skills/rig/samples/20-issue-reproducer.ts` — chained diagnose/fix/review flow
-- `skills/rig/samples/36-subagent-delegation.ts` — delegation between focused agents
-- `skills/rig/samples/47-shell-intents.ts` — shell/file intents as structured inputs
-- `skills/rig/samples/50-end-to-end-release-agent.ts` — multi-step release planning workflow
+- `skills/rig/samples/20-issue-reproducer.md` — chained diagnose/fix flow
+- `skills/rig/samples/36-subagent-delegation.md` — delegation between focused agents
+- `skills/rig/samples/47-shell-intents.md` — shell/file intents as structured inputs
+- `skills/rig/samples/50-end-to-end-release-agent.md` — multi-step release planning workflow
 
 ## Agent behavior
 
