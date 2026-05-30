@@ -1,19 +1,4 @@
-import { agent, s, useEngine } from "rig";
-import type { Engine } from "rig";
-
-let calls = 0;
-const flakyEngine: Engine = {
-  createSession() {
-    return {
-      async send() {
-        calls += 1;
-        return calls === 1 ? "not json" : JSON.stringify({ summary: "Recovered after repair" });
-      },
-    };
-  },
-};
-
-useEngine(flakyEngine);
+import { agent, s } from "rig";
 
 const summarize = agent({
   name: "summarize",

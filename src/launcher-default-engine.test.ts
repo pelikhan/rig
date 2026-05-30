@@ -29,8 +29,6 @@ it("uses the launcher cwd when mounting the default copilot engine", async () =>
 
   await launchRigProgram(fixturePath, { cwd });
 
-  expect(mocks.copilotClientCtor).toHaveBeenCalledWith(expect.objectContaining({ workingDirectory: cwd }));
-
   const call = agent({
     name: "launcher-default-engine-test",
     input: s.object({}),
@@ -38,4 +36,5 @@ it("uses the launcher cwd when mounting the default copilot engine", async () =>
   });
   const result = await call({});
   expect(result).toEqual({ text: "default-mounted" });
+  expect(mocks.copilotClientCtor).toHaveBeenCalledWith(expect.objectContaining({ workingDirectory: cwd }));
 });

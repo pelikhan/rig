@@ -1,30 +1,53 @@
-import { expect, it } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import { resolve, dirname } from "node:path";
 import { Readable, Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
+
+const mocks = vi.hoisted(() => {
+  let sendAndWaitImpl: () => unknown | Promise<unknown> = async () => ({ text: "done" });
+  const createSession = vi.fn(async () => ({
+    sendAndWait: async () => {
+      const response = await sendAndWaitImpl();
+      return typeof response === "string" ? response : JSON.stringify(response);
+    },
+  }));
+  const forUri = vi.fn(() => ({ kind: "uri", url: "localhost:7777" }));
+  const forStdio = vi.fn(() => ({ kind: "stdio" }));
+  const copilotClientCtor = vi.fn();
+  const CopilotClient = function (this: unknown, options: unknown) {
+    copilotClientCtor(options);
+    return { createSession };
+  };
+  const setSendAndWaitImpl = (impl: () => unknown | Promise<unknown>) => {
+    sendAndWaitImpl = impl;
+  };
+  return { createSession, forUri, forStdio, copilotClientCtor, CopilotClient, setSendAndWaitImpl };
+});
+
+vi.mock("@github/copilot-sdk", () => ({
+  CopilotClient: mocks.CopilotClient,
+  RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
+}));
+
 import { agent, s } from "rig";
-import type { Engine } from "rig";
 import { launchRigProgram, runLauncherCli } from "rig";
 
-function mockEngine(response: unknown): Engine {
-  return {
-    createSession() {
-      return {
-        async send(): Promise<string> {
-          return JSON.stringify(response);
-        },
-      };
-    },
-  };
-}
+beforeEach(() => {
+  mocks.createSession.mockClear();
+  mocks.forUri.mockClear();
+  mocks.forStdio.mockClear();
+  mocks.copilotClientCtor.mockClear();
+  mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
+});
 
-it("loads a rig program and mounts the provided engine", async () => {
+it("loads a rig program and mounts a copilot client", async () => {
   const __dirname = dirname(fileURLToPath(import.meta.url));
   const globalState = globalThis as { __launcherLoaded?: number };
   const before = globalState.__launcherLoaded ?? 0;
   const fixturePath = resolve(__dirname, "./launcher.fixture.ts");
 
-  await launchRigProgram(fixturePath, { engine: mockEngine({ text: "mounted" }) });
+  mocks.setSendAndWaitImpl(async () => ({ text: "mounted" }));
+  await launchRigProgram(fixturePath);
 
   expect(globalState.__launcherLoaded).toBe(before + 1);
 
@@ -48,7 +71,8 @@ it("uses stdin mode by default and writes the final answer to stdout", async () 
     },
   });
 
-  await runLauncherCli([fixturePath], { engine: mockEngine({ text: "done" }) }, { stdin, stdout });
+  mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
+  await runLauncherCli([fixturePath], {}, { stdin, stdout });
 
   expect(output.join("")).toBe("done");
 });
@@ -64,7 +88,8 @@ it("supports stdin mode for string input/output root agents", async () => {
     },
   });
 
-  await runLauncherCli([fixturePath], { engine: mockEngine("done") }, { stdin, stdout });
+  mocks.setSendAndWaitImpl(async () => JSON.stringify("done"));
+  await runLauncherCli([fixturePath], {}, { stdin, stdout });
 
   expect(output.join("")).toBe("done");
 });
@@ -80,7 +105,8 @@ it("supports stdin mode for JSON input and JSON stdout output", async () => {
     },
   });
 
-  await runLauncherCli([fixturePath], { engine: mockEngine({ ok: true }) }, { stdin, stdout });
+  mocks.setSendAndWaitImpl(async () => ({ ok: true }));
+  await runLauncherCli([fixturePath], {}, { stdin, stdout });
 
   expect(output.join("")).toBe("{\"ok\":true}");
 });
@@ -95,7 +121,7 @@ it("rejects stdin mode when root agent expects JSON input but stdin is not JSON"
   });
 
   await expect(
-    runLauncherCli([fixturePath], { engine: mockEngine({ ok: true }) }, { stdin, stdout }),
+    runLauncherCli([fixturePath], {}, { stdin, stdout }),
   ).rejects.toThrow("Expected stdin to contain JSON for the root agent input schema.");
 });
 
@@ -109,7 +135,7 @@ it("requires stdin-mode root agent to be a default export", async () => {
   });
 
   await expect(
-    runLauncherCli([fixturePath], { engine: mockEngine({ text: "ignored" }) }, { stdin, stdout }),
+    runLauncherCli([fixturePath], {}, { stdin, stdout }),
   ).rejects.toThrow("Expected program to export a root agent as default export.");
 });
 
@@ -122,14 +148,14 @@ it("rejects stdin mode when prompt is empty", async () => {
     },
   });
   await expect(
-    runLauncherCli([fixturePath], { engine: mockEngine({ text: "ignored" }) }, { stdin, stdout }),
+    runLauncherCli([fixturePath], {}, { stdin, stdout }),
   ).rejects.toThrow(/<program-file>/);
 });
 
 it("rejects unknown cli arguments", async () => {
   const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.fixture.ts");
 
-  await expect(runLauncherCli([fixturePath, "--file"], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
+  await expect(runLauncherCli([fixturePath, "--file"])).rejects.toThrow(
     /<program-file>/,
   );
 });
@@ -145,13 +171,14 @@ it("accepts --server flag without rejecting", async () => {
     },
   });
 
-  await runLauncherCli([fixturePath, "--server"], { engine: mockEngine({ text: "done" }) }, { stdin, stdout });
+  await runLauncherCli([fixturePath, "--server"], {}, { stdin, stdout });
 
   expect(output.join("")).toBe("done");
+  expect(mocks.forStdio).toHaveBeenCalled();
 });
 
 it("requires a program path in cli mode", async () => {
-  await expect(runLauncherCli([], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
+  await expect(runLauncherCli([])).rejects.toThrow(
     /<program-file>/,
   );
 });

@@ -22,7 +22,7 @@ Shorthand object literals, trailing-underscore optional fields, and `{"*": ...}`
 ## What works well
 
 1. **One canonical schema dialect.** The runtime, samples, and skill documentation all reinforce the same `s.*` style.
-2. **Small syntax surface.** `agent`, `s`, `p`, `useEngine`, call-time overrides, and lifecycle events remain enough to express the full harness.
+2. **Small syntax surface.** `agent`, `s`, `p`, call-time overrides, and lifecycle events remain enough to express the full harness.
 3. **Consistent runtime contract.** Prompt rendering still emits `<instructions>`, `<output_schema>`, `<input>`, and `<rules>`, with optional `<permissions>` and `<subagents>` blocks.
 4. **Better failure mode for invalid declarations.** Runtime validation now rejects non-declarative schemas with a clear error.
 

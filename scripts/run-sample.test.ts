@@ -1,28 +1,35 @@
 /**
- * Run a rig sample with a stub engine that returns shape-conforming output.
+ * Run a rig sample with a stub Copilot SDK client that returns shape-conforming output.
  * Usage: npx vitest run scripts/run-sample.test.ts -- --sample 02
  *    or: npm run sample -- 02
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { readdirSync } from "fs";
 import { resolve } from "path";
-import { useEngine } from "rig";
-import type { Engine } from "rig";
 
-// Stub engine: returns a JSON object with string fields to satisfy most shapes
-function stubEngine(): Engine {
-  return {
-    createSession() {
-      return {
-        async send(prompt: string) {
-          // Parse output schema from prompt to generate conforming response
-          const output = generateOutput(prompt);
-          return JSON.stringify(output);
-        },
-      };
+const mocks = vi.hoisted(() => {
+  let sendAndWaitImpl: (request: { prompt: string }) => unknown | Promise<unknown> = async () => ({ text: "stub response" });
+  const createSession = vi.fn(async () => ({
+    sendAndWait: async (request: { prompt: string }) => {
+      const response = await sendAndWaitImpl(request);
+      return typeof response === "string" ? response : JSON.stringify(response);
     },
+  }));
+  const forUri = vi.fn(() => ({ kind: "uri", url: "localhost:7777" }));
+  const forStdio = vi.fn(() => ({ kind: "stdio" }));
+  const CopilotClient = function () {
+    return { createSession };
   };
-}
+  const setSendAndWaitImpl = (impl: (request: { prompt: string }) => unknown | Promise<unknown>) => {
+    sendAndWaitImpl = impl;
+  };
+  return { createSession, forUri, forStdio, CopilotClient, setSendAndWaitImpl };
+});
+
+vi.mock("@github/copilot-sdk", () => ({
+  CopilotClient: mocks.CopilotClient,
+  RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
+}));
 
 function generateOutput(prompt: string): unknown {
   const match = prompt.match(/<output_schema>([\s\S]*?)<\/output_schema>/);
@@ -126,7 +133,8 @@ const targets = filter
   : allFiles;
 
 beforeEach(() => {
-  useEngine(stubEngine());
+  mocks.createSession.mockClear();
+  mocks.setSendAndWaitImpl(async ({ prompt }) => generateOutput(prompt));
 });
 
 describe("samples", () => {
