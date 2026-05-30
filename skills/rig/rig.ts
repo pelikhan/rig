@@ -1,5 +1,6 @@
 import { basename, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
 import type { CopilotClientOptions } from "@github/copilot-sdk";
 
@@ -339,21 +340,48 @@ async function runRootAgentFromStdin(
   io.stdout.write(renderStdout(result));
 }
 
+async function runProgramCodeFromStdin(
+  options: LaunchOptions = {},
+  io: LauncherIo,
+  scriptName: string,
+): Promise<void> {
+  const programCode = await readStdin(io.stdin);
+  if (!programCode.trim()) {
+    throw new Error(`Usage: ${scriptName} <program-file> [--server]`);
+  }
+
+  const cwd = options.cwd ?? process.cwd();
+  const tempRoot = resolve(cwd, ".tmp");
+  await mkdir(tempRoot, { recursive: true });
+  const tempDir = await mkdtemp(resolve(tempRoot, "rig-stdin-"));
+  const tempProgramPath = resolve(tempDir, "program.ts");
+  await writeFile(tempProgramPath, programCode, "utf8");
+  try {
+    await launchRigProgram(tempProgramPath, options);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
 export async function runLauncherCli(
   argv: string[] = process.argv.slice(2),
   options: LaunchOptions = {},
   io: LauncherIo = process,
 ): Promise<void> {
-  const programPath = argv[0];
-  const flags = argv.slice(1);
+  const positionalArgs = argv.filter((arg) => !arg.startsWith("--"));
+  const flags = argv.filter((arg) => arg.startsWith("--"));
   const serverFlag = flags.includes("--server");
   const unknownFlags = flags.filter((f) => f !== "--server");
   const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
-  if (!programPath || unknownFlags.length > 0) {
+  if (positionalArgs.length > 1 || unknownFlags.length > 0) {
     throw new Error(`Usage: ${scriptName} <program-file> [--server]`);
   }
   const mergedOptions: LaunchOptions = serverFlag ? { ...options, startServer: true } : options;
-  await runRootAgentFromStdin(programPath, mergedOptions, io, scriptName);
+  if (positionalArgs.length === 1) {
+    await runRootAgentFromStdin(positionalArgs[0]!, mergedOptions, io, scriptName);
+    return;
+  }
+  await runProgramCodeFromStdin(mergedOptions, io, scriptName);
 }
 
 export function agent<
