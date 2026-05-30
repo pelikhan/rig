@@ -51,7 +51,13 @@ it("supports cli mode with argv", async () => {
 });
 
 it("requires a program path in cli mode", async () => {
-  await expect(runLauncherCli([], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
-    "Usage: npx tsx src/launcher.ts <program-file>",
-  );
+  const originalArgv1 = process.argv[1];
+  process.argv[1] = "/tmp/launcher.ts";
+  try {
+    await expect(runLauncherCli([], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
+      "Usage: launcher.ts <program-file>",
+    );
+  } finally {
+    process.argv[1] = originalArgv1;
+  }
 });

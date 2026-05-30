@@ -8,7 +8,7 @@
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { readdirSync } from "fs";
-import { launchRigProgram } from "../src/launcher.js";
+import { launchRigProgram } from "rig/launcher";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const sampleDir = resolve(__dirname, "../src/samples");

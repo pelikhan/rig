@@ -1,4 +1,4 @@
-import { isAbsolute, resolve } from "node:path";
+import { basename, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { copilotEngine } from "./engines/copilot.js";
 import type { Engine } from "./rig.js";
@@ -28,7 +28,8 @@ export async function runLauncherCli(
 ): Promise<void> {
   const programPath = argv[0];
   if (!programPath) {
-    throw new Error("Usage: npx tsx src/launcher.ts <program-file>");
+    const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
+    throw new Error(`Usage: ${scriptName} <program-file>`);
   }
   await launchRigProgram(programPath, options);
 }
