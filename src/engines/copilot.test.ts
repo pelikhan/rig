@@ -57,7 +57,7 @@ it("subscribes to all Copilot SDK events and logs JSONL to stderr", async () => 
   });
   const sendAndWait = vi.fn().mockResolvedValue({ data: { content: "ok" } });
   mocks.createSession.mockResolvedValue({ on, sendAndWait });
-  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const write = vi.spyOn(process.stderr, "write").mockReturnValue(true);
 
   const session = copilotEngine().createSession({ model: "gpt-4.1" });
   await expect(session.send("hello", {})).resolves.toBe("ok");
@@ -65,7 +65,7 @@ it("subscribes to all Copilot SDK events and logs JSONL to stderr", async () => 
   expect(mocks.copilotClientCtor).toHaveBeenCalledTimes(1);
   expect(mocks.createSession).toHaveBeenCalledTimes(1);
   expect(on).toHaveBeenCalledTimes(1);
-  expect(log).toHaveBeenCalledWith(JSON.stringify({ source: "copilot-sdk", event: { type: "session.idle", data: { done: true } } }));
+  expect(write).toHaveBeenCalledWith(`${JSON.stringify({ source: "copilot-sdk", event: { type: "session.idle", data: { done: true } } })}\n`);
 });
 
 it("creates and subscribes only once per engine session", async () => {

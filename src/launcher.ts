@@ -124,7 +124,7 @@ const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import
 if (isMain) {
   runLauncherCli().catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(message);
+    process.stderr.write(`${message}\n`);
     process.exitCode = 1;
   });
 }
