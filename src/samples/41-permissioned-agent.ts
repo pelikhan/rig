@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Parses a coverage report into a per-file record of line and branch percentages,
+// demonstrating s.record for map-shaped output values.
 const coverage = agent({
     name: "coverage",
     input: s.object({
@@ -14,8 +16,5 @@ const coverage = agent({
     }),
     instructions: `Parse coverage by file path.`,
 });
-console.log(await coverage({
-    report: p.bash("cat coverage/coverage-summary.json"),
-}));
 
 export default coverage;

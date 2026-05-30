@@ -1,4 +1,7 @@
 import { agent, s } from "rig";
+
+// Classifies a GitHub issue, assigns a priority, suggests labels, and provides
+// a short rationale — useful as a first-pass triage step for pull requests.
 const classifyIssue = agent({
     name: "classifyIssue",
     input: s.object({
@@ -13,9 +16,5 @@ const classifyIssue = agent({
     }),
     instructions: `Classify the GitHub issue and suggest labels.`,
 });
-console.log(await classifyIssue({
-    title: "CLI exits zero after failed upload",
-    body: "The command prints an error but exits with code 0.",
-}));
 
 export default classifyIssue;

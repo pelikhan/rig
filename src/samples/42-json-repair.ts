@@ -1,5 +1,7 @@
 import { agent, s } from "rig";
 
+// Summarizes a git diff in one sentence, using maxTurns and repair to demonstrate
+// how rig limits retries and automatically repairs malformed JSON output.
 const summarize = agent({
   name: "summarize",
   instructions: "Summarize the diff.",
@@ -12,7 +14,5 @@ const summarize = agent({
   maxTurns: 2,
   repair: "default",
 });
-
-console.log(await summarize({ diff: "diff --git a/file.ts b/file.ts" }));
 
 export default summarize;

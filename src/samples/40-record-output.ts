@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Extracts any JSON object embedded in arbitrary text into a typed `raw` field,
+// demonstrating s.unknown for dynamically-shaped output values.
 const extractJson = agent({
     name: "extractJson",
     input: s.object({
@@ -11,8 +13,5 @@ const extractJson = agent({
     }),
     instructions: `Extract any JSON object from input.text into raw.`,
 });
-console.log(await extractJson({
-    text: p.bash("node ./scripts/print-config.js"),
-}));
 
 export default extractJson;

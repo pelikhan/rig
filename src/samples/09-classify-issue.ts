@@ -1,5 +1,7 @@
 import { agent, s } from "rig";
 
+// Classifies a GitHub issue into a category (bug, feature, question, or docs)
+// and returns a confidence level for the classification.
 const classifyIssue = agent({
   name: "classifyIssue",
   instructions: "Classify the issue.",
@@ -12,12 +14,5 @@ const classifyIssue = agent({
     confidence: s.enum("low", "medium", "high"),
   }),
 });
-
-const result = await classifyIssue({
-  title: "Crash on start",
-  body: "segfault",
-});
-
-console.log(result.label, result.confidence);
 
 export default classifyIssue;

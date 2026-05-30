@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Reviews a git diff for correctness and regression risk, returning a risk level,
+// per-finding diagnostics, and a list of suggested test cases.
 const reviewer = agent({
     name: "reviewer",
     input: s.object({
@@ -22,10 +24,5 @@ const reviewer = agent({
     Return only the declared output shape.
   `,
 });
-const review = await reviewer({
-    diff: p.bash("git diff -- ."),
-    status: p.bash("git status --short"),
-});
-console.log(review);
 
 export default reviewer;

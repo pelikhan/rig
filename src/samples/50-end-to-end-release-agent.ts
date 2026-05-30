@@ -1,5 +1,7 @@
 import { agent, p, s } from "rig";
 
+// Summarizes the release candidate changes from the diff and recent commits,
+// producing highlights for the downstream version-chooser.
 const analyzeChanges = agent({
   name: "analyzeChanges",
   instructions: "Summarize the release candidate changes from the diff and recent commits.",
@@ -13,6 +15,8 @@ const analyzeChanges = agent({
   }),
 });
 
+// Chooses the safest semantic version bump (patch/minor/major) from the change
+// summary and explains the rationale.
 const chooseVersion = agent({
   name: "chooseVersion",
   instructions: "Choose the safest semantic version bump for the summarized changes.",
@@ -26,6 +30,8 @@ const chooseVersion = agent({
   }),
 });
 
+// Drafts the release title, a merge checklist, and a list of risks for the
+// chosen version bump, completing the end-to-end release pipeline.
 const draftRelease = agent({
   name: "draftRelease",
   instructions: "Draft the release title, checklist, and risks for the chosen version bump.",
@@ -41,19 +47,5 @@ const draftRelease = agent({
     risks: s.array(s.string),
   }),
 });
-
-const analysis = await analyzeChanges({
-  diff: p.bash("git diff --stat -- ."),
-  commits: p.bash("git log --oneline -20"),
-});
-
-const version = await chooseVersion(analysis);
-
-const release = await draftRelease({
-  ...analysis,
-  ...version,
-});
-
-console.log({ analysis, version, release });
 
 export default analyzeChanges;

@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Plans a minimal, low-risk refactoring for a given target description, listing
+// ordered steps, affected files, and potential risks.
 const refactorPlan = agent({
     name: "refactorPlan",
     input: s.object({
@@ -13,9 +15,5 @@ const refactorPlan = agent({
     }),
     instructions: `Plan a minimal, low-risk refactor. Do not edit files.`,
 });
-console.log(await refactorPlan({
-    files: p.bash("find src -type f | sort"),
-    target: "Split validation helpers out of the main runtime file.",
-}));
 
 export default refactorPlan;

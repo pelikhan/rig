@@ -1,4 +1,7 @@
 import { agent, s } from "rig";
+
+// Repairs a syntactically invalid JSON-like string into a valid JSON-compatible
+// value, listing each transformation applied.
 const repair = agent({
     name: "jsonRepair",
     input: s.object({
@@ -10,8 +13,5 @@ const repair = agent({
     }),
     instructions: `Repair input.text into a JSON-compatible value.`,
 });
-console.log(await repair({
-    text: "{name: 'rig', trailing: true,}",
-}));
 
 export default repair;

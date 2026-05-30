@@ -1,4 +1,7 @@
 import { agent, s } from "rig";
+
+// Converts a free-form finding string into a typed review record with a fixed
+// literal kind discriminant and a severity level.
 const reviewRecord = agent({
     name: "reviewRecord",
     input: s.object({
@@ -11,6 +14,5 @@ const reviewRecord = agent({
     }),
     instructions: `Convert the finding into a typed review record.`,
 });
-console.log(await reviewRecord({ finding: "No regression test covers the parser repair path." }));
 
 export default reviewRecord;

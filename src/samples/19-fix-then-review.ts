@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Produces a complete replacement for a target file based on a diagnosis, along
+// with a short summary of what changed and why.
 const patcher = agent({
     name: "patcher",
     input: s.object({
@@ -15,11 +17,5 @@ const patcher = agent({
     instructions: `Return a complete replacement for the target file.`,
     permissions: { write: "workspace" },
 });
-const patch = await patcher({
-    diagnosis: "The parser accepts trailing prose after JSON.",
-    file: "src/index.ts",
-    contents: p.bash("cat src/index.ts"),
-});
-console.log(patch);
 
 export default patcher;

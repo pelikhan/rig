@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Compares the public TypeScript API declarations between two versions, detecting
+// breaking changes and summarising all modifications.
 const apiDiff = agent({
     name: "apiDiff",
     input: s.object({
@@ -13,9 +15,5 @@ const apiDiff = agent({
     }),
     instructions: `Compare public API declarations and identify breaking changes.`,
 });
-console.log(await apiDiff({
-    before: p.bash("git show origin/main:dist/index.d.ts"),
-    after: p.bash("cat dist/index.d.ts"),
-}));
 
 export default apiDiff;

@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Drafts a ready-to-file GitHub bug report from a test failure and environment
+// details, including suggested labels.
 const bugReport = agent({
     name: "bugReport",
     input: s.object({
@@ -13,9 +15,5 @@ const bugReport = agent({
     }),
     instructions: `Draft a GitHub bug report from the failure details.`,
 });
-console.log(await bugReport({
-    failure: p.bash("npm test 2>&1 || true"),
-    environment: p.bash("node --version && npm --version && uname -a"),
-}));
 
 export default bugReport;

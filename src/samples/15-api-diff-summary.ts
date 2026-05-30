@@ -1,4 +1,7 @@
 import { agent, s } from "rig";
+
+// Converts a free-form change description into a Keep-a-Changelog-style entry
+// with a standardized category.
 const categorize = agent({
     name: "categorizeChange",
     input: s.object({
@@ -10,6 +13,5 @@ const categorize = agent({
     }),
     instructions: `Convert the change description to Keep a Changelog style.`,
 });
-console.log(await categorize({ text: "Fix crash when config is missing." }));
 
 export default categorize;

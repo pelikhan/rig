@@ -1,5 +1,7 @@
 import { agent, s, p } from "rig";
 
+// Reads the current git diff and status, then produces a structured code-review
+// summary with a human-readable overview and per-file findings.
 const reviewDiff = agent({
   name: "reviewDiff",
   instructions: "Review the repository diff and return a structured summary.",
@@ -16,13 +18,5 @@ const reviewDiff = agent({
     })),
   }),
 });
-
-const result = await reviewDiff({
-  diff: p.bash("git diff --stat"),
-  status: p.bash("git status --short"),
-});
-
-console.log(result.summary);
-console.log(result.findings);
 
 export default reviewDiff;

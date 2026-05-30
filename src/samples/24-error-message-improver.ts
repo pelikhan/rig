@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Infers a practical runtime-visible schema from NDJSON samples, listing fields
+// with their types and optionality, plus a representative example object.
 const inferShape = agent({
     name: "inferShape",
     input: s.object({
@@ -15,8 +17,5 @@ const inferShape = agent({
     }),
     instructions: `Infer a practical runtime-visible schema from the samples.`,
 });
-console.log(await inferShape({
-    jsonSamples: p.bash("head -100 data/events.ndjson"),
-}));
 
 export default inferShape;

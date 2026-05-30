@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Identifies missing and stale documentation by comparing exported source symbols
+// against existing markdown docs, and suggests quick fixes.
 const docsGap = agent({
     name: "docsGap",
     input: s.object({
@@ -13,9 +15,5 @@ const docsGap = agent({
     }),
     instructions: `Find documentation gaps against the source API.`,
 });
-console.log(await docsGap({
-    source: p.bash("grep -R \"export \" -n src || true"),
-    docs: p.bash("cat README.md docs/*.md 2>/dev/null || true"),
-}));
 
 export default docsGap;

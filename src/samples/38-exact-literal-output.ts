@@ -1,4 +1,7 @@
 import { agent, s } from "rig";
+
+// Extracts event metadata from freeform text; uses null (not undefined) for
+// absent optional fields like deletedAt, demonstrating nullable output schemas.
 const parseEvent = agent({
     name: "parseEvent",
     input: s.object({
@@ -10,6 +13,5 @@ const parseEvent = agent({
     }),
     instructions: `Extract event metadata. Use null when deletedAt is absent.`,
 });
-console.log(await parseEvent({ text: "Created event: release planning" }));
 
 export default parseEvent;

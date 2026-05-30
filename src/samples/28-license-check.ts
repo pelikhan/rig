@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Plans safe dependency upgrades by comparing current versions against the latest,
+// returning a prioritized list with risk ratings.
 const upgradePlan = agent({
     name: "upgradePlan",
     input: s.object({
@@ -17,9 +19,5 @@ const upgradePlan = agent({
     }),
     instructions: `Plan safe dependency upgrades.`,
 });
-console.log(await upgradePlan({
-    packageJson: p.bash("cat package.json"),
-    outdated: p.bash("npm outdated || true"),
-}));
 
 export default upgradePlan;

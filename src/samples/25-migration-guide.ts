@@ -1,4 +1,7 @@
 import { agent, s } from "rig";
+
+// Rewrites a vague or unhelpful error message to be actionable and precise,
+// and provides a plain-language explanation of the underlying problem.
 const improve = agent({
     name: "improveError",
     input: s.object({
@@ -11,9 +14,5 @@ const improve = agent({
     }),
     instructions: `Rewrite the error to be actionable and precise.`,
 });
-console.log(await improve({
-    message: "bad output",
-    context: "Validation failed for optional underscore field.",
-}));
 
 export default improve;

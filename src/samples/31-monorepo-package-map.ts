@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Reviews GitHub Actions workflow files for reliability, caching, and least-privilege
+// issues, returning a summary with problems and suggested improvements.
 const actionReview = agent({
     name: "actionReview",
     input: s.object({
@@ -12,8 +14,5 @@ const actionReview = agent({
     }),
     instructions: `Review the workflow for reliability, caching, and least privilege.`,
 });
-console.log(await actionReview({
-    workflow: p.bash("cat .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true"),
-}));
 
 export default actionReview;

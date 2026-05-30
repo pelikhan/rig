@@ -1,5 +1,7 @@
 import { agent, s, p } from "rig";
 
+// Summarizes the current git workspace changes using p.bash shell intents for
+// diff and status, demonstrating how shell outputs are inlined into the prompt.
 const shellIntents = agent({
   name: "shellIntents",
   instructions: "Summarize the current git workspace changes.",
@@ -12,12 +14,5 @@ const shellIntents = agent({
     changedFiles: s.array(s.string),
   }),
 });
-
-const result = await shellIntents({
-  diff: p.bash("git diff -- ."),
-  status: p.bash("git status --short"),
-});
-
-console.log(JSON.stringify(result, null, 2));
 
 export default shellIntents;

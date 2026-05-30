@@ -1,4 +1,7 @@
 import { agent, s } from "rig";
+
+// Extracts a clear reproduction recipe from a GitHub issue, listing steps,
+// expected vs actual behavior, and any missing information.
 const reproducer = agent({
     name: "reproducer",
     input: s.object({
@@ -13,9 +16,5 @@ const reproducer = agent({
     }),
     instructions: `Extract a clear reproduction from the issue.`,
 });
-console.log(await reproducer({
-    issueTitle: "Install fails on Windows",
-    issueBody: "npm install errors with EPERM when postinstall runs.",
-}));
 
 export default reproducer;

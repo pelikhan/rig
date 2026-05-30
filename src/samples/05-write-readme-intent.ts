@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Generates a concise README.md by reading package.json and the project file tree,
+// then writing install, usage, and API sections.
 const readmeWriter = agent({
     name: "readmeWriter",
     input: s.object({
@@ -15,10 +17,5 @@ const readmeWriter = agent({
     Include install, usage, and API sections.
   `,
 });
-const { path, contents } = await readmeWriter({
-    packageJson: p.bash("cat package.json"),
-    files: p.bash("find . -maxdepth 2 -type f | sort"),
-});
-console.log(path, contents);
 
 export default readmeWriter;

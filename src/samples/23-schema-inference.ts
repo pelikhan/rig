@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Normalizes a configuration file (JSON or JS) into a JSON-compatible object,
+// returning warnings for any values that could not be safely normalized.
 const normalize = agent({
     name: "normalizeConfig",
     input: s.object({
@@ -11,8 +13,5 @@ const normalize = agent({
     }),
     instructions: `Normalize the config into a JSON-compatible object.`,
 });
-console.log(await normalize({
-    config: p.bash("cat config.json 2>/dev/null || cat config.js"),
-}));
 
 export default normalize;

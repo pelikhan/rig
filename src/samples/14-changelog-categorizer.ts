@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Builds a focused validation plan for the current diff, listing test commands
+// and manual checks required before merging.
 const planner = agent({
     name: "testPlanner",
     input: s.object({
@@ -13,9 +15,5 @@ const planner = agent({
     }),
     instructions: `Create a focused validation plan for the current changes.`,
 });
-console.log(await planner({
-    diff: p.bash("git diff -- ."),
-    packageJson: p.bash("cat package.json"),
-}));
 
 export default planner;

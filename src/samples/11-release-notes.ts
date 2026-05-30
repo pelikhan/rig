@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Triages a pull request by examining its diff and changed files, then recommends
+// a domain area, risk level, and suitable reviewers.
 const triage = agent({
     name: "triage",
     input: s.object({
@@ -14,9 +16,5 @@ const triage = agent({
     }),
     instructions: `Triage the pull request and recommend reviewers.`,
 });
-console.log(await triage({
-    diff: p.bash("git diff origin/main...HEAD"),
-    files: p.bash("git diff --name-only origin/main...HEAD"),
-}));
 
 export default triage;

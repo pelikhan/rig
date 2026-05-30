@@ -1,4 +1,7 @@
 import { agent, s } from "rig";
+
+// Plans a sequence of shell commands to achieve a goal, preferring readonly
+// commands and annotating each with its purpose.
 const commandPlanner = agent({
     name: "commandPlanner",
     input: s.object({
@@ -13,8 +16,5 @@ const commandPlanner = agent({
     }),
     instructions: `Plan shell commands for the goal. Prefer readonly commands.`,
 });
-console.log(await commandPlanner({
-    goal: "Understand why TypeScript declarations changed.",
-}));
 
 export default commandPlanner;

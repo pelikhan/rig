@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Builds a package map for a JavaScript monorepo by parsing all package.json
+// manifests, listing packages and their inter-package relationships.
 const packageMap = agent({
     name: "packageMap",
     input: s.object({
@@ -19,8 +21,5 @@ const packageMap = agent({
     }),
     instructions: `Build a package map for a JavaScript monorepo.`,
 });
-console.log(await packageMap({
-    manifests: p.bash("find . -name package.json -maxdepth 4 -print -exec cat {} \\\;"),
-}));
 
 export default packageMap;

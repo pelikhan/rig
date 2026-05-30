@@ -1,9 +1,11 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
 const Diagnosis = s.object({
     rootCause: s.string,
     confidence: s.number
 });
+
+// Diagnoses a failing test run, returning a root cause and confidence score.
 const diagnose = agent({
     name: "diagnose",
     input: s.object({
@@ -17,6 +19,9 @@ const diagnose = agent({
     output: Diagnosis,
     instructions: `Diagnose the test failure.`,
 });
+
+// Applies the smallest safe patch to fix the diagnosed issue, reporting whether
+// any change was actually made.
 const fix = agent({
     name: "fix",
     input: s.object({
@@ -29,6 +34,9 @@ const fix = agent({
     instructions: `Make the smallest safe patch using engine capabilities.`,
     permissions: { shell: "ask", write: "workspace" },
 });
+
+// Reviews the applied patch against the original diagnosis, approving or flagging
+// any remaining issues.
 const review = agent({
     name: "review",
     input: s.object({
@@ -41,9 +49,5 @@ const review = agent({
     }),
     instructions: `Review the patch against the diagnosis.`,
 });
-const d = await diagnose({ test: p.result("npm test") });
-const f = await fix({ diagnosis: d });
-const r = await review({ diff: p.bash("git diff -- ."), diagnosis: d });
-console.log({ d, f, r });
 
 export default diagnose;

@@ -1,4 +1,7 @@
 import { agent, s } from "rig";
+
+// Reviews a design proposal for simplicity and maintainability, returning an
+// approve/revise/reject decision with strengths, concerns, and required changes.
 const designReview = agent({
     name: "designReview",
     input: s.object({
@@ -12,8 +15,5 @@ const designReview = agent({
     }),
     instructions: `Review the design proposal for simplicity and maintainability.`,
 });
-console.log(await designReview({
-    proposal: "Add a direct p.run helper for local execution.",
-}));
 
 export default designReview;

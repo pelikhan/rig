@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Parses environment outputs (node version and directory listing) into structured
+// fields, demonstrating p.bash intent options such as cwd, timeout, and env.
 const envReader = agent({
     name: "envReader",
     input: s.object({
@@ -12,16 +14,5 @@ const envReader = agent({
     }),
     instructions: `Parse environment outputs.`,
 });
-console.log(await envReader({
-    nodeVersion: p.bash("node --version", {
-        cwd: ".",
-        timeout: 10000,
-        purpose: "check Node version",
-    }),
-    cwdFiles: p.bash("ls -la", {
-        env: { FORCE_COLOR: "0" },
-        purpose: "list current directory",
-    }),
-}));
 
 export default envReader;

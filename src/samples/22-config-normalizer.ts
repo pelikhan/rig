@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Diagnoses a CI log by pinpointing the first real failure, proposing a likely
+// cause, and listing commands to try locally.
 const ciDiagnosis = agent({
     name: "ciDiagnosis",
     input: s.object({
@@ -12,8 +14,5 @@ const ciDiagnosis = agent({
     }),
     instructions: `Diagnose the CI log. Prefer the first real failure over cascading errors.`,
 });
-console.log(await ciDiagnosis({
-    log: p.bash("cat ci.log", { purpose: "read CI log" }),
-}));
 
 export default ciDiagnosis;

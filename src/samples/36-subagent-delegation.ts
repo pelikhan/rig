@@ -1,5 +1,7 @@
 import { agent, s } from "rig";
 
+// Extracts the most important implementation details from a given topic,
+// returning a summary and a list of risks.
 const researcher = agent({
   name: "researcher",
   instructions: "Extract the most important implementation details from the topic.",
@@ -12,6 +14,8 @@ const researcher = agent({
   }),
 });
 
+// Turns a research summary into concrete next steps for the caller, delivering
+// a decision and an ordered action list.
 const planner = agent({
   name: "planner",
   instructions: "Turn the research summary into concrete next steps for the caller.",
@@ -24,13 +28,5 @@ const planner = agent({
     nextSteps: s.array(s.string),
   }),
 });
-
-const research = await researcher({
-  topic: "Explain runtime-visible schemas in one paragraph.",
-});
-
-const plan = await planner(research);
-
-console.log({ research, plan });
 
 export default researcher;

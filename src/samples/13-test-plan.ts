@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Reviews the project's dependency security posture using npm ls and audit output,
+// returning a clean/needs-action status with per-package findings.
 const securityReview = agent({
     name: "securityReview",
     input: s.object({
@@ -16,9 +18,5 @@ const securityReview = agent({
     }),
     instructions: `Review dependency security posture from the provided outputs.`,
 });
-console.log(await securityReview({
-    dependencies: p.bash("npm ls --depth=0"),
-    audit: p.bash("npm audit --json", { purpose: "security audit" }),
-}));
 
 export default securityReview;

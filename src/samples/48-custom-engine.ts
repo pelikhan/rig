@@ -1,5 +1,7 @@
 import { agent, s } from "rig";
 
+// Reviews a code diff and returns a risk rating alongside a summary, demonstrating
+// how to wire a custom engine by importing copilotEngine separately.
 const review = agent({
   name: "review",
   input: s.object({ diff: s.string }),
@@ -8,8 +10,5 @@ const review = agent({
     risk: s.enum("low", "medium", "high"),
   }),
 });
-
-const result = await review({ diff: "..." });
-console.log(result);
 
 export default review;

@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Confirms whether a file-write intent succeeded by inspecting the write result,
+// returning a boolean and a brief summary.
 const writer = agent({
     name: "writer",
     input: s.object({
@@ -21,11 +23,5 @@ const writer = agent({
         write: "workspace",
     },
 });
-const result = await writer({
-    write: p.write("README.md", "# Project\n\nGenerated README.\n", {
-        purpose: "create project README",
-    }),
-});
-console.log(result);
 
 export default writer;

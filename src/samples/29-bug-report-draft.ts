@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Flags unknown or legally concerning dependency licenses from the full npm tree,
+// returning a compliance verdict with per-package details.
 const licenseCheck = agent({
     name: "licenseCheck",
     input: s.object({
@@ -16,8 +18,5 @@ const licenseCheck = agent({
     }),
     instructions: `Flag unknown or concerning dependency licenses.`,
 });
-console.log(await licenseCheck({
-    packages: p.bash("npm ls --json --all", { purpose: "collect dependency tree" }),
-}));
 
 export default licenseCheck;

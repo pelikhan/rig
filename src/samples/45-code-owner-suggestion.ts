@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Analyzes historical test run logs to determine whether a failure is likely
+// flaky, surfacing signals and suggesting stabilization ideas.
 const flaky = agent({
     name: "flakyAnalysis",
     input: s.object({
@@ -12,8 +14,5 @@ const flaky = agent({
     }),
     instructions: `Analyze whether the test failure appears flaky.`,
 });
-console.log(await flaky({
-    history: p.bash("cat test-runs/*.log 2>/dev/null || true"),
-}));
 
 export default flaky;

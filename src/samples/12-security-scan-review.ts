@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Generates structured release notes from recent commit history, separating
+// highlights, breaking changes, and bug fixes.
 const releaseNotes = agent({
     name: "releaseNotes",
     input: s.object({
@@ -13,8 +15,5 @@ const releaseNotes = agent({
     }),
     instructions: `Write release notes from commits. Omit empty sections as empty arrays.`,
 });
-console.log(await releaseNotes({
-    commits: p.bash("git log --oneline --decorate -50"),
-}));
 
 export default releaseNotes;

@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Decides whether snapshot test updates are safe to commit by comparing test
+// results against the snapshot diff, returning a rationale and optional update command.
 const snapshotReview = agent({
     name: "snapshotReview",
     input: s.object({
@@ -18,9 +20,5 @@ const snapshotReview = agent({
     }),
     instructions: `Decide whether snapshot updates are legitimate.`,
 });
-console.log(await snapshotReview({
-    testResult: p.result("npm test -- --runInBand"),
-    diff: p.bash("git diff -- '*snap*'"),
-}));
 
 export default snapshotReview;

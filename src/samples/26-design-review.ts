@@ -1,4 +1,7 @@
 import { agent, s } from "rig";
+
+// Authors a concise migration guide between two package versions, with ordered
+// steps and before/after code examples for each breaking change.
 const migration = agent({
     name: "migrationGuide",
     input: s.object({
@@ -16,10 +19,5 @@ const migration = agent({
     }),
     instructions: `Write a concise migration guide.`,
 });
-console.log(await migration({
-    fromVersion: "0.1",
-    toVersion: "0.2",
-    changes: ["Agents now always receive input objects."],
-}));
 
 export default migration;

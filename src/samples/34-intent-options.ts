@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Investigates a project using only readonly evidence (file tree, package.json,
+// test files) to surface observations and likely entry points.
 const investigator = agent({
     name: "investigator",
     input: s.object({
@@ -14,10 +16,5 @@ const investigator = agent({
     instructions: `Investigate the project using only readonly evidence.`,
     permissions: { shell: "readonly", write: "deny" },
 });
-console.log(await investigator({
-    tree: p.bash("find . -maxdepth 3 -type f | sort"),
-    packageJson: p.bash("cat package.json"),
-    tests: p.bash("find . -name '*test*' -o -name '*spec*'"),
-}));
 
 export default investigator;

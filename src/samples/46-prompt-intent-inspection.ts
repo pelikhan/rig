@@ -1,5 +1,7 @@
-import { agent, s } from "rig";
-import { p } from "rig";
+import { agent, s, p } from "rig";
+
+// Matches changed files against CODEOWNERS rules and returns suggested owners
+// along with any files that have no matching ownership rule.
 const owners = agent({
     name: "owners",
     input: s.object({
@@ -12,9 +14,5 @@ const owners = agent({
     }),
     instructions: `Suggest owners for changed files.`,
 });
-console.log(await owners({
-    codeowners: p.bash("cat CODEOWNERS .github/CODEOWNERS 2>/dev/null || true"),
-    changedFiles: p.bash("git diff --name-only origin/main...HEAD"),
-}));
 
 export default owners;
