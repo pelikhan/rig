@@ -1,6 +1,6 @@
 # rig
 
-Minimal TypeScript harness for structured agent calls.
+Minimal TypeScript agent harness skill for structured agent calls, intended for embedding in markdown with `rig` code fences.
 
 ## Preferred imports
 
@@ -219,8 +219,8 @@ Use:
 
 ## Running programs
 
-Treat fenced `rig` code blocks as runnable rig programs.
-Run them through bash by piping the program into `node skills/rig/rig.ts`:
+Treat fenced `rig` code blocks in markdown as runnable rig programs.
+Run them by extracting the fence content and piping it into `node skills/rig/rig.ts`:
 
 ```bash
 cat <<'RIG' | node skills/rig/rig.ts

@@ -1,6 +1,6 @@
 # rig
 
-`rig` is a minimal TypeScript harness for structured agent calls.
+`rig` is a minimal TypeScript agent harness skill designed to be embedded in markdown workflows.
 
 ## Install
 
@@ -22,6 +22,31 @@ import {
 - `s.*` defines input/output schemas.
 - `p.*` creates shell/file intents for inputs or prompt templates.
 - `p\`...\`` inlines intent renderings into instruction text.
+
+## Embedding in markdown
+
+Use `rig` code fences in markdown files to define runnable harness programs:
+
+````markdown
+```rig
+import { agent, s } from "rig";
+
+const root = agent({
+  name: "review",
+  input: s.object({ text: s.string }),
+  output: s.object({ text: s.string }),
+});
+
+const result = await root({ text: "Summarize this repository" });
+process.stdout.write(result.text);
+```
+````
+
+Extract the `rig` fence and run it with:
+
+```bash
+awk '/^```rig$/{in_block=1;next}/^```$/{if(in_block){exit}}in_block' ./program.md | node skills/rig/rig.ts
+```
 
 ## Quick start
 
