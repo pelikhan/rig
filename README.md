@@ -101,6 +101,8 @@ import { copilotEngine } from "rig/engines/copilot";
 useEngine(copilotEngine());
 ```
 
+By default, the Copilot engine starts Copilot CLI in server mode and connects to it through the SDK.
+
 Engine contract:
 
 ```ts
@@ -113,7 +115,7 @@ type EngineSession = {
 };
 ```
 
-For runnable programs, use the launcher CLI to mount the Copilot engine and execute a file:
+For runnable programs, use the launcher CLI to mount the Copilot engine in the harness working directory and execute a file:
 
 ```bash
 node src/launcher.ts src/samples/02-review-git-diff.ts
