@@ -205,8 +205,8 @@ Event types: `call`, `send`, `response`, `result`, `error`. Listeners can be asy
 - import shell helpers from `rig`
 - use `s.*` for explicit schema helpers
 
-Deprecated hooks and lifecycle middleware are removed from the core path.
-Optional wrappers live in `rig/middleware`.
+Deprecated hooks and lifecycle middleware are removed.
+Use `myAgent.subscribe()` and custom intent renderers for extensibility.
 
 ## Local development
 

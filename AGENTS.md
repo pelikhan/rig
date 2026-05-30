@@ -2,13 +2,12 @@
 
 ## Project Overview
 
-Rig is a minimal TypeScript agent harness. The core runtime (`src/rig.ts`) provides declarative agent construction with typed input/output shapes, shell intents, and a pluggable LLM engine. Optional middleware and the Copilot SDK engine live in sibling modules.
+Rig is a minimal TypeScript agent harness. The core runtime (`src/rig.ts`) provides declarative agent construction with typed input/output shapes, shell intents, and a pluggable LLM engine. The Copilot SDK engine lives in a sibling module.
 
 ## Architecture
 
 ```
 src/rig.ts             — Core runtime (agent, sh, p, validate, useEngine, schemas)
-src/middleware.ts      — Optional middleware wrappers (rig/middleware)
 src/engines/copilot.ts — Copilot SDK engine (rig/engines/copilot)
 src/rig.test.ts        — Unit tests (vitest)
 src/samples/           — 49 sample agents demonstrating patterns
@@ -17,7 +16,7 @@ scripts/run.ts         — Real sample runner (via tsx)
 skills/rig/SKILL.md    — Framework reference docs
 ```
 
-All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest alias). Submodules are imported as `rig/middleware` and `rig/engines/copilot`.
+All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest alias). Submodules are imported as `rig/engines/copilot`.
 
 ## Commands
 
@@ -33,7 +32,7 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 
 - Keep the core (`src/rig.ts`) self-contained and free of runtime dependencies
 - Only `@github/copilot-sdk` is allowed, and only inside `src/engines/copilot.ts`
-- Middleware and engines live in their own files, not in the core
+- Engines live in their own files, not in the core
 - Minimal comments; code should be self-explanatory
 - Use `node:` prefix for Node.js built-in imports
 - Types are colocated with the module that defines them, not in separate `.d.ts` files
@@ -58,4 +57,3 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 - **Prompts**: `p\`...\`` template tag composes instructions with inline `sh.*` helpers
 - **Engine**: Pluggable via `useEngine(engine)`. There is no implicit default — opt in with `useEngine(copilotEngine())` from `rig/engines/copilot`, or supply your own `{ createSession({ model }) => { send(prompt, { signal }) } }`.
 - **Repair**: `repair: "default"` (or a custom `(error) => string`) re-prompts on parse/validation failure up to `maxTurns`. Disable with `repair: false`.
-- **Middleware** (optional, from `rig/middleware`): wraps agents and engines with lifecycle hooks; contexts are `{ kind: "agent" | "engine", event: "call" | "send" | "result" | "error", ... }`.
