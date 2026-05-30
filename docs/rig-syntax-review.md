@@ -1,6 +1,6 @@
 # Rig syntax review
 
-This review scores the **50 existing sample harnesses** in `src/samples/02-51` as examples of current rig syntax.
+This review scores the **50 existing sample harnesses** in `src/samples/` (samples `02` through `51`) as examples of current rig syntax.
 
 ## Scoring rubric
 
@@ -84,7 +84,7 @@ This review scores the **50 existing sample harnesses** in `src/samples/02-51` a
 | 38 | `38-exact-literal-output.ts` | Literal and nullable output | 5 | 5 | Excellent example of precise extraction. |
 | 39 | `39-unknown-raw-output.ts` | Raw structured payload | 4 | 4 | Clear example of `s.literal` and `s.unknown`. |
 | 40 | `40-record-output.ts` | Record-shaped output | 4 | 4 | Strong `s.record` example. |
-| 41 | `41-permissioned-agent.ts` | Record output with optional notes | 3 | 3 | Good record pattern, but optional-key sugar is hidden. |
+| 41 | `41-permissioned-agent.ts` | Permissioned-agent style record output | 3 | 3 | Good record pattern, but optional-key sugar is hidden. |
 | 42 | `42-json-repair.ts` | Repair and retry | 5 | 4 | Important behavior and easy to justify. |
 | 43 | `43-snapshot-test-updater.ts` | Snapshot update planning | 3 | 3 | Useful but more task-specific. |
 | 44 | `44-flaky-test-analysis.ts` | Flaky test analysis | 3 | 2 | Optional shorthand keys reduce readability. |
@@ -93,7 +93,7 @@ This review scores the **50 existing sample harnesses** in `src/samples/02-51` a
 | 47 | `47-validate-output.ts` | Intent collection and validation | 5 | 4 | Excellent advanced sample. |
 | 48 | `48-custom-engine.ts` | Custom engine wiring | 5 | 4 | Strong systems-level example. |
 | 49 | `49-timeout-signal-helper.ts` | Timeout and abort handling | 4 | 3 | Good operational pattern. |
-| 50 | `50-end-to-end-release-agent.ts` | Timeout/abort minimal flow | 4 | 4 | Small and memorable, though narrower than the filename suggests. |
+| 50 | `50-end-to-end-release-agent.ts` | End-to-end release agent control flow | 4 | 4 | Small and memorable, with the sample currently emphasizing timeout and abort control. |
 | 51 | `51-extensibility.ts` | Custom intents and lifecycle events | 5 | 5 | Best advanced sample; captures the API direction well. |
 
 ## Distilled guidance for `SKILL.md`

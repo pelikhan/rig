@@ -102,9 +102,9 @@ input: s.object({
 })
 ```
 
-Prefer **explicit schemas in docs and generated samples**. Use shorthand only when the shorter form is clearly easier to read.
+Prefer **explicit schemas in docs and generated samples**. Use shorthand only for small examples with one or two primitive fields, or when the explicit `s.object(...)` form would add noise without adding clarity.
 
-## Shorthand rules that agents must not invent
+## Built-in shorthand rules
 
 These rules are real rig syntax:
 
