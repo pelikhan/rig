@@ -177,8 +177,42 @@ it("accepts --server flag without rejecting", async () => {
   expect(mocks.forStdio).toHaveBeenCalled();
 });
 
-it("requires a program path in cli mode", async () => {
-  await expect(runLauncherCli([])).rejects.toThrow(
+it("runs a program piped on stdin when no program path is provided", async () => {
+  const stdin = Readable.from([`
+import { agent, s } from "rig";
+
+const root = agent({
+  name: "launcher-stdin-program",
+  input: s.object({ text: s.string }),
+  output: s.object({ text: s.string }),
+});
+
+const result = await root({ text: "Review this patch" });
+(globalThis as { __launcherStdinProgramResult?: string }).__launcherStdinProgramResult = result.text;
+`]);
+  const globalState = globalThis as { __launcherStdinProgramResult?: string };
+delete globalState.__launcherStdinProgramResult;
+  const stdout = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+
+  mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
+  await runLauncherCli([], {}, { stdin, stdout });
+
+  expect(globalState.__launcherStdinProgramResult).toBe("done");
+});
+
+it("requires a non-empty stdin program when no program path is provided", async () => {
+  const stdin = Readable.from(["  \n\t"]);
+  const stdout = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+
+  await expect(runLauncherCli([], {}, { stdin, stdout })).rejects.toThrow(
     /<program-file>/,
   );
 });

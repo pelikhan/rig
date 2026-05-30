@@ -100,19 +100,30 @@ Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 By default it connects to an already-running Copilot server via HTTP (`AGENT_HTTP_URL` or `localhost:7777`).
 Pass `--server` to spawn the server over stdio when launching a program.
 
-For runnable programs, execute `rig.ts` directly and pass the root agent input on stdin (assumes the Copilot server is already running):
+For runnable programs, you can pipe a rig program directly on stdin (assumes the Copilot server is already running):
 
 ```bash
-echo "<input>" | node skills/rig/rig.ts skills/rig/samples/02-review-git-diff.ts
+cat <<'RIG' | node skills/rig/rig.ts
+import { agent, s } from "rig";
+
+const root = agent({
+  name: "review",
+  input: s.object({ text: s.string }),
+  output: s.object({ text: s.string }),
+});
+
+const result = await root({ text: "Summarize this repository" });
+process.stdout.write(result.text);
+RIG
 ```
 
 Pass `--server` to start the Copilot server automatically as part of the run:
 
 ```bash
-echo "<input>" | node skills/rig/rig.ts skills/rig/samples/02-review-git-diff.ts --server
+cat ./program.ts | node skills/rig/rig.ts --server
 ```
 
-To run a root agent from a program file (default mode), export the root agent as the default export, pass the input text on stdin, and print the final answer to stdout:
+To run a root agent from a program file, export the root agent as the default export, pass the input text on stdin, and print the final answer to stdout:
 
 ```bash
 echo "Summarize this repository" | node skills/rig/rig.ts src/program.ts

@@ -219,7 +219,25 @@ Use:
 
 ## Running programs
 
-The harness assumes the Copilot server is already started. Export the root agent as the default export and pass input on stdin:
+Treat fenced `rig` code blocks as runnable rig programs.
+Run them through bash by piping the program into `node skills/rig/rig.ts`:
+
+```bash
+cat <<'RIG' | node skills/rig/rig.ts
+import { agent, s } from "rig";
+
+const root = agent({
+  name: "review",
+  input: s.object({ text: s.string }),
+  output: s.object({ text: s.string }),
+});
+
+const result = await root({ text: "Review this diff" });
+process.stdout.write(result.text);
+RIG
+```
+
+The harness also supports program-file mode. Export the root agent as the default export and pass input on stdin:
 
 ```bash
 echo "Review this diff" | node skills/rig/rig.ts src/program.ts
