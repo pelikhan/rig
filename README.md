@@ -118,7 +118,7 @@ Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 
 `rig` is specialized for Copilot SDK sessions.
 
-By default it connects to an already-running Copilot server via HTTP (`AGENT_HTTP_URL` or `localhost:7777`).
+By default it connects to an already-running Copilot server via HTTP (`COPILOT_SDK_URI`, then `AGENT_HTTP_URL`, then `localhost:7777`).
 Pass `--server` to spawn the server over stdio when launching a program.
 
 For runnable programs, you can pipe a rig program directly on stdin (assumes the Copilot server is already running):
