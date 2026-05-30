@@ -35,29 +35,29 @@ export type Schema =
   | EnumSchema<any>
   | OptionalSchema<any>;
 
-type PrimitiveSchemaFactory<T extends Schema> = T & ((description?: string) => T);
+type SchemaHelperFactory<T extends Schema> = T & ((description?: string) => T);
 
-function createPrimitiveSchema<T extends Schema>(kind: T["kind"]): PrimitiveSchemaFactory<T> {
+function createPrimitiveSchema<T extends Schema>(kind: T["kind"]): SchemaHelperFactory<T> {
   const base = { kind } as T;
-  const factory = ((description?: string) => (description === undefined ? base : { ...base, description } as T)) as PrimitiveSchemaFactory<T>;
+  const factory = ((description?: string) => (description === undefined ? base : { ...base, description } as T)) as SchemaHelperFactory<T>;
   return Object.assign(factory, base);
 }
 
 type EnumSchemaFactory = {
   <const Values extends readonly Json[]>(...values: Values): EnumSchema<Values>;
-  <const Values extends readonly Json[]>(values: Values, description?: string): EnumSchema<Values>;
+  <const Values extends readonly Json[]>(values: Values, description: string): EnumSchema<Values>;
 };
 
 const createEnumSchema: EnumSchemaFactory = (...args: unknown[]) => {
   const valuesOrTuple = args as readonly Json[];
   if (
-    Array.isArray(valuesOrTuple[0])
-    && valuesOrTuple.length <= 2
-    && (valuesOrTuple.length === 1 || typeof valuesOrTuple[1] === "string")
+    valuesOrTuple.length === 2
+    && Array.isArray(valuesOrTuple[0])
+    && typeof valuesOrTuple[1] === "string"
   ) {
     const values = valuesOrTuple[0] as readonly Json[];
-    const description = valuesOrTuple[1] as string | undefined;
-    return description === undefined ? { kind: "enum", values } : { kind: "enum", values, description };
+    const description = valuesOrTuple[1] as string;
+    return { kind: "enum", values, description };
   }
   const values = valuesOrTuple as readonly Json[];
   return { kind: "enum", values };
@@ -804,7 +804,7 @@ function renderSchema(schema: Schema): string {
 function renderSchemaNode(schema: Schema, indent: number): string {
   const pad = "  ".repeat(indent);
   const describe = (text: string): string => (
-    schema.description ? `${text} /* ${schema.description.replaceAll("*/", "*\\/").replaceAll("\n", " ").trim()} */` : text
+    schema.description ? `${text} /* ${schema.description.replaceAll("*/", "* /").replaceAll("\n", " ").trim()} */` : text
   );
   switch (schema.kind) {
     case "string":
@@ -1056,6 +1056,7 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
 }
 
 function isSchema(value: unknown): value is Schema {
+  // Primitive schema helpers (s.string/s.number/etc.) are callable function objects with a `kind` field.
   return !!value
     && (typeof value === "object" || typeof value === "function")
     && "kind" in value
