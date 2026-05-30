@@ -348,10 +348,11 @@ export async function runLauncherCli(
   io: LauncherIo = process,
 ): Promise<void> {
   const programPath = argv[0];
-  const modeArgs = argv.slice(1);
-  const useFile = modeArgs.includes("--file");
+  const flags = argv.slice(1);
+  const useFile = flags[0] === "--file";
+  const hasInvalidFlags = flags.length > 1 || (flags.length === 1 && !useFile);
   const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
-  if (!programPath || modeArgs.some((arg) => arg !== "--file")) {
+  if (!programPath || hasInvalidFlags) {
     throw new Error(`Usage: ${scriptName} <program-file> [--file]`);
   }
   if (useFile) {
