@@ -8,7 +8,7 @@ const readmeWriter = agent({
         files: s.string
     }),
     output: s.object({
-        path: s.literal("README.md"),
+        path: s.enum("README.md"),
         contents: s.string
     }),
     instructions: `

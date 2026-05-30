@@ -7,7 +7,7 @@ const reviewRecord = agent({
         finding: s.string
     }),
     output: s.object({
-        kind: s.literal("review-finding"),
+        kind: s.enum("review-finding"),
         finding: s.string,
         severity: s.enum("info", "warning", "error")
     }),
