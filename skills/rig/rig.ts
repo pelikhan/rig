@@ -122,7 +122,7 @@ function jsonl(value: unknown): string {
 }
 
 function rigEvent(type: string, data?: unknown): { type: string; data?: unknown } {
-  return data === undefined ? { type: `rig.${type}` } : { type: `rig.${type}`, data };
+  return { type: `rig.${type}`, data };
 }
 
 function writeEvent(event: unknown): void {
