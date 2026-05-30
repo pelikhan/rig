@@ -102,7 +102,7 @@ const question = "How does the launcher choose a tsconfig file?";
 
 const { candidateFiles } = await discoverFiles({
   question,
-  files: p.bash("find src skills -name '*.ts' -type f | sort"),
+  files: p.bash("find src skills -name '*.ts' -type f 2>/dev/null | sort"),
 });
 
 const notes = await Promise.all(
@@ -110,7 +110,7 @@ const notes = await Promise.all(
     readFile({
       question,
       file,
-      contents: p.bash(`cat ${file}`),
+      contents: p.read(file),
     }),
   ),
 );
