@@ -486,7 +486,7 @@ async function runProgramCodeFromStdin(
   }
 }
 
-const launcherHelpArgs = new Set(["--help", "-h", "-help", "-?", "help", "/help", "/h", "/?"]);
+const launcherHelpArgs = new Set(["--help", "-h", "help", "/help", "/?"]);
 
 function isLauncherHelpArg(arg: string): boolean {
   return launcherHelpArgs.has(arg.toLowerCase());
@@ -501,7 +501,7 @@ function renderLauncherUsage(scriptName: string): string {
     "  <program-file>     Read root-agent input from stdin and run the program file.",
     "",
     "Help aliases:",
-    "  --help, -h, -help, -?, help, /help, /h, /?",
+    "  --help, -h, help, /help, /?",
     "",
     "Examples:",
     `  cat ./program.ts | ${scriptName}`,
