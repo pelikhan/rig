@@ -15,7 +15,7 @@ export type LaunchOptions = {
  */
 export async function launchRigProgram(programPath: string, options: LaunchOptions = {}): Promise<void> {
   const cwd = options.cwd ?? process.cwd();
-  const engine = options.engine ?? copilotEngine();
+  const engine = options.engine ?? copilotEngine({ workingDirectory: cwd });
   const resolvedPath = isAbsolute(programPath) ? programPath : resolve(cwd, programPath);
 
   useEngine(engine);
