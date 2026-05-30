@@ -12,7 +12,6 @@ src/engines/copilot.ts — Copilot SDK engine (rig/engines/copilot)
 src/rig.test.ts        — Unit tests (vitest)
 src/samples/           — 50 sample agents demonstrating patterns
 scripts/run-sample.test.ts — Sample runner with a stub engine (dry-run)
-src/launcher.ts        — Launcher API + CLI entrypoint
 skills/rig/SKILL.md    — Framework reference docs
 ```
 
@@ -26,7 +25,7 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 | Unit tests | `npm test` |
 | Run samples (stub) | `npm run sample` |
 | Run single sample (stub) | `RIG_SAMPLE=02 npm run sample` |
-| Run a sample for real | `node src/launcher.ts <program-file>` (`npm run sample:run`) |
+| Run a sample for real | `node src/rig.ts <program-file>` (`npm run sample:run`) |
 
 ## Code Style
 

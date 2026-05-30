@@ -4,7 +4,7 @@ import { Readable, Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { agent, s } from "rig";
 import type { Engine } from "rig";
-import { launchRigProgram, runLauncherCli } from "rig/launcher";
+import { launchRigProgram, runLauncherCli } from "rig";
 
 function mockEngine(response: unknown): Engine {
   return {

@@ -121,16 +121,16 @@ type EngineSession = {
 };
 ```
 
-For runnable programs, use the launcher CLI to mount the Copilot engine in the harness working directory and execute a file:
+For runnable programs, execute `rig.ts` directly to mount the Copilot engine in the harness working directory and execute a file:
 
 ```bash
-node src/launcher.ts src/samples/02-review-git-diff.ts
+node src/rig.ts src/samples/02-review-git-diff.ts
 ```
 
 To run a root agent from a program file, export the root agent as the default export, pass the input text on stdin, and print the final answer to stdout:
 
 ```bash
-echo "Summarize this repository" | node src/launcher.ts src/program.ts --stdin
+echo "Summarize this repository" | node src/rig.ts src/program.ts --stdin
 ```
 
 Copilot SDK lifecycle events are logged to stderr as JSONL.

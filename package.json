@@ -4,14 +4,13 @@
   "type": "module",
   "exports": {
     ".": "./src/rig.ts",
-    "./launcher": "./src/launcher.ts",
     "./engines/copilot": "./src/engines/copilot.ts",
     "./sh": "./src/sh.ts"
   },
   "scripts": {
     "test": "vitest run src/",
     "sample": "vitest run scripts/run-sample.test.ts",
-    "sample:run": "node src/launcher.ts",
+    "sample:run": "node src/rig.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
