@@ -1,0 +1,44 @@
+import { agent, p, s } from "rig";
+
+// Agent role: diagnose the root cause of test failures and decide if all tests pass.
+const diagnose = agent({
+  name: "diagnose",
+  model: "mini",
+  input: s.object({
+    test: s.object({
+      ok: s.boolean,
+      stdout: s.string,
+      stderr: s.string,
+      exitCode: s.number,
+    }),
+  }),
+  output: s.object({
+    done: s.boolean,
+    rootCause: s.string,
+  }),
+  instructions: "Diagnose the root cause of test failures. Set done to true if all tests pass.",
+});
+
+// Agent role: apply the smallest safe fix to address the diagnosed root cause.
+const fix = agent({
+  name: "fix",
+  model: "mini",
+  input: s.object({
+    rootCause: s.string,
+  }),
+  output: s.object({
+    summary: s.string,
+    changed: s.boolean,
+  }),
+  instructions: "Apply the smallest safe fix to address the diagnosed root cause.",
+  permissions: { shell: "ask", write: "workspace" },
+});
+
+const MAX_ITERATIONS = 3;
+for (let i = 0; i < MAX_ITERATIONS; i++) {
+  const d = await diagnose({ test: p.result("npm test") });
+  if (d.done) break;
+  await fix({ rootCause: d.rootCause });
+}
+
+export default diagnose;
