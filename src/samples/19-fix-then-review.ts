@@ -1,26 +1,23 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 import { p } from "rig";
-
 const patcher = agent({
-  name: "patcher",
-  input: {
-    diagnosis: "Bug diagnosis",
-    file: "target file",
-    contents: "current file contents",
-  },
-  output: {
-    path: "src/index.ts",
-    contents: "replacement file contents",
-    summary: "Patch summary",
-  },
-  instructions: `Return a complete replacement for the target file.`,
-  permissions: { write: "workspace" },
+    name: "patcher",
+    input: s.object({
+        diagnosis: s.string,
+        file: s.string,
+        contents: s.string
+    }),
+    output: s.object({
+        path: s.string,
+        contents: s.string,
+        summary: s.string
+    }),
+    instructions: `Return a complete replacement for the target file.`,
+    permissions: { write: "workspace" },
 });
-
 const patch = await patcher({
-  diagnosis: "The parser accepts trailing prose after JSON.",
-  file: "src/index.ts",
-  contents: p.text("cat src/index.ts"),
+    diagnosis: "The parser accepts trailing prose after JSON.",
+    file: "src/index.ts",
+    contents: p.text("cat src/index.ts"),
 });
-
 console.log(patch);

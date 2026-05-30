@@ -69,6 +69,18 @@ describe("agent", () => {
     expect(result.findings[0]?.line).toBeUndefined();
   });
 
+  it("rejects implicit schema syntax at runtime", () => {
+    expect(() => agent({
+      name: "implicit-top-level",
+      input: { text: "go" } as any,
+    })).toThrow(/Use declarative s\.\* schema helpers/);
+
+    expect(() => agent({
+      name: "implicit-nested",
+      input: s.object({ text: "go" as any }),
+    })).toThrow(/input\.text/);
+  });
+
   it("does not expose deprecated hook APIs in core", () => {
     expect((agent as { on?: unknown }).on).toBeUndefined();
     expect((agent as { use?: unknown }).use).toBeUndefined();

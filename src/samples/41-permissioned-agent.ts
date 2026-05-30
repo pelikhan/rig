@@ -1,21 +1,19 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 import { p } from "rig";
-
 const coverage = agent({
-  name: "coverage",
-  input: { report: "coverage report" },
-  output: {
-    files: {
-      "*": {
-        lines: 95,
-        branches: 80,
-        notes_: "coverage note",
-      },
-    },
-  },
-  instructions: `Parse coverage by file path.`,
+    name: "coverage",
+    input: s.object({
+        report: s.string
+    }),
+    output: s.object({
+        files: s.record(s.object({
+            lines: s.number,
+            branches: s.number,
+            notes: s.optional(s.string)
+        }))
+    }),
+    instructions: `Parse coverage by file path.`,
 });
-
 console.log(await coverage({
-  report: p.text("cat coverage/coverage-summary.json"),
+    report: p.text("cat coverage/coverage-summary.json"),
 }));

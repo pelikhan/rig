@@ -3,7 +3,7 @@
  * Usage: npx vitest run scripts/run-sample.test.ts -- --sample 02
  *    or: npm run sample -- 02
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { readdirSync } from "fs";
 import { resolve } from "path";
 import { useEngine } from "rig";
@@ -125,7 +125,7 @@ const targets = filter
   ? allFiles.filter((f) => f.includes(filter))
   : allFiles;
 
-beforeAll(() => {
+beforeEach(() => {
   useEngine(stubEngine());
 });
 

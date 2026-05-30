@@ -1,17 +1,17 @@
-import { agent } from "rig";
+import { agent, s } from "rig";
 import { p } from "rig";
-
 const flaky = agent({
-  name: "flakyAnalysis",
-  input: { history: "recent test outputs" },
-  output: {
-    likelyFlaky: true,
-    signals: ["signal"],
-    stabilizationIdeas: ["idea"],
-  },
-  instructions: `Analyze whether the test failure appears flaky.`,
+    name: "flakyAnalysis",
+    input: s.object({
+        history: s.string
+    }),
+    output: s.object({
+        likelyFlaky: s.boolean,
+        signals: s.array(s.string),
+        stabilizationIdeas: s.array(s.string)
+    }),
+    instructions: `Analyze whether the test failure appears flaky.`,
 });
-
 console.log(await flaky({
-  history: p.text("cat test-runs/*.log 2>/dev/null || true"),
+    history: p.text("cat test-runs/*.log 2>/dev/null || true"),
 }));

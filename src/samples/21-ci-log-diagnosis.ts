@@ -1,21 +1,19 @@
-import { agent } from "rig";
-
+import { agent, s } from "rig";
 const reproducer = agent({
-  name: "reproducer",
-  input: {
-    issueTitle: "Issue title",
-    issueBody: "Issue body",
-  },
-  output: {
-    steps: ["Step to reproduce"],
-    expected: "Expected behavior",
-    actual: "Actual behavior",
-    missingInfo: ["Question for reporter"],
-  },
-  instructions: `Extract a clear reproduction from the issue.`,
+    name: "reproducer",
+    input: s.object({
+        issueTitle: s.string,
+        issueBody: s.string
+    }),
+    output: s.object({
+        steps: s.array(s.string),
+        expected: s.string,
+        actual: s.string,
+        missingInfo: s.array(s.string)
+    }),
+    instructions: `Extract a clear reproduction from the issue.`,
 });
-
 console.log(await reproducer({
-  issueTitle: "Install fails on Windows",
-  issueBody: "npm install errors with EPERM when postinstall runs.",
+    issueTitle: "Install fails on Windows",
+    issueBody: "npm install errors with EPERM when postinstall runs.",
 }));
