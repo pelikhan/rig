@@ -159,6 +159,33 @@ describe("agent invocation", () => {
     expect(mocks.stopClient).toHaveBeenCalledTimes(1);
   });
 
+  it("reuses one client across nested agent invocations", async () => {
+    const child = agent({
+      name: "child",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+    const parent = agent({
+      name: "parent",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      if (prompt.includes('"text": "parent"')) {
+        await child({ text: "child" });
+        return { text: "parent-ok" };
+      }
+      return { text: "child-ok" };
+    });
+
+    await expect(parent({ text: "parent" })).resolves.toEqual({ text: "parent-ok" });
+    expect(mocks.copilotClientCtor).toHaveBeenCalledTimes(1);
+    expect(mocks.createSession).toHaveBeenCalledTimes(2);
+    expect(mocks.disconnectSession).toHaveBeenCalledTimes(2);
+    expect(mocks.stopClient).toHaveBeenCalledTimes(1);
+  });
+
   it("logs raw Copilot SDK events and rig ask events as JSONL", async () => {
     const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true as any);
     mocks.setOnImpl((handler) => {
