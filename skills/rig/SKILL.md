@@ -53,6 +53,16 @@ Use this checklist before finalizing generated code:
 5. Put stable defaults in spec; put per-call overrides in call options.
 6. Add `permissions`/`agents` only when required by the scenario.
 
+## Canonical construction order
+
+Use this order to reduce syntax drift:
+
+1. Core agent shape: `agent({ name, instructions, input, output })`.
+2. Explicit typed schemas with `s.object(...)` and `s.*`.
+3. Shell intents with `sh.*` (inputs or `p`` templates).
+4. Advanced spec fields (`permissions`, `agents`) when scenario needs them.
+5. Invocation overrides (`model`, `timeout`, `maxTurns`, `signal`) at call time.
+
 ## `agent(spec)`
 
 Declare a structured agent.
