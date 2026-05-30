@@ -312,6 +312,19 @@ function withInjectedRigImport(programCode: string): string {
   return `import { agent, p, s } from "rig";\n\n${programCode}`;
 }
 
+function withInjectedDefaultRootAgent(programCode: string): string {
+  if (/\bexport\s+default\b/.test(programCode)) {
+    return programCode;
+  }
+  const firstAgentAssignment = programCode.match(
+    /^\s*(?:const|let|var)\s+([$_\p{ID_Start}][$_\p{ID_Continue}]*)\s*=\s*agent\s*\(/mu,
+  );
+  if (!firstAgentAssignment) {
+    return programCode;
+  }
+  return `${programCode}\n\nexport default ${firstAgentAssignment[1]};\n`;
+}
+
 function coerceStdinInput(agentFn: AgentFn, text: string): unknown {
   const schema = agentFn.inputSchema;
   if (schema.kind === "string") {
@@ -382,7 +395,8 @@ async function runProgramCodeFromStdin(
   await mkdir(tempRoot, { recursive: true });
   const tempDir = await mkdtemp(resolve(tempRoot, "rig-stdin-"));
   const tempProgramPath = resolve(tempDir, "program.ts");
-  await writeFile(tempProgramPath, withInjectedRigImport(programCode), "utf8");
+  const transformedProgramCode = withInjectedDefaultRootAgent(withInjectedRigImport(programCode));
+  await writeFile(tempProgramPath, transformedProgramCode, "utf8");
   try {
     configureCopilot(resolveCopilotOptions(cwd, options));
     const mod = await import(pathToFileURL(tempProgramPath).href);

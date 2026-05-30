@@ -200,6 +200,28 @@ export default root;
   expect(output.join("")).toBe("done");
 });
 
+it("runs an inlined stdin program by defaulting to the first agent assignment", async () => {
+  const stdin = Readable.from([`
+const reviewer = agent({
+  name: "launcher-stdin-program",
+  output: s.object({ text: s.string }),
+  instructions: "Write a short note.",
+});
+`]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
+  await runLauncherCli([], {}, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
+});
+
 it("rejects an inlined stdin program when the root agent requires input", async () => {
   const stdin = Readable.from([`
 const root = agent({
@@ -218,6 +240,55 @@ export default root;
   await expect(runLauncherCli([], {}, { stdin, stdout })).rejects.toThrow(
     "Expected stdin program root agent to have no input (omit input or use input: s.object({})).",
   );
+});
+
+it("uses the first agent assignment as inline stdin root when no default export exists", async () => {
+  const stdin = Readable.from([`
+const first = agent({
+  name: "launcher-stdin-program-with-input",
+  input: s.object({ message: s.string }),
+  output: s.object({ text: s.string }),
+});
+const second = agent({
+  name: "launcher-stdin-program-no-input",
+  output: s.object({ text: s.string }),
+});
+`]);
+  const stdout = new Writable({
+    write(_chunk, _encoding, callback) {
+      callback();
+    },
+  });
+
+  await expect(runLauncherCli([], {}, { stdin, stdout })).rejects.toThrow(
+    "Expected stdin program root agent to have no input (omit input or use input: s.object({})).",
+  );
+});
+
+it("uses the first no-input agent assignment as inline stdin root when no default export exists", async () => {
+  const stdin = Readable.from([`
+const first = agent({
+  name: "launcher-stdin-program-no-input",
+  output: s.object({ text: s.string }),
+});
+const second = agent({
+  name: "launcher-stdin-program-with-input",
+  input: s.object({ message: s.string }),
+  output: s.object({ text: s.string }),
+});
+`]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
+  await runLauncherCli([], {}, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
 });
 
 it("requires a non-empty stdin program when no program path is provided", async () => {

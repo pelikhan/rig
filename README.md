@@ -134,7 +134,7 @@ export default root;
 RIG
 ```
 
-Inline stdin programs must export one default root agent with no input. The harness invokes it and writes the result to stdout.  
+Inline stdin programs run a no-input root agent and write the result to stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment.  
 `import { agent, p, s } from "rig"` is optional in inline mode because the harness injects it when missing.
 
 Pass `--server` to start the Copilot server automatically as part of the run:

@@ -222,7 +222,7 @@ Use:
 
 Treat fenced `rig` code blocks in markdown as runnable rig programs.
 Run them by extracting the fence content and piping it into `node skills/rig/rig.ts`.
-Inline programs must export one default root agent with no input; the harness invokes it and writes stdout:
+Inline programs run a no-input root agent and write stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment:
 
 ```bash
 cat <<'RIG' | node skills/rig/rig.ts
