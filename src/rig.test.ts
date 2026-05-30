@@ -269,6 +269,60 @@ describe("agent invocation", () => {
     expect(prompts[0]).toContain("/tmp/workspace");
     expect(prompts[0]).toContain("before answering.");
   });
+
+  it("renders taint, DIFC, verification, recovery, and pause/resume syntax sections", async () => {
+    const prompts: string[] = [];
+
+    useEngine({
+      createSession() {
+        return {
+          async send(prompt) {
+            prompts.push(prompt);
+            return JSON.stringify({ text: "ok" });
+          },
+        };
+      },
+    });
+
+    const inspect = agent({
+      name: "syntax-support",
+      taint: {
+        enabled: true,
+        labels: ["public", "internal", "secret"],
+        sources: { "$.input.email": "secret" },
+        sinks: { "$.output.summary": ["public", "internal"] },
+      },
+      difc: {
+        enabled: true,
+        allow: [{ from: "internal", to: "public", mode: "declassify", reason: "approved redaction" }],
+      },
+      verification: {
+        enabled: true,
+        strategy: "hybrid",
+        assertions: ["No secret label may reach public sink"],
+        failOnUnverified: true,
+      },
+      recovery: {
+        rules: [{ error: "policy", action: "rollback", checkpoint: "before-public-output", maxAttempts: 1 }],
+        checkpointOn: ["error"],
+      },
+      pauseResume: {
+        enabled: true,
+        checkpoints: ["before-public-output", "after-verification"],
+        autoCheckpoint: true,
+      },
+    });
+
+    await inspect({ text: "go" });
+
+    expect(prompts[0]).toContain("<taint_tracking>");
+    expect(prompts[0]).toContain("<difc_policy>");
+    expect(prompts[0]).toContain("<verification>");
+    expect(prompts[0]).toContain("<error_recovery>");
+    expect(prompts[0]).toContain("<pause_resume>");
+    expect(prompts[0]).toContain("approved redaction");
+    expect(prompts[0]).toContain("before-public-output");
+  });
 });
 
 describe("subscribe", () => {
@@ -346,6 +400,27 @@ describe("subscribe", () => {
 
     await myAgent({ text: "go" });
     expect(log).toContain("result");
+  });
+
+  it("emits verification, resume, and pause events when configured", async () => {
+    useEngine(mockEngine({ text: "hi" }));
+    const events: RigEvent[] = [];
+    const myAgent = agent({
+      name: "resumable-verified",
+      verification: { enabled: true, strategy: "self-check" },
+      pauseResume: { enabled: true, checkpoints: ["checkpoint-1"] },
+    });
+    myAgent.subscribe((e) => { events.push(e); });
+
+    await myAgent({ text: "go" }, {
+      resumeFrom: "checkpoint-1",
+      resumeToken: "resume-token",
+      pauseAtCheckpoint: "checkpoint-2",
+    });
+
+    expect(events.some((e) => e.type === "verification")).toBe(true);
+    expect(events.some((e) => e.type === "resume")).toBe(true);
+    expect(events.some((e) => e.type === "pause")).toBe(true);
   });
 });
 

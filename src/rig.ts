@@ -97,6 +97,54 @@ export type EngineSession = {
 
 export type RepairHandler = false | "default" | ((error: AgentError) => string);
 
+export type TaintSpec = {
+  enabled?: boolean;
+  labels?: string[];
+  sources?: Record<string, string | string[]>;
+  sinks?: Record<string, string | string[]>;
+};
+
+export type DifcRule = {
+  from: string;
+  to: string;
+  mode?: "flow" | "declassify" | "endorse";
+  reason?: string;
+};
+
+export type DifcSpec = {
+  enabled?: boolean;
+  allow?: DifcRule[];
+  deny?: DifcRule[];
+};
+
+export type VerificationSpec = {
+  enabled?: boolean;
+  strategy?: "self-check" | "formal" | "hybrid";
+  assertions?: string[];
+  requiredEvidence?: string[];
+  failOnUnverified?: boolean;
+};
+
+export type RecoveryRule = {
+  error: "parse" | "validation" | "policy" | "runtime" | "timeout";
+  action: "retry" | "repair" | "fallback" | "rollback" | "abort";
+  maxAttempts?: number;
+  fallbackAgent?: string;
+  checkpoint?: string;
+};
+
+export type RecoverySpec = {
+  rules?: RecoveryRule[];
+  checkpointOn?: Array<"call" | "send" | "response" | "result" | "error">;
+};
+
+export type PauseResumeSpec = {
+  enabled?: boolean;
+  checkpoints?: string[];
+  autoCheckpoint?: boolean;
+  resumeTokenTtlMs?: number;
+};
+
 export type AgentSpec<Input extends Schema = ObjectSchema<{ text: StringSchema }>, Output extends Schema = ObjectSchema<{ text: StringSchema }>> = {
   name: string;
   instructions?: string;
@@ -108,6 +156,11 @@ export type AgentSpec<Input extends Schema = ObjectSchema<{ text: StringSchema }
   repair?: RepairHandler;
   permissions?: { shell?: "deny" | "readonly" | "ask" | "allow"; write?: "deny" | "workspace" | "allow" };
   agents?: Record<string, AgentFn<any, any>>;
+  taint?: TaintSpec;
+  difc?: DifcSpec;
+  verification?: VerificationSpec;
+  recovery?: RecoverySpec;
+  pauseResume?: PauseResumeSpec;
 };
 
 export type CallOptions = {
@@ -115,6 +168,9 @@ export type CallOptions = {
   timeout?: number;
   model?: string;
   maxTurns?: number;
+  resumeFrom?: string;
+  resumeToken?: string;
+  pauseAtCheckpoint?: string;
 };
 
 /**
@@ -127,6 +183,9 @@ export type RigEvent =
   | { type: "call"; agent: string; input: unknown; options: CallOptions }
   | { type: "send"; agent: string; turn: number; prompt: string }
   | { type: "response"; agent: string; turn: number; response: string }
+  | { type: "verification"; agent: string; verification: VerificationSpec }
+  | { type: "resume"; agent: string; checkpoint?: string; token?: string }
+  | { type: "pause"; agent: string; checkpoint?: string; token?: string }
   | { type: "result"; agent: string; output: unknown }
   | { type: "error"; agent: string; error: unknown };
 
@@ -261,6 +320,17 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
     let lastResponse = "";
 
     await emitEvent(listeners, { type: "call", agent: normalizedSpec.name, input, options });
+    if (normalizedSpec.verification) {
+      await emitEvent(listeners, { type: "verification", agent: normalizedSpec.name, verification: normalizedSpec.verification });
+    }
+    if (options.resumeFrom || options.resumeToken) {
+      await emitEvent(listeners, {
+        type: "resume",
+        agent: normalizedSpec.name,
+        ...(options.resumeFrom ? { checkpoint: options.resumeFrom } : {}),
+        ...(options.resumeToken ? { token: options.resumeToken } : {}),
+      });
+    }
 
     try {
       for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
@@ -271,6 +341,14 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
 
         const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
         if (analysis.ok) {
+          if (options.pauseAtCheckpoint) {
+            await emitEvent(listeners, {
+              type: "pause",
+              agent: normalizedSpec.name,
+              checkpoint: options.pauseAtCheckpoint,
+              token: `${normalizedSpec.name}:${options.pauseAtCheckpoint}`,
+            });
+          }
           await emitEvent(listeners, { type: "result", agent: normalizedSpec.name, output: analysis.output });
           return analysis.output;
         }
@@ -328,6 +406,11 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   if (specOrName.repair !== undefined) spec.repair = specOrName.repair;
   if (specOrName.permissions !== undefined) spec.permissions = specOrName.permissions;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
+  if (specOrName.taint !== undefined) spec.taint = specOrName.taint;
+  if (specOrName.difc !== undefined) spec.difc = specOrName.difc;
+  if (specOrName.verification !== undefined) spec.verification = specOrName.verification;
+  if (specOrName.recovery !== undefined) spec.recovery = specOrName.recovery;
+  if (specOrName.pauseResume !== undefined) spec.pauseResume = specOrName.pauseResume;
   return spec;
 }
 
@@ -362,6 +445,26 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
         output: renderSchema(subagent.outputSchema),
       }))),
     ));
+  }
+
+  if (spec.taint) {
+    sections.push(tag("taint_tracking", json(spec.taint)));
+  }
+
+  if (spec.difc) {
+    sections.push(tag("difc_policy", json(spec.difc)));
+  }
+
+  if (spec.verification) {
+    sections.push(tag("verification", json(spec.verification)));
+  }
+
+  if (spec.recovery) {
+    sections.push(tag("error_recovery", json(spec.recovery)));
+  }
+
+  if (spec.pauseResume) {
+    sections.push(tag("pause_resume", json(spec.pauseResume)));
   }
 
   sections.push(tag("rules", [

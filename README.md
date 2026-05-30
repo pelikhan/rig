@@ -132,6 +132,18 @@ node src/launcher.ts src/samples/02-review-git-diff.ts
 
 Event types: `call`, `send`, `response`, `result`, `error`.
 
+## Advanced policy syntax
+
+`agent({...})` optionally accepts:
+
+- `taint` for source/sink sensitivity labels
+- `difc` for information-flow allow/deny rules
+- `verification` for assertions/evidence strategy metadata
+- `recovery` for error-class recovery policies
+- `pauseResume` for checkpoint and resume-token metadata
+
+These sections are serialized into prompt tags so engines can enforce or reason about the policies.
+
 ## Local development
 
 ```bash
