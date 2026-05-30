@@ -47,7 +47,7 @@ Use this checklist before finalizing generated code:
 7. Use `p.*` placeholders for shell/file context instead of free-form shell prose.
 8. Put stable defaults in spec; put per-call overrides in call options.
 9. Add `permissions`/`agents` only when required by the scenario.
-10. Avoid `console.log(...)` in snippets; prefer awaiting the call directly.
+10. Avoid `console.log(...)` in snippets.
 11. For inline markdown skill mode, export exactly one default root agent with no input and do not call it directly.
 
 ## Canonical construction order
