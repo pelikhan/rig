@@ -381,7 +381,10 @@ async function typecheckProgram(programPath: string, cwd: string): Promise<void>
     }), "utf8");
     await execFileAsync("npx", ["tsc", "--project", projectPath, "--pretty", "false"], { cwd });
   } catch (error) {
-    const failure = error as { stdout?: string; stderr?: string };
+    const failure = error as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
+    if (failure.code === "ENOENT") {
+      throw new Error("Typecheck mode requires `npx tsc` to be available in PATH.");
+    }
     const diagnostics = [failure.stdout, failure.stderr]
       .filter((entry) => typeof entry === "string" && entry.trim())
       .join("\n")
