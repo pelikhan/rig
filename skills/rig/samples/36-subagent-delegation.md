@@ -3,7 +3,13 @@
 ```rig
 import { agent, s } from "rig";
 // Agent role: extract the most important implementation details from the topic.
-const researcher = agent({ name: "researcher", model: "mini", input: s.object({ topic: s.string }), output: s.object({ summary: s.string, risks: s.array(s.string) }), instructions: "Extract the most important implementation details from the topic." });
+const researcher = agent({
+  name: "researcher",
+  model: "mini",
+  input: s.object({ topic: s.string }),
+  output: s.object({ summary: s.string, risks: s.array(s.string) }),
+  instructions: "Extract the most important implementation details from the topic.",
+});
 // Agent role: plan the next steps and use the researcher when helpful.
 const planner = agent({
   name: "planner",
