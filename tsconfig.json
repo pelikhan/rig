@@ -19,9 +19,9 @@
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
-      "rig": ["./src/rig.ts"],
+      "rig": ["./skills/rig/rig.ts"],
       "rig/*": ["./src/*.ts"]
     }
   },
-  "include": ["src", "scripts"]
+  "include": ["src", "scripts", "skills"]
 }

@@ -81,11 +81,11 @@ p.write("README.md", "# Updated\n")
 
 Use these samples to quickly gauge how well `rig` supports increasingly agentic workflows:
 
-- `src/samples/20-issue-reproducer.ts` — chained diagnose/fix/review flow
-- `src/samples/36-subagent-delegation.ts` — delegation between focused agents
-- `src/samples/47-shell-intents.ts` — shell/file intents as structured inputs
-- `src/samples/50-end-to-end-release-agent.ts` — multi-step release planning workflow
-- `src/samples/51-extensibility.ts` — lifecycle instrumentation for observing runs
+- `skills/rig/samples/20-issue-reproducer.ts` — chained diagnose/fix/review flow
+- `skills/rig/samples/36-subagent-delegation.ts` — delegation between focused agents
+- `skills/rig/samples/47-shell-intents.ts` — shell/file intents as structured inputs
+- `skills/rig/samples/50-end-to-end-release-agent.ts` — multi-step release planning workflow
+- `skills/rig/samples/51-extensibility.ts` — lifecycle instrumentation for observing runs
 
 ## Agent behavior
 
@@ -101,13 +101,12 @@ Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 `rig` uses the Copilot engine by default. You can override with:
 
 ```ts
-import { useEngine } from "rig";
-import { copilotEngine } from "rig/engines/copilot";
+import { copilotEngine, useEngine } from "rig";
 
 useEngine(copilotEngine());
 ```
 
-By default, the Copilot engine starts Copilot CLI in server mode and connects to it through the SDK.
+By default, the Copilot engine connects to an already-running Copilot server via HTTP. Pass `server: true` to spawn the server via stdio instead.
 
 Engine contract:
 
@@ -121,16 +120,22 @@ type EngineSession = {
 };
 ```
 
-For runnable programs, execute `rig.ts` directly and pass the root agent input on stdin:
+For runnable programs, execute `rig.ts` directly and pass the root agent input on stdin (assumes the Copilot server is already running):
 
 ```bash
-echo "<input>" | node src/rig.ts src/samples/02-review-git-diff.ts
+echo "<input>" | node skills/rig/rig.ts skills/rig/samples/02-review-git-diff.ts
+```
+
+Pass `--server` to start the Copilot server automatically as part of the run:
+
+```bash
+echo "<input>" | node skills/rig/rig.ts skills/rig/samples/02-review-git-diff.ts --server
 ```
 
 To run a root agent from a program file (default mode), export the root agent as the default export, pass the input text on stdin, and print the final answer to stdout:
 
 ```bash
-echo "Summarize this repository" | node src/rig.ts src/program.ts
+echo "Summarize this repository" | node skills/rig/rig.ts src/program.ts
 ```
 
 Copilot SDK lifecycle events are logged to stderr as JSONL.

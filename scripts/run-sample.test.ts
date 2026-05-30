@@ -115,7 +115,7 @@ function splitFields(inner: string): string[] {
 }
 
 // Determine which samples to run
-const sampleDir = resolve(__dirname, "../src/samples");
+const sampleDir = resolve(__dirname, "../skills/rig/samples");
 const allFiles = readdirSync(sampleDir)
   .filter((f) => f.endsWith(".ts"))
   .sort();
@@ -136,7 +136,7 @@ describe("samples", () => {
       // Samples use top-level await so the import itself runs them
       const start = performance.now();
       try {
-        await import(`../src/samples/${file}`);
+        await import(`../skills/rig/samples/${file}`);
       } catch (e: any) {
         // Timeout/abort errors are expected for samples that test those features
         if (e?.message?.includes("Timed out") || e?.name === "AbortError") {

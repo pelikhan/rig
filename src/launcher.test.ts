@@ -134,6 +134,22 @@ it("rejects unknown cli arguments", async () => {
   );
 });
 
+it("accepts --server flag without rejecting", async () => {
+  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin.fixture.ts");
+  const stdin = Readable.from(["Review this patch"]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  await runLauncherCli([fixturePath, "--server"], { engine: mockEngine({ text: "done" }) }, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
+});
+
 it("requires a program path in cli mode", async () => {
   await expect(runLauncherCli([], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
     /<program-file>/,

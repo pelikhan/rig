@@ -218,14 +218,27 @@ Use:
 - `repair: false` to disable repair
 - `repair(error) => string` for custom repair instructions
 
+## Running programs
+
+The harness assumes the Copilot server is already started. Export the root agent as the default export and pass input on stdin:
+
+```bash
+echo "Review this diff" | node skills/rig/rig.ts src/program.ts
+```
+
+Pass `--server` to have the harness start the Copilot server automatically before running:
+
+```bash
+echo "Review this diff" | node skills/rig/rig.ts src/program.ts --server
+```
+
 ## Engines
 
 Use `useEngine(engine)` to install a custom engine.
-The default Copilot SDK engine is available from `rig/engines/copilot`.
+The Copilot SDK engine is exported directly from `rig`.
 
 ```ts
-import { useEngine } from "rig";
-import { copilotEngine } from "rig/engines/copilot";
+import { copilotEngine, useEngine } from "rig";
 
 useEngine(copilotEngine());
 ```
