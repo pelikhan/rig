@@ -42,6 +42,17 @@ const result = await reviewDiff({
 });
 ```
 
+## Fast generation checklist
+
+Use this checklist before finalizing generated code:
+
+1. Use `agent({ ... })` with explicit `name`, `instructions`, `input`, and `output`.
+2. Define input/output with `s.object(...)` and explicit `s.*` helpers.
+3. Keep output schema strict (enums/literals for constrained values).
+4. Use `sh.*` placeholders for shell/file context instead of free-form shell prose.
+5. Put stable defaults in spec; put per-call overrides in call options.
+6. Add `permissions`/`agents` only when required by the scenario.
+
 ## `agent(spec)`
 
 Declare a structured agent.
@@ -284,6 +295,8 @@ Event types:
 - Do not invent deprecated hooks or compatibility layers.
 - Do not import shell helpers from anywhere except `rig`.
 - Do not leave outputs as unstructured prose when a schema would help.
+- Do not invent alternate schema syntaxes when explicit `s.*` is available.
+- Do not put call-time overrides (`model`, `timeout`, `maxTurns`, `signal`) into unrelated config objects.
 
 ## API direction
 
