@@ -54,7 +54,7 @@ Declare a structured agent.
 | `instructions` | Prompt instructions |
 | `input` | Input schema or shorthand shape |
 | `output` | Output schema or shorthand shape |
-| `model` | Default model name |
+| `model` | Default model name, falling back to `"gpt-4.1"` |
 | `timeout` | Default timeout in milliseconds |
 | `maxTurns` | Retry budget for invalid JSON or invalid output |
 | `repair` | `false`, `"default"`, or `(error) => string` |

@@ -93,7 +93,7 @@ This review scores the **50 existing sample harnesses** in `src/samples/02-51` a
 | 47 | `47-validate-output.ts` | Intent collection and validation | 5 | 4 | Excellent advanced sample. |
 | 48 | `48-custom-engine.ts` | Custom engine wiring | 5 | 4 | Strong systems-level example. |
 | 49 | `49-timeout-signal-helper.ts` | Timeout and abort handling | 4 | 3 | Good operational pattern. |
-| 50 | `50-end-to-end-release-agent.ts` | Timeout/abort minimal flow | 4 | 4 | Small and memorable, despite the filename mismatch. |
+| 50 | `50-end-to-end-release-agent.ts` | Timeout/abort minimal flow | 4 | 4 | Small and memorable, though narrower than the filename suggests. |
 | 51 | `51-extensibility.ts` | Custom intents and lifecycle events | 5 | 5 | Best advanced sample; captures the API direction well. |
 
 ## Distilled guidance for `SKILL.md`
