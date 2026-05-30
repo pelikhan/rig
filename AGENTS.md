@@ -25,7 +25,7 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 | Unit tests | `npm test` |
 | Run samples (stub) | `npm run sample` |
 | Run single sample (stub) | `RIG_SAMPLE=02 npm run sample` |
-| Run a sample for real | `node src/rig.ts <program-file>` (`npm run sample:run`) |
+| Run a sample for real | `node src/rig.ts <program-file> --file` (`npm run sample:run`) |
 
 ## Code Style
 
