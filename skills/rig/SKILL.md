@@ -234,27 +234,6 @@ useEngine(copilotEngine());
 
 ## Extensibility
 
-### Custom intent types
-
-Extend the intent system via declaration merging.
-
-```ts
-import { registerIntentRenderer } from "rig";
-
-declare module "rig" {
-  interface CustomIntents {
-    http: HttpIntent;
-  }
-}
-
-registerIntentRenderer("http", (intent) => {
-  const { method, url } = intent as HttpIntent;
-  return `Fetch ${method} ${url} and return the response body`;
-});
-```
-
-Custom intents work in input values and `p` templates.
-
 ### Event subscription
 
 Observe lifecycle events on any agent without wrapping it:
@@ -300,6 +279,5 @@ Use only the current API:
 - `p.*` and `p\`...\`` from `rig`
 - `s.*` for explicit schema helpers
 - `myAgent.subscribe(listener)` for lifecycle observation
-- `registerIntentRenderer(ns, fn)` for custom intent rendering
 
 Do not add deprecated hooks or compatibility layers.

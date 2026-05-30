@@ -16,7 +16,6 @@ import {
   p,
   s,
   useEngine,
-  registerIntentRenderer,
 } from "rig";
 ```
 
@@ -25,7 +24,6 @@ import {
 - `p.*` creates shell/file intents for inputs or prompt templates.
 - `p\`...\`` inlines intent renderings into instruction text.
 - `useEngine(engine)` sets the runtime engine.
-- `registerIntentRenderer(namespace, fn)` adds custom intent rendering.
 
 ## Quick start
 
@@ -117,7 +115,6 @@ type EngineSession = {
 
 ## Extensibility
 
-- Custom intents: declaration merging + `registerIntentRenderer(...)`
 - Lifecycle events: `myAgent.subscribe(listener)`
 
 Event types: `call`, `send`, `response`, `result`, `error`.

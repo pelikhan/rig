@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { AgentError, agent, p, registerIntentRenderer, s, useEngine } from "rig";
+import { AgentError, agent, p, s, useEngine } from "rig";
 import type { Engine, RigEvent } from "rig";
 
 function mockEngine(response: unknown): Engine {
@@ -334,51 +334,6 @@ describe("subscribe", () => {
 
     await myAgent({ text: "go" });
     expect(log).toContain("result");
-  });
-});
-
-describe("custom intents", () => {
-  it("renders custom intents via registerIntentRenderer in prompt input", async () => {
-    const prompts: string[] = [];
-    useEngine({
-      createSession() {
-        return {
-          async send(prompt) {
-            prompts.push(prompt);
-            return JSON.stringify({ text: "ok" });
-          },
-        };
-      },
-    });
-
-    registerIntentRenderer("test-ns", (intent) => `CUSTOM:${JSON.stringify(intent)}`);
-
-    const customIntent = { __rig: "test-ns", id: "intent_custom_1", value: 42 };
-    const myAgent = agent({ name: "custom-intent-agent", output: s.object({ text: s.string }) });
-
-    await myAgent({ text: customIntent as any });
-
-    expect(prompts[0]).toContain("CUSTOM:");
-  });
-
-  it("renders custom intents in p template", () => {
-    registerIntentRenderer("tpl-ns", (intent) => `[tpl:${(intent as { value: string }).value}]`);
-    const customIntent = { __rig: "tpl-ns", id: "intent_tpl_1", value: "hello" };
-
-    const result = p`Prefix ${customIntent as any} suffix`;
-    expect(result).toBe("Prefix [tpl:hello] suffix");
-  });
-
-  it("throws on unknown custom intent namespace", async () => {
-    useEngine(mockEngine({ text: "ok" }));
-    const unknownIntent = { __rig: "unknown-ns-xyz", id: "intent_unk_1" };
-    const myAgent = agent({ name: "unknown-intent-agent" });
-
-    await expect(myAgent({ text: unknownIntent as any })).rejects.toThrow(/unknown-ns-xyz/);
-  });
-
-  it("throws when overriding the built-in sh renderer", () => {
-    expect(() => registerIntentRenderer("sh", () => "")).toThrow(/Cannot override/);
   });
 });
 
