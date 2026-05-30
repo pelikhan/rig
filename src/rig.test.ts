@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   let sendAndWaitImpl: (request: { prompt: string; signal?: AbortSignal }) => unknown | Promise<unknown> = async () => ({ text: "default" });
   let onImpl: ((handler: (event: unknown) => void) => void) | undefined;
+  const disconnectSession = vi.fn(async () => {});
+  const stopClient = vi.fn(async () => []);
 
   const createSession = vi.fn(async () => ({
     on: onImpl ? ((handler: (event: unknown) => void) => {
@@ -13,13 +15,14 @@ const mocks = vi.hoisted(() => {
       const response = await sendAndWaitImpl(request);
       return typeof response === "string" ? response : JSON.stringify(response);
     },
+    disconnect: disconnectSession,
   }));
   const forUri = vi.fn(() => ({ kind: "uri", url: "localhost:7777" }));
   const forStdio = vi.fn(() => ({ kind: "stdio" }));
   const copilotClientCtor = vi.fn();
   const CopilotClient = function (this: unknown, options: unknown) {
     copilotClientCtor(options);
-    return { createSession };
+    return { createSession, stop: stopClient };
   };
   const setSendAndWaitImpl = (impl: (request: { prompt: string; signal?: AbortSignal }) => unknown | Promise<unknown>) => {
     sendAndWaitImpl = impl;
@@ -27,7 +30,7 @@ const mocks = vi.hoisted(() => {
   const setOnImpl = (impl?: (handler: (event: unknown) => void) => void) => {
     onImpl = impl;
   };
-  return { createSession, forUri, forStdio, copilotClientCtor, CopilotClient, setSendAndWaitImpl, setOnImpl };
+  return { createSession, disconnectSession, stopClient, forUri, forStdio, copilotClientCtor, CopilotClient, setSendAndWaitImpl, setOnImpl };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
@@ -42,6 +45,8 @@ beforeEach(() => {
   mocks.forUri.mockClear();
   mocks.forStdio.mockClear();
   mocks.copilotClientCtor.mockClear();
+  mocks.disconnectSession.mockClear();
+  mocks.stopClient.mockClear();
   mocks.setOnImpl(undefined);
   mocks.setSendAndWaitImpl(async () => ({ text: "default" }));
   vi.restoreAllMocks();
@@ -135,6 +140,50 @@ describe("agent invocation", () => {
     });
 
     await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
+    expect(mocks.disconnectSession).toHaveBeenCalledTimes(1);
+    expect(mocks.stopClient).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the session and client when a call fails", async () => {
+    mocks.setSendAndWaitImpl(async () => {
+      throw new Error("boom");
+    });
+    const greet = agent({
+      name: "greeter",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    await expect(greet({ text: "Hi" })).rejects.toThrow("boom");
+    expect(mocks.disconnectSession).toHaveBeenCalledTimes(1);
+    expect(mocks.stopClient).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses one client across nested agent invocations", async () => {
+    const child = agent({
+      name: "child",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+    const parent = agent({
+      name: "parent",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      if (prompt.includes('"text": "parent"')) {
+        await child({ text: "child" });
+        return { text: "parent-ok" };
+      }
+      return { text: "child-ok" };
+    });
+
+    await expect(parent({ text: "parent" })).resolves.toEqual({ text: "parent-ok" });
+    expect(mocks.copilotClientCtor).toHaveBeenCalledTimes(1);
+    expect(mocks.createSession).toHaveBeenCalledTimes(2);
+    expect(mocks.disconnectSession).toHaveBeenCalledTimes(2);
+    expect(mocks.stopClient).toHaveBeenCalledTimes(1);
   });
 
   it("logs raw Copilot SDK events and rig ask events as JSONL", async () => {
