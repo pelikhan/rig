@@ -9,10 +9,6 @@ const analyzeChanges = agent({
   name: "analyzeChanges",
   model: "mini",
   instructions: "Summarize the release candidate changes from the diff and recent commits.",
-  input: s.object({
-    diff: s.string,
-    commits: s.string,
-  }),
   output: s.object({
     summary: s.string,
     highlights: s.array(s.string),
@@ -52,18 +48,6 @@ const draftRelease = agent({
     checklist: s.array(s.string),
     risks: s.array(s.string),
   }),
-});
-
-const analysis = await analyzeChanges({
-  diff: p.bash("git diff --stat -- ."),
-  commits: p.bash("git log --oneline -20"),
-});
-
-const version = await chooseVersion(analysis);
-
-await draftRelease({
-  ...analysis,
-  ...version,
 });
 
 export default analyzeChanges;

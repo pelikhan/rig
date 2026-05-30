@@ -6,9 +6,6 @@ import { agent, p, s } from "rig";
 const coverage = agent({
     name: "coverage",
     model: "mini",
-    input: s.object({
-        report: s.string
-    }),
     output: s.object({
         files: s.record(s.object({
             lines: s.number,
@@ -17,9 +14,6 @@ const coverage = agent({
         }))
     }),
     instructions: `Parse coverage by file path.`,
-});
-await coverage({
-    report: p.bash("cat coverage/coverage-summary.json"),
 });
 
 export default coverage;

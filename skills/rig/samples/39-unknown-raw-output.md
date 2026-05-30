@@ -6,9 +6,6 @@ import { agent, s } from "rig";
 const reviewRecord = agent({
     name: "reviewRecord",
     model: "mini",
-    input: s.object({
-        finding: s.string
-    }),
     output: s.object({
         kind: s.literal("review-finding"),
         finding: s.string,

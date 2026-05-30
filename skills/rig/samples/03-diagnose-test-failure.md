@@ -6,10 +6,6 @@ import { agent, p, s } from "rig";
 const reviewer = agent({
     name: "reviewer",
     model: "mini",
-    input: s.object({
-        diff: s.string,
-        status: s.optional(s.string)
-    }),
     output: s.object({
         summary: s.string,
         risk: s.enum("low", "medium", "high"),
@@ -25,10 +21,6 @@ const reviewer = agent({
     Review input.diff for correctness and regression risks.
     Return only the declared output shape.
   `,
-});
-await reviewer({
-    diff: p.bash("git diff -- ."),
-    status: p.bash("git status --short"),
 });
 
 export default reviewer;

@@ -9,9 +9,6 @@ const summarize = agent({
   name: "summarize",
   model: "mini",
   instructions: "Summarize the diff.",
-  input: s.object({
-    diff: s.string,
-  }),
   output: s.object({
     summary: s.string,
   }),

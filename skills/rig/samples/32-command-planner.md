@@ -6,9 +6,6 @@ import { agent, p, s } from "rig";
 const packageMap = agent({
     name: "packageMap",
     model: "mini",
-    input: s.object({
-        manifests: s.string
-    }),
     output: s.object({
         packages: s.array(s.object({
             name: s.string,
@@ -22,9 +19,6 @@ const packageMap = agent({
         }))
     }),
     instructions: `Build a package map for a JavaScript monorepo.`,
-});
-await packageMap({
-    manifests: p.bash("find . -name package.json -maxdepth 4 -print -exec cat {} \\\;"),
 });
 
 export default packageMap;

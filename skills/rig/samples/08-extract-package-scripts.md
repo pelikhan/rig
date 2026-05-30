@@ -46,9 +46,6 @@ const corpus = agent({
 const { files } = await listFiles({
     text: p.bash("find src -name '*.ts' -type f | sort"),
 });
-await corpus({
-    files: await Promise.all(files.map((file) => summarizeFile({ file, contents: p.bash(`cat ${file}`) }))),
-});
 
 export default listFiles;
 ```

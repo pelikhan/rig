@@ -9,9 +9,6 @@ const researcher = agent({
   name: "researcher",
   model: "mini",
   instructions: "Extract the most important implementation details from the topic.",
-  input: s.object({
-    topic: s.string,
-  }),
   output: s.object({
     summary: s.string,
     risks: s.array(s.string),
@@ -33,12 +30,6 @@ const planner = agent({
     nextSteps: s.array(s.string),
   }),
 });
-
-const research = await researcher({
-  topic: "Explain runtime-visible schemas in one paragraph.",
-});
-
-await planner(research);
 
 export default researcher;
 ```
