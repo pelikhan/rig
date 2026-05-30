@@ -257,10 +257,14 @@ export class AgentError extends Error {
 }
 
 let currentCopilotOptions: CopilotEngineOptions | undefined;
-let currentCopilotClient: CopilotClient | undefined;
 type CopilotSession = {
   on?: (handler: (event: unknown) => void) => unknown;
   sendAndWait(request: { prompt: string; signal?: AbortSignal }): Promise<unknown>;
+  disconnect?(): Promise<void>;
+};
+type CopilotSessionHandle = {
+  session: CopilotSession;
+  close(): Promise<void>;
 };
 
 /**
@@ -551,25 +555,39 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
 
   const fn = (async (input: unknown, options: CallOptions = {}) => {
     const runtime = resolveCallRuntime(normalizedSpec, options);
-    const session = createCopilotSession(runtime.model);
     const normalizedInput = normalizeInput(input, inputSchema);
     let prompt = renderPrompt(normalizedSpec, normalizedInput);
     let lastResponse = "";
+    const copilot = await createCopilotSession(runtime.model);
+    let failure: unknown;
 
-    for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
-      throwIfAborted(runtime.signal);
-      lastResponse = await sendCopilotPrompt(session, prompt, runtime.signal);
+    try {
+      for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
+        throwIfAborted(runtime.signal);
+        lastResponse = await sendCopilotPrompt(copilot.session, prompt, runtime.signal);
 
-      const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
-      if (analysis.ok) {
-        return analysis.output;
+        const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
+        if (analysis.ok) {
+          return analysis.output;
+        }
+
+        if (turn === runtime.maxTurns || runtime.repair === false) {
+          throw analysis.error;
+        }
+
+        prompt = repairPrompt(normalizedSpec, analysis.error);
       }
-
-      if (turn === runtime.maxTurns || runtime.repair === false) {
-        throw analysis.error;
+    } catch (error) {
+      failure = error;
+      throw error;
+    } finally {
+      try {
+        await copilot.close();
+      } catch (cleanupError) {
+        if (failure === undefined) {
+          throw cleanupError;
+        }
       }
-
-      prompt = repairPrompt(normalizedSpec, analysis.error);
     }
 
     throw new Error(`Agent ${normalizedSpec.name} failed after ${runtime.maxTurns} turns. Last response:\n${lastResponse}`);
@@ -914,24 +932,57 @@ function withOptions<T extends Omit<Partial<Intent>, "__rig" | "id" | "mode">>(
 
 function configureCopilot(options: CopilotEngineOptions): void {
   currentCopilotOptions = options;
-  currentCopilotClient = undefined;
 }
 
 function getCopilotClient(): CopilotClient {
-  currentCopilotClient ??= copilotEngine(currentCopilotOptions);
-  return currentCopilotClient;
+  return copilotEngine(currentCopilotOptions);
 }
 
-async function createCopilotSession(model: string): Promise<CopilotSession> {
-  const session = await getCopilotClient().createSession({ model, streaming: false }) as CopilotSession;
-  session.on?.((event: unknown) => {
-    writeEvent(event);
-  });
-  return session;
+async function createCopilotSession(model: string): Promise<CopilotSessionHandle> {
+  const client = getCopilotClient();
+
+  try {
+    const session = await client.createSession({ model, streaming: false }) as CopilotSession;
+    session.on?.((event: unknown) => {
+      writeEvent(event);
+    });
+
+    return {
+      session,
+      async close() {
+        const errors: Error[] = [];
+        if (session.disconnect) {
+          try {
+            await session.disconnect();
+          } catch (error) {
+            errors.push(error instanceof Error ? error : new Error(String(error)));
+          }
+        }
+
+        try {
+          const stopErrors = await client.stop();
+          if (Array.isArray(stopErrors)) {
+            errors.push(...stopErrors);
+          }
+        } catch (error) {
+          errors.push(error instanceof Error ? error : new Error(String(error)));
+        }
+
+        if (errors.length === 1) {
+          throw errors[0]!;
+        }
+        if (errors.length > 1) {
+          throw new AggregateError(errors, "Failed to close Copilot resources");
+        }
+      },
+    };
+  } catch (error) {
+    await client.stop().catch(() => undefined);
+    throw error;
+  }
 }
 
-async function sendCopilotPrompt(sessionPromise: Promise<CopilotSession>, prompt: string, signal?: AbortSignal): Promise<string> {
-  const session = await sessionPromise;
+async function sendCopilotPrompt(session: CopilotSession, prompt: string, signal?: AbortSignal): Promise<string> {
   const request = signal ? { prompt, signal } : { prompt };
   writeEvent(rigEvent("copilot-ask", { prompt }));
   const response = await session.sendAndWait(request);

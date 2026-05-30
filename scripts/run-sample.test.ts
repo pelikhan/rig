@@ -16,21 +16,24 @@ const execFileAsync = promisify(execFile);
 
 const mocks = vi.hoisted(() => {
   let sendAndWaitImpl: (request: { prompt: string }) => unknown | Promise<unknown> = async () => ({ text: "stub response" });
+  const disconnectSession = vi.fn(async () => {});
+  const stopClient = vi.fn(async () => []);
   const createSession = vi.fn(async () => ({
     sendAndWait: async (request: { prompt: string }) => {
       const response = await sendAndWaitImpl(request);
       return typeof response === "string" ? response : JSON.stringify(response);
     },
+    disconnect: disconnectSession,
   }));
   const forUri = vi.fn(() => ({ kind: "uri", url: "localhost:7777" }));
   const forStdio = vi.fn(() => ({ kind: "stdio" }));
   const CopilotClient = function () {
-    return { createSession };
+    return { createSession, stop: stopClient };
   };
   const setSendAndWaitImpl = (impl: (request: { prompt: string }) => unknown | Promise<unknown>) => {
     sendAndWaitImpl = impl;
   };
-  return { createSession, forUri, forStdio, CopilotClient, setSendAndWaitImpl };
+  return { createSession, disconnectSession, stopClient, forUri, forStdio, CopilotClient, setSendAndWaitImpl };
 });
 
 vi.mock("@github/copilot-sdk", () => ({

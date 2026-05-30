@@ -7,23 +7,26 @@ import { tmpdir } from "node:os";
 
 const mocks = vi.hoisted(() => {
   let sendAndWaitImpl: () => unknown | Promise<unknown> = async () => ({ text: "done" });
+  const disconnectSession = vi.fn(async () => {});
+  const stopClient = vi.fn(async () => []);
   const createSession = vi.fn(async () => ({
     sendAndWait: async () => {
       const response = await sendAndWaitImpl();
       return typeof response === "string" ? response : JSON.stringify(response);
     },
+    disconnect: disconnectSession,
   }));
   const forUri = vi.fn(() => ({ kind: "uri", url: "localhost:7777" }));
   const forStdio = vi.fn(() => ({ kind: "stdio" }));
   const copilotClientCtor = vi.fn();
   const CopilotClient = function (this: unknown, options: unknown) {
     copilotClientCtor(options);
-    return { createSession };
+    return { createSession, stop: stopClient };
   };
   const setSendAndWaitImpl = (impl: () => unknown | Promise<unknown>) => {
     sendAndWaitImpl = impl;
   };
-  return { createSession, forUri, forStdio, copilotClientCtor, CopilotClient, setSendAndWaitImpl };
+  return { createSession, disconnectSession, stopClient, forUri, forStdio, copilotClientCtor, CopilotClient, setSendAndWaitImpl };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
@@ -39,6 +42,8 @@ beforeEach(() => {
   mocks.forUri.mockClear();
   mocks.forStdio.mockClear();
   mocks.copilotClientCtor.mockClear();
+  mocks.disconnectSession.mockClear();
+  mocks.stopClient.mockClear();
   mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
 });
 

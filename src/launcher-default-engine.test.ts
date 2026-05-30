@@ -4,14 +4,15 @@ import { expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const createSession = vi.fn();
+  const stopClient = vi.fn(async () => []);
   const copilotClientCtor = vi.fn();
   const defaultForUri = () => ({ kind: "uri", url: "localhost:0" });
   const forUri = vi.fn(defaultForUri);
   const CopilotClient = function (this: unknown, options: unknown) {
     copilotClientCtor(options);
-    return { createSession };
+    return { createSession, stop: stopClient };
   };
-  return { createSession, copilotClientCtor, defaultForUri, forUri, CopilotClient };
+  return { createSession, stopClient, copilotClientCtor, defaultForUri, forUri, CopilotClient };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
