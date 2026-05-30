@@ -49,6 +49,7 @@ Use this checklist before finalizing generated code:
 4. Use `p.*` placeholders for shell/file context instead of free-form shell prose.
 5. Put stable defaults in spec; put per-call overrides in call options.
 6. Add `permissions`/`agents` only when required by the scenario.
+7. For inline markdown programs, export exactly one default root agent with no input.
 
 ## Canonical construction order
 
@@ -220,22 +221,21 @@ Use:
 ## Running programs
 
 Treat fenced `rig` code blocks in markdown as runnable rig programs.
-Run them by extracting the fence content and piping it into `node skills/rig/rig.ts`:
+Run them by extracting the fence content and piping it into `node skills/rig/rig.ts`.
+Inline programs run a no-input root agent and write stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment:
 
 ```bash
 cat <<'RIG' | node skills/rig/rig.ts
-import { agent, s } from "rig";
-
 const root = agent({
   name: "review",
-  input: s.object({ text: s.string }),
+  instructions: "Summarize this repository in one sentence.",
   output: s.object({ text: s.string }),
 });
-
-const result = await root({ text: "Review this diff" });
-process.stdout.write(result.text);
+export default root;
 RIG
 ```
+
+`import { agent, p, s } from "rig"` is optional in inline mode; the harness injects it if omitted.
 
 The harness also supports program-file mode. Export the root agent as the default export and pass input on stdin:
 

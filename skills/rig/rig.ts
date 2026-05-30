@@ -285,6 +285,46 @@ function asRootAgent(value: unknown): AgentFn | undefined {
   return value as AgentFn;
 }
 
+function noInputInvocation(agentFn: AgentFn): unknown | undefined {
+  const schema = agentFn.inputSchema;
+  if (schema.kind !== "object") {
+    return undefined;
+  }
+  const keys = Object.keys(schema.fields);
+  if (keys.length === 0) {
+    return {};
+  }
+  if (
+    keys.length === 1
+    && "text" in schema.fields
+    && schema.fields.text?.kind === "string"
+    && schema.fields.text.optional !== true
+  ) {
+    return { text: "" };
+  }
+  return undefined;
+}
+
+function withInjectedRigImport(programCode: string): string {
+  if (/\bfrom\s*["']rig["']/.test(programCode)) {
+    return programCode;
+  }
+  return `import { agent, p, s } from "rig";\n\n${programCode}`;
+}
+
+function withInjectedDefaultRootAgent(programCode: string): string {
+  if (/\bexport\s+default\b/.test(programCode)) {
+    return programCode;
+  }
+  const firstAgentAssignment = programCode.match(
+    /^\s*(?:const|let|var)\s+([$_\p{ID_Start}][$_\p{ID_Continue}]*)\s*=\s*agent\s*\(/mu,
+  );
+  if (!firstAgentAssignment) {
+    return programCode;
+  }
+  return `${programCode}\n\nexport default ${firstAgentAssignment[1]};\n`;
+}
+
 function coerceStdinInput(agentFn: AgentFn, text: string): unknown {
   const schema = agentFn.inputSchema;
   if (schema.kind === "string") {
@@ -355,9 +395,21 @@ async function runProgramCodeFromStdin(
   await mkdir(tempRoot, { recursive: true });
   const tempDir = await mkdtemp(resolve(tempRoot, "rig-stdin-"));
   const tempProgramPath = resolve(tempDir, "program.ts");
-  await writeFile(tempProgramPath, programCode, "utf8");
+  const transformedProgramCode = withInjectedDefaultRootAgent(withInjectedRigImport(programCode));
+  await writeFile(tempProgramPath, transformedProgramCode, "utf8");
   try {
-    await launchRigProgram(tempProgramPath, options);
+    configureCopilot(resolveCopilotOptions(cwd, options));
+    const mod = await import(pathToFileURL(tempProgramPath).href);
+    const rootAgent = asRootAgent(mod.default);
+    if (!rootAgent) {
+      throw new Error("Expected program to export a root agent as default export.");
+    }
+    const input = noInputInvocation(rootAgent);
+    if (input === undefined) {
+      throw new Error("Expected stdin program root agent to have no input (omit input or use input: s.object({})).");
+    }
+    const result = await rootAgent(input);
+    io.stdout.write(renderStdout(result));
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }

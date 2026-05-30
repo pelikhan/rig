@@ -29,16 +29,12 @@ Use `rig` code fences in markdown files to define runnable harness programs:
 
 ````markdown
 ```rig
-import { agent, s } from "rig";
-
 const root = agent({
   name: "review",
-  input: s.object({ text: s.string }),
+  instructions: "Summarize this repository.",
   output: s.object({ text: s.string }),
 });
-
-const result = await root({ text: "Summarize this repository" });
-process.stdout.write(result.text);
+export default root;
 ```
 ````
 
@@ -129,18 +125,17 @@ For runnable programs, you can pipe a rig program directly on stdin (assumes the
 
 ```bash
 cat <<'RIG' | node skills/rig/rig.ts
-import { agent, s } from "rig";
-
 const root = agent({
   name: "review",
-  input: s.object({ text: s.string }),
+  instructions: "Summarize this repository.",
   output: s.object({ text: s.string }),
 });
-
-const result = await root({ text: "Summarize this repository" });
-process.stdout.write(result.text);
+export default root;
 RIG
 ```
+
+Inline stdin programs run a no-input root agent and write the result to stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment.  
+`import { agent, p, s } from "rig"` is optional in inline mode because the harness injects it when missing.
 
 Pass `--server` to start the Copilot server automatically as part of the run:
 
