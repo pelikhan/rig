@@ -174,6 +174,16 @@ describe("agent", () => {
     })).toThrow(/Use simplified schema values or s\.\* helpers/);
 
     expect(() => agent({
+      name: "invalid-empty-field-name",
+      input: { _: String } as any,
+    })).toThrow(/Field names cannot be empty/);
+
+    expect(() => agent({
+      name: "invalid-enum-values",
+      output: [String, Number] as any,
+    })).toThrow(/Use \[item\] for arrays, literal JSON values for enums/);
+
+    expect(() => agent({
       name: "invalid-record-mix",
       output: { "*": String, status: String } as any,
     })).toThrow(/record shorthand cannot be mixed/);
