@@ -4,10 +4,10 @@ Minimal TypeScript agent harness skill for structured agent calls, intended for 
 
 ## Install
 
-Install the latest package release:
+Install the latest GitHub release directly:
 
 ```bash
-npm install @pelikhan/rig@latest
+npm install github:pelikhan/rig#v0.0.8
 ```
 
 Or clone the skill for Copilot coding agent:
