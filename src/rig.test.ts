@@ -112,6 +112,7 @@ describe("agent", () => {
     mocks.setSendAndWaitImpl(async () => ({
       summary: "Looks good",
       risk: "low",
+      scores: { quality: 3 },
       findings: [{ file: "src/index.ts", message: "Check edge case" }],
     }));
 
@@ -149,7 +150,7 @@ describe("agent", () => {
     const result = await review({ diff: "..." });
     expect(risk).toBe("low");
     expect(line).toBeUndefined();
-    expect(result.scores.quality).toBe(3);
+    expect(result.scores["quality"]).toBe(3);
     expect(result.findings[0]?.line).toBeUndefined();
   });
 
