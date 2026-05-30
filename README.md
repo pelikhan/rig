@@ -20,7 +20,7 @@ import {
 
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas.
-- `p.*` creates shell/file intents for inputs or prompt templates.
+- `p.*` creates declarative shell/file intents for inputs or prompt templates.
 - `p\`...\`` inlines intent renderings into instruction text.
 
 ## Embedding in markdown
@@ -134,8 +134,10 @@ export default root;
 RIG
 ```
 
-Inline stdin programs run a no-input root agent and write the result to stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment.  
+Inline stdin programs run a root agent with no required external input and write the result to stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment.  
 `import { agent, p, s } from "rig"` is optional in inline mode because the harness injects it when missing.
+
+Inline mode accepts root agents that either omit `input`, use `input: s.object({})`, or rely on the default `input: s.object({ text: s.string })` (which is invoked with `{ text: "" }`).
 
 Pass `--server` to start the Copilot server automatically as part of the run:
 
@@ -143,11 +145,16 @@ Pass `--server` to start the Copilot server automatically as part of the run:
 cat ./program.ts | node skills/rig/rig.ts --server
 ```
 
-To run a root agent from a program file, export the root agent as the default export, pass the input text on stdin, and print the final answer to stdout:
+To run a root agent from a program file, export the root agent as the default export and pass input on stdin:
 
 ```bash
 echo "Summarize this repository" | node skills/rig/rig.ts src/program.ts
 ```
+
+For program-file mode stdin coercion:
+- if root input schema is `string`, stdin is passed as raw text
+- if root input schema is an object containing `text`, stdin is passed as `{ text: "<stdin>" }`
+- otherwise stdin must be valid JSON for the declared input schema
 
 Copilot SDK lifecycle events and rig request events are logged to stderr as JSONL.
 
