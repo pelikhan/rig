@@ -47,24 +47,77 @@ awk '/^```rig$/{in_block=1;next}/^```$/{if(in_block){exit}}in_block' ./program.m
 ## Quick start
 
 ```ts
-import { agent, s } from "rig";
+import { agent, p, s } from "rig";
 
-const classify = agent({
-  name: "classify",
-  instructions: "Classify the issue.",
+const FileNotes = s.object({
+  file: s.string,
+  summary: s.string,
+  evidence: s.array(s.string),
+});
+
+// Agent role: choose the files most relevant to the research question.
+const discoverFiles = agent({
+  name: "discoverFiles",
+  model: "nano",
+  instructions: "Choose the files most relevant to the research question.",
   input: s.object({
-    title: s.string,
-    body: s.string,
+    question: s.string,
+    files: s.string,
   }),
   output: s.object({
-    label: s.enum("bug", "feature", "question", "docs"),
-    confidence: s.enum("low", "medium", "high"),
+    candidateFiles: s.array(s.string),
   }),
 });
 
-const result = await classify({
-  title: "Crash on start",
-  body: "segfault",
+// Agent role: extract the facts from one file that answer the research question.
+const readFile = agent({
+  name: "readFile",
+  model: "nano",
+  instructions: "Extract the facts from one file that answer the research question.",
+  input: s.object({
+    question: s.string,
+    file: s.string,
+    contents: s.string,
+  }),
+  output: FileNotes,
+});
+
+// Agent role: combine the per-file notes into a concise research answer.
+const synthesizeResearch = agent({
+  name: "synthesizeResearch",
+  model: "mini",
+  instructions: "Combine the per-file notes into a concise research answer.",
+  input: s.object({
+    question: s.string,
+    notes: s.array(FileNotes),
+  }),
+  output: s.object({
+    answer: s.string,
+    keyFiles: s.array(s.string),
+    openQuestions: s.array(s.string),
+  }),
+});
+
+const question = "How does the launcher choose a tsconfig file?";
+
+const { candidateFiles } = await discoverFiles({
+  question,
+  files: p.bash("find src skills -name '*.ts' -type f | sort"),
+});
+
+const notes = await Promise.all(
+  candidateFiles.map((file) =>
+    readFile({
+      question,
+      file,
+      contents: p.bash(`cat ${file}`),
+    }),
+  ),
+);
+
+await synthesizeResearch({
+  question,
+  notes,
 });
 ```
 
