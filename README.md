@@ -143,6 +143,7 @@ Event types: `call`, `send`, `response`, `result`, `error`.
 - `pauseResume` for checkpoint and resume-token metadata
 
 These sections are serialized into prompt tags so engines can enforce or reason about the policies.
+When using call-time resume controls, provide `resumeFrom` and `resumeToken` together.
 
 ## Local development
 

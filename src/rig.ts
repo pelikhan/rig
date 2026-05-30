@@ -145,6 +145,11 @@ export type PauseResumeSpec = {
   resumeTokenTtlMs?: number;
 };
 
+type ResumeToken = {
+  agent: string;
+  checkpoint: string;
+};
+
 export type AgentSpec<Input extends Schema = ObjectSchema<{ text: StringSchema }>, Output extends Schema = ObjectSchema<{ text: StringSchema }>> = {
   name: string;
   instructions?: string;
@@ -184,8 +189,8 @@ export type RigEvent =
   | { type: "send"; agent: string; turn: number; prompt: string }
   | { type: "response"; agent: string; turn: number; response: string }
   | { type: "verification"; agent: string; verification: VerificationSpec }
-  | { type: "resume"; agent: string; checkpoint?: string; token?: string }
-  | { type: "pause"; agent: string; checkpoint?: string; token?: string }
+  | { type: "resume"; agent: string; checkpoint?: string; resumeToken?: string }
+  | { type: "pause"; agent: string; checkpoint?: string; resumeToken?: string }
   | { type: "result"; agent: string; output: unknown }
   | { type: "error"; agent: string; error: unknown };
 
@@ -313,6 +318,8 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const listeners = new Set<RigListener>();
 
   const fn = (async (input: unknown, options: CallOptions = {}) => {
+    validateResumeOptions(options);
+
     const runtime = resolveCallRuntime(normalizedSpec, options);
     const session = getEngine().createSession({ model: runtime.model });
     const normalizedInput = normalizeInput(input, inputSchema);
@@ -323,12 +330,12 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
     if (normalizedSpec.verification) {
       await emitEvent(listeners, { type: "verification", agent: normalizedSpec.name, verification: normalizedSpec.verification });
     }
-    if (options.resumeFrom || options.resumeToken) {
+    if (options.resumeFrom && options.resumeToken) {
       await emitEvent(listeners, {
         type: "resume",
         agent: normalizedSpec.name,
-        ...(options.resumeFrom ? { checkpoint: options.resumeFrom } : {}),
-        ...(options.resumeToken ? { token: options.resumeToken } : {}),
+        checkpoint: options.resumeFrom,
+        resumeToken: options.resumeToken,
       });
     }
 
@@ -341,15 +348,15 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
 
         const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
         if (analysis.ok) {
-          if (options.pauseAtCheckpoint) {
+          await emitEvent(listeners, { type: "result", agent: normalizedSpec.name, output: analysis.output });
+          if (options.pauseAtCheckpoint && normalizedSpec.pauseResume?.enabled !== false) {
             await emitEvent(listeners, {
               type: "pause",
               agent: normalizedSpec.name,
               checkpoint: options.pauseAtCheckpoint,
-              token: `${normalizedSpec.name}:${options.pauseAtCheckpoint}`,
+              resumeToken: createResumeToken(normalizedSpec.name, options.pauseAtCheckpoint),
             });
           }
-          await emitEvent(listeners, { type: "result", agent: normalizedSpec.name, output: analysis.output });
           return analysis.output;
         }
 
@@ -839,4 +846,17 @@ function timeoutSignal(parent?: AbortSignal, timeout?: number): AbortSignal | un
   const timer = setTimeout(() => controller.abort(new Error(`Timed out after ${timeout}ms`)), timeout);
   controller.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
   return controller.signal;
+}
+
+function validateResumeOptions(options: CallOptions): void {
+  const hasResumeFrom = options.resumeFrom !== undefined;
+  const hasResumeToken = options.resumeToken !== undefined;
+  if (hasResumeFrom !== hasResumeToken) {
+    throw new Error("Call options resumeFrom and resumeToken must be provided together.");
+  }
+}
+
+function createResumeToken(agentName: string, checkpoint: string): string {
+  const token: ResumeToken = { agent: agentName, checkpoint };
+  return JSON.stringify(token);
 }

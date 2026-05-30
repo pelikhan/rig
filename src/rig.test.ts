@@ -418,9 +418,39 @@ describe("subscribe", () => {
       pauseAtCheckpoint: "checkpoint-2",
     });
 
-    expect(events.some((e) => e.type === "verification")).toBe(true);
-    expect(events.some((e) => e.type === "resume")).toBe(true);
-    expect(events.some((e) => e.type === "pause")).toBe(true);
+    const verificationEvent = events.find((e) => e.type === "verification");
+    const resumeEvent = events.find((e) => e.type === "resume");
+    const pauseEvent = events.find((e) => e.type === "pause");
+
+    expect(verificationEvent).toMatchObject({
+      type: "verification",
+      verification: { enabled: true, strategy: "self-check" },
+    });
+    expect(resumeEvent).toMatchObject({
+      type: "resume",
+      checkpoint: "checkpoint-1",
+      resumeToken: "resume-token",
+    });
+    expect(pauseEvent).toMatchObject({
+      type: "pause",
+      checkpoint: "checkpoint-2",
+    });
+    expect(JSON.parse((pauseEvent as { resumeToken: string }).resumeToken)).toEqual({
+      agent: "resumable-verified",
+      checkpoint: "checkpoint-2",
+    });
+  });
+
+  it("requires resumeFrom and resumeToken together", async () => {
+    useEngine(mockEngine({ text: "hi" }));
+    const myAgent = agent({ name: "resume-validation" });
+
+    await expect(myAgent({ text: "go" }, { resumeFrom: "checkpoint-1" })).rejects.toThrow(
+      /resumeFrom and resumeToken must be provided together/,
+    );
+    await expect(myAgent({ text: "go" }, { resumeToken: "token-1" })).rejects.toThrow(
+      /resumeFrom and resumeToken must be provided together/,
+    );
   });
 });
 
