@@ -5,7 +5,7 @@
   "scripts": {
     "test": "vitest run src/",
     "sample": "vitest run scripts/run-sample.test.ts",
-    "sample:run": "npx tsx scripts/run.ts",
+    "sample:run": "npx tsx src/launcher.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
