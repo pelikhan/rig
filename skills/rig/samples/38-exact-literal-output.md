@@ -6,9 +6,6 @@ import { agent, s } from "rig";
 const parseEvent = agent({
     name: "parseEvent",
     model: "mini",
-    input: s.object({
-        text: s.string
-    }),
     output: s.object({
         title: s.string,
         deletedAt: s.optional(s.nullable(s.string))

@@ -19,7 +19,6 @@ const summarizeDiff = agent({
 const reviewer = agent({
     name: "reviewer",
     model: "mini",
-    input: s.string,
     output: s.object({
         summary: s.string,
         issues: s.array(s.string)

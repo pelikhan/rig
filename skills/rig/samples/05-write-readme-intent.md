@@ -6,10 +6,6 @@ import { agent, p, s } from "rig";
 const readmeWriter = agent({
     name: "readmeWriter",
     model: "mini",
-    input: s.object({
-        packageJson: s.string,
-        files: s.string
-    }),
     output: s.object({
         path: s.literal("README.md"),
         contents: s.string
@@ -18,10 +14,6 @@ const readmeWriter = agent({
     Generate a concise README for the package.
     Include install, usage, and API sections.
   `,
-});
-await readmeWriter({
-    packageJson: p.bash("cat package.json"),
-    files: p.bash("find . -maxdepth 2 -type f | sort"),
 });
 
 export default readmeWriter;

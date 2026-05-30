@@ -20,10 +20,6 @@ const reviewDiff = agent({
   name: "reviewDiff",
   model: "mini",
   instructions: "Review the diff and return only the declared output.",
-  input: s.object({
-    diff: s.string,
-    status: s.string,
-  }),
   output: s.object({
     summary: s.string,
     risk: s.enum("low", "medium", "high"),
@@ -33,11 +29,6 @@ const reviewDiff = agent({
       line: s.optional(s.number),
     })),
   }),
-});
-
-await reviewDiff({
-  diff: p.bash("git diff -- ."),
-  status: p.bash("git status --short"),
 });
 
 export default reviewDiff;
@@ -57,7 +48,7 @@ Use this checklist before finalizing generated code:
 8. Put stable defaults in spec; put per-call overrides in call options.
 9. Add `permissions`/`agents` only when required by the scenario.
 10. Avoid `console.log(...)` in snippets; prefer awaiting the call directly.
-11. For inline markdown programs, export exactly one default root agent with no input.
+11. For inline markdown skill mode, export exactly one default root agent with no input and do not call it directly.
 
 ## Canonical construction order
 

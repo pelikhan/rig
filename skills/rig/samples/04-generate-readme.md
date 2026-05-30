@@ -12,9 +12,6 @@ const ShResult = s.object({
 const diagnose = agent({
     name: "diagnose",
     model: "mini",
-    input: s.object({
-        test: ShResult
-    }),
     output: s.object({
         rootCause: s.string,
         confidence: s.number,
@@ -25,9 +22,6 @@ const diagnose = agent({
     Diagnose the failing test result.
     Do not edit files.
   `,
-});
-await diagnose({
-    test: p.result("npm test"),
 });
 
 export default diagnose;

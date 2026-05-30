@@ -6,14 +6,6 @@ import { agent, p, s } from "rig";
 const writer = agent({
     name: "writer",
     model: "mini",
-    input: s.object({
-        write: s.object({
-            ok: s.boolean,
-            stdout: s.string,
-            stderr: s.string,
-            exitCode: s.number
-        })
-    }),
     output: s.object({
         written: s.boolean,
         summary: s.string
@@ -24,11 +16,6 @@ const writer = agent({
     permissions: {
         write: "workspace",
     },
-});
-await writer({
-    write: p.write("README.md", "# Project\n\nGenerated README.\n", {
-        purpose: "create project README",
-    }),
 });
 
 export default writer;

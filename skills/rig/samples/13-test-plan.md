@@ -6,10 +6,6 @@ import { agent, p, s } from "rig";
 const securityReview = agent({
     name: "securityReview",
     model: "mini",
-    input: s.object({
-        dependencies: s.string,
-        audit: s.string
-    }),
     output: s.object({
         status: s.enum("clean", "needs-action", "unknown"),
         findings: s.array(s.object({
@@ -19,10 +15,6 @@ const securityReview = agent({
         }))
     }),
     instructions: `Review dependency security posture from the provided outputs.`,
-});
-await securityReview({
-    dependencies: p.bash("npm ls --depth=0"),
-    audit: p.bash("npm audit --json", { purpose: "security audit" }),
 });
 
 export default securityReview;

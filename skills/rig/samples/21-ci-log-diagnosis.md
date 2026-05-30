@@ -6,10 +6,6 @@ import { agent, s } from "rig";
 const reproducer = agent({
     name: "reproducer",
     model: "mini",
-    input: s.object({
-        issueTitle: s.string,
-        issueBody: s.string
-    }),
     output: s.object({
         steps: s.array(s.string),
         expected: s.string,
@@ -17,10 +13,6 @@ const reproducer = agent({
         missingInfo: s.array(s.string)
     }),
     instructions: `Extract a clear reproduction from the issue.`,
-});
-await reproducer({
-    issueTitle: "Install fails on Windows",
-    issueBody: "npm install errors with EPERM when postinstall runs.",
 });
 
 export default reproducer;

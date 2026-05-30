@@ -6,18 +6,12 @@ import { agent, p, s } from "rig";
 const flaky = agent({
     name: "flakyAnalysis",
     model: "mini",
-    input: s.object({
-        history: s.string
-    }),
     output: s.object({
         likelyFlaky: s.boolean,
         signals: s.array(s.string),
         stabilizationIdeas: s.array(s.string)
     }),
     instructions: `Analyze whether the test failure appears flaky.`,
-});
-await flaky({
-    history: p.bash("cat test-runs/*.log 2>/dev/null || true"),
 });
 
 export default flaky;

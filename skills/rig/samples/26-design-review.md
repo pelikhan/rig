@@ -6,11 +6,6 @@ import { agent, s } from "rig";
 const migration = agent({
     name: "migrationGuide",
     model: "mini",
-    input: s.object({
-        fromVersion: s.string,
-        toVersion: s.string,
-        changes: s.array(s.string)
-    }),
     output: s.object({
         title: s.string,
         steps: s.array(s.string),
@@ -20,11 +15,6 @@ const migration = agent({
         }))
     }),
     instructions: `Write a concise migration guide.`,
-});
-await migration({
-    fromVersion: "0.1",
-    toVersion: "0.2",
-    changes: ["Agents now always receive input objects."],
 });
 
 export default migration;

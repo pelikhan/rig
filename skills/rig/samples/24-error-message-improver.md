@@ -6,9 +6,6 @@ import { agent, p, s } from "rig";
 const inferShape = agent({
     name: "inferShape",
     model: "mini",
-    input: s.object({
-        jsonSamples: s.string
-    }),
     output: s.object({
         fields: s.array(s.object({
             name: s.string,
@@ -18,9 +15,6 @@ const inferShape = agent({
         example: s.unknown
     }),
     instructions: `Infer a practical runtime-visible schema from the samples.`,
-});
-await inferShape({
-    jsonSamples: p.bash("head -100 data/events.ndjson"),
 });
 
 export default inferShape;
