@@ -8,6 +8,7 @@
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { readdirSync } from "fs";
+import { launchRigProgram } from "rig/launcher";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const sampleDir = resolve(__dirname, "../src/samples");
@@ -38,7 +39,7 @@ console.error(`▶ Running: ${samplePath}`);
 const start = performance.now();
 
 try {
-  await import(samplePath);
+  await launchRigProgram(samplePath);
 } catch (err: any) {
   console.error(`✗ Failed (${(performance.now() - start).toFixed(0)}ms)`);
   console.error(err?.message ?? err);

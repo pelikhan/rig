@@ -149,6 +149,14 @@ import { copilotEngine } from "rig/engines/copilot";
 useEngine(copilotEngine());
 ```
 
+For runnable programs, use the launcher helper to mount the Copilot engine and execute a file:
+
+```ts
+import { launchRigProgram } from "rig/launcher";
+
+await launchRigProgram("src/samples/02-review-git-diff.ts");
+```
+
 ## Extensibility
 
 Rig's extensibility model mirrors pi-agent's: **declaration merging** for custom types and **event subscription** for lifecycle observation.
