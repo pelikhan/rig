@@ -21,3 +21,23 @@ export async function launchRigProgram(programPath: string, options: LaunchOptio
   useEngine(engine);
   await import(pathToFileURL(resolvedPath).href);
 }
+
+export async function runLauncherCli(
+  argv: string[] = process.argv.slice(2),
+  options: LaunchOptions = {},
+): Promise<void> {
+  const programPath = argv[0];
+  if (!programPath) {
+    throw new Error("Usage: npx tsx src/launcher.ts <program-file>");
+  }
+  await launchRigProgram(programPath, options);
+}
+
+const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
+if (isMain) {
+  runLauncherCli().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(message);
+    process.exitCode = 1;
+  });
+}

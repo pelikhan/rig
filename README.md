@@ -149,12 +149,10 @@ import { copilotEngine } from "rig/engines/copilot";
 useEngine(copilotEngine());
 ```
 
-For runnable programs, use the launcher helper to mount the Copilot engine and execute a file:
+For runnable programs, use the launcher CLI to mount the Copilot engine and execute a file:
 
-```ts
-import { launchRigProgram } from "rig/launcher";
-
-await launchRigProgram("src/samples/02-review-git-diff.ts");
+```bash
+npx tsx src/launcher.ts src/samples/02-review-git-diff.ts
 ```
 
 ## Extensibility
