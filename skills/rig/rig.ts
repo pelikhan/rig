@@ -48,7 +48,8 @@ type EnumSchemaFactory = {
   <const Values extends readonly Json[]>(values: Values, description?: string): EnumSchema<Values>;
 };
 
-const createEnumSchema: EnumSchemaFactory = (...valuesOrTuple: readonly Json[]) => {
+const createEnumSchema: EnumSchemaFactory = (...args: unknown[]) => {
+  const valuesOrTuple = args as readonly Json[];
   if (
     Array.isArray(valuesOrTuple[0])
     && valuesOrTuple.length <= 2
