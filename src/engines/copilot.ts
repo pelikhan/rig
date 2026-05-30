@@ -2,12 +2,17 @@ import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
 import type { CopilotClientOptions } from "@github/copilot-sdk";
 import type { Engine, EngineSession } from "../rig.ts";
 
-export type CopilotEngineOptions = CopilotClientOptions;
+export type CopilotEngineOptions = CopilotClientOptions & {
+  logEvents?: boolean;
+  logger?: (line: string) => void;
+  onEvent?: (event: unknown) => void;
+};
 
 export function copilotEngine(options: CopilotEngineOptions = {}): Engine {
+  const { logEvents = true, logger, onEvent, ...clientOptions } = options;
   const client = new CopilotClient({
-    ...options,
-    connection: options.connection ?? RuntimeConnection.forTcp(),
+    ...clientOptions,
+    connection: clientOptions.connection ?? RuntimeConnection.forTcp(),
   });
 
   return {
@@ -20,7 +25,10 @@ export function copilotEngine(options: CopilotEngineOptions = {}): Engine {
             streaming: false,
           }).then((session: any) => {
             session.on?.((event: unknown) => {
-              console.log(jsonl({ source: "copilot-sdk", event }));
+              onEvent?.(event);
+              if (logEvents) {
+                (logger ?? console.log)(jsonl({ source: "copilot-sdk", event }));
+              }
             });
             return session;
           });

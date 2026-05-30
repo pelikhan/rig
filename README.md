@@ -108,6 +108,21 @@ useEngine(copilotEngine());
 ```
 
 By default, the Copilot engine starts Copilot CLI in server mode and connects to it through the SDK.
+You can customize SDK event observability with:
+
+```ts
+useEngine(
+  copilotEngine({
+    logEvents: false, // disable default JSONL console logging
+    onEvent: (event) => {
+      // consume raw SDK events
+    },
+    logger: (line) => {
+      // route JSONL event logs to your logger
+    },
+  }),
+);
+```
 
 Engine contract:
 

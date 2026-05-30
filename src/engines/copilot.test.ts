@@ -81,3 +81,43 @@ it("creates and subscribes only once per engine session", async () => {
   expect(on).toHaveBeenCalledTimes(1);
   expect(sendAndWait).toHaveBeenCalledTimes(2);
 });
+
+it("supports custom event hooks and logger", async () => {
+  const event = { type: "session.idle", data: { done: true } };
+  const on = vi.fn((handler: (event: unknown) => void) => {
+    handler(event);
+    return () => {};
+  });
+  const sendAndWait = vi.fn().mockResolvedValue({ text: "ok" });
+  mocks.createSession.mockResolvedValue({ on, sendAndWait });
+  const onEvent = vi.fn();
+  const logger = vi.fn();
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+  const session = copilotEngine({ onEvent, logger }).createSession({ model: "gpt-4.1" });
+  await expect(session.send("hello", {})).resolves.toBe("ok");
+
+  expect(onEvent).toHaveBeenCalledWith(event);
+  expect(logger).toHaveBeenCalledWith(JSON.stringify({ source: "copilot-sdk", event }));
+  expect(log).not.toHaveBeenCalled();
+});
+
+it("can disable event logging while keeping event hooks", async () => {
+  const event = { type: "session.idle", data: { done: true } };
+  const on = vi.fn((handler: (event: unknown) => void) => {
+    handler(event);
+    return () => {};
+  });
+  const sendAndWait = vi.fn().mockResolvedValue({ text: "ok" });
+  mocks.createSession.mockResolvedValue({ on, sendAndWait });
+  const onEvent = vi.fn();
+  const logger = vi.fn();
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+  const session = copilotEngine({ logEvents: false, onEvent, logger }).createSession({ model: "gpt-4.1" });
+  await expect(session.send("hello", {})).resolves.toBe("ok");
+
+  expect(onEvent).toHaveBeenCalledWith(event);
+  expect(logger).not.toHaveBeenCalled();
+  expect(log).not.toHaveBeenCalled();
+});
