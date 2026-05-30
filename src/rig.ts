@@ -254,7 +254,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const listeners = new Set<RigListener>();
 
   const fn = (async (input: unknown, options: CallOptions = {}) => {
-    const runtime = resolveRuntime(normalizedSpec, options);
+    const runtime = resolveCallRuntime(normalizedSpec, options);
     const session = getEngine().createSession({ model: runtime.model });
     const normalizedInput = normalizeInput(input, inputSchema);
     let prompt = renderPrompt(normalizedSpec, normalizedInput);
@@ -546,9 +546,9 @@ function inlineShellPrompts<T>(value: T): T {
   return walk(value) as T;
 }
 
-type ResponseAnalysis = { ok: true; output: unknown } | { ok: false; error: AgentError };
+type ParsedResponseResult = { ok: true; output: unknown } | { ok: false; error: AgentError };
 
-function analyzeResponse(response: string, outputSchema: Schema, agentName: string, turn: number): ResponseAnalysis {
+function analyzeResponse(response: string, outputSchema: Schema, agentName: string, turn: number): ParsedResponseResult {
   const parsed = parseJson(response);
   if (!parsed.ok) {
     return {
@@ -633,7 +633,7 @@ function getEngine(): Engine {
   return currentEngine;
 }
 
-function resolveRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
+function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
   model: string;
   maxTurns: number;
   signal: AbortSignal | undefined;
