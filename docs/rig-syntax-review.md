@@ -14,7 +14,7 @@ Rig now enforces a single declarative schema style:
 - use `s.array(...)` for arrays
 - use `s.record(...)` for records
 - use `s.optional(...)` for optional fields
-- use `s.literal(...)`, `s.enum(...)`, and `s.nullable(...)` explicitly
+- use `s.enum(...)` explicitly for union values
 
 Implicit schema syntax has been removed from the runtime and sample corpus.
 Shorthand object literals, trailing-underscore optional fields, and `{"*": ...}` record sugar are no longer accepted.

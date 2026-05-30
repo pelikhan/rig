@@ -21,8 +21,6 @@ export type ObjectSchema<Fields extends Record<string, Schema> = Record<string, 
 };
 export type RecordSchema<Value extends Schema = Schema> = { kind: "record"; value: Value };
 export type EnumSchema<Values extends readonly Json[] = readonly Json[]> = { kind: "enum"; values: Values };
-export type LiteralSchema<Value extends Json = Json> = { kind: "literal"; value: Value };
-export type NullableSchema<Inner extends Schema = Schema> = { kind: "nullable"; inner: Inner };
 export type OptionalSchema<Inner extends Schema = Schema> = { kind: "optional"; inner: Inner };
 
 export type Schema =
@@ -34,8 +32,6 @@ export type Schema =
   | ObjectSchema<any>
   | RecordSchema<any>
   | EnumSchema<any>
-  | LiteralSchema<any>
-  | NullableSchema<any>
   | OptionalSchema<any>;
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
@@ -53,8 +49,6 @@ export type InferSchema<T> =
   T extends { kind: "array"; item: infer Item } ? InferSchema<Item>[] :
   T extends { kind: "record"; value: infer Value } ? Record<string, InferSchema<Value>> :
   T extends { kind: "enum"; values: infer Values extends readonly unknown[] } ? Values[number] :
-  T extends { kind: "literal"; value: infer Value } ? Value :
-  T extends { kind: "nullable"; inner: infer Inner } ? InferSchema<Inner> | null :
   T extends { kind: "optional"; inner: infer Inner } ? InferSchema<Inner> | undefined :
   T extends { kind: "object"; fields: infer Fields extends Record<string, unknown> } ? Simplify<
     & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? never : K]: InferSchema<Fields[K]> }
@@ -78,12 +72,6 @@ export const s = {
   },
   enum<const Values extends readonly Json[]>(...values: Values): EnumSchema<Values> {
     return { kind: "enum", values };
-  },
-  literal<Value extends Json>(value: Value): LiteralSchema<Value> {
-    return { kind: "literal", value };
-  },
-  nullable<Inner extends Schema>(inner: Inner): NullableSchema<Inner> {
-    return { kind: "nullable", inner };
   },
   optional<Inner extends Schema>(inner: Inner): OptionalSchema<Inner> {
     return { kind: "optional", inner };
@@ -732,14 +720,10 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
       return typeof value === "boolean" ? ok() : bad(path, "boolean", value);
     case "unknown":
       return ok();
-    case "literal":
-      return deepEqual(value, schema.value) ? ok() : bad(path, JSON.stringify(schema.value), value);
     case "enum":
       return schema.values.some((item: Json) => deepEqual(item, value))
         ? ok()
         : bad(path, schema.values.map((item: Json) => JSON.stringify(item)).join(" | "), value);
-    case "nullable":
-      return value === null ? ok() : validateSchema(value, schema.inner, path, false);
     case "optional":
       return validateSchema(value, schema.inner, path, true);
     case "array": {
@@ -801,12 +785,8 @@ function renderSchemaNode(schema: Schema, indent: number): string {
       return "boolean";
     case "unknown":
       return "unknown";
-    case "literal":
-      return JSON.stringify(schema.value);
     case "enum":
       return schema.values.map((value: Json) => JSON.stringify(value)).join(" | ");
-    case "nullable":
-      return `${renderSchemaNode(schema.inner, indent)} | null`;
     case "optional":
       return `${renderSchemaNode(schema.inner, indent)} | undefined`;
     case "array":
@@ -1049,7 +1029,7 @@ function isSchema(value: unknown): value is Schema {
   return !!value
     && typeof value === "object"
     && "kind" in value
-    && ["string", "number", "boolean", "unknown", "array", "object", "record", "enum", "literal", "nullable", "optional"].includes((value as { kind: string }).kind);
+    && ["string", "number", "boolean", "unknown", "array", "object", "record", "enum", "optional"].includes((value as { kind: string }).kind);
 }
 
 function assertValidSchema(schema: Schema, agentName: string, slot: "input" | "output", path: string = slot): void {
@@ -1063,7 +1043,6 @@ function assertValidSchema(schema: Schema, agentName: string, slot: "input" | "o
     case "record":
       assertValidSchema(schema.value, agentName, slot, `${path}.*`);
       return;
-    case "nullable":
     case "optional":
       assertValidSchema(schema.inner, agentName, slot, path);
       return;

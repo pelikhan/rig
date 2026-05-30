@@ -83,8 +83,6 @@ s.array(item)
 s.object(fields)
 s.record(value)
 s.enum(...values)
-s.literal(value)
-s.nullable(shape)
 s.optional(shape)
 ```
 

@@ -119,8 +119,6 @@ s.array(item)
 s.object(fields)
 s.record(value)
 s.enum(...values)
-s.literal(value)
-s.nullable(shape)
 s.optional(shape)
 ```
 
@@ -128,8 +126,6 @@ Common examples:
 
 ```ts
 s.enum("bug", "feature", "question")
-s.literal("review-finding")
-s.nullable(s.string)
 s.optional(s.number)
 s.record(s.string)
 ```
@@ -316,7 +312,7 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 
 - Prefer `s.object(...)` for important examples.
 - Keep outputs small, typed, and explicit.
-- Use `s.enum(...)` and `s.literal(...)` when exact values matter.
+- Use `s.enum(...)` when exact values matter.
 - Prefer `p.*` inside `p\`\`` templates; fall back to inputs only for real caller-provided data.
 - Prefer `p.read(...)` for existing files instead of shelling out through `cat`.
 - Put durable defaults in the agent spec and per-run overrides in call options.
