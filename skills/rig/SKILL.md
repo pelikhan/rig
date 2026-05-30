@@ -235,11 +235,10 @@ echo "Review this diff" | node skills/rig/rig.ts src/program.ts --server
 ## Engines
 
 Use `useEngine(engine)` to install a custom engine.
-The default Copilot SDK engine is available from `rig/engines/copilot`.
+The Copilot SDK engine is exported directly from `rig`.
 
 ```ts
-import { useEngine } from "rig";
-import { copilotEngine } from "rig/engines/copilot";
+import { copilotEngine, useEngine } from "rig";
 
 useEngine(copilotEngine());
 ```

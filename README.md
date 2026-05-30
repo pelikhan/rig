@@ -101,13 +101,12 @@ Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 `rig` uses the Copilot engine by default. You can override with:
 
 ```ts
-import { useEngine } from "rig";
-import { copilotEngine } from "rig/engines/copilot";
+import { copilotEngine, useEngine } from "rig";
 
 useEngine(copilotEngine());
 ```
 
-By default, the Copilot engine starts Copilot CLI in server mode and connects to it through the SDK.
+By default, the Copilot engine connects to an already-running Copilot server via HTTP. Pass `server: true` to spawn the server via stdio instead.
 
 Engine contract:
 

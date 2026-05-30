@@ -4,7 +4,6 @@
   "type": "module",
   "exports": {
     ".": "./skills/rig/rig.ts",
-    "./engines/copilot": "./src/engines/copilot.ts",
     "./sh": "./src/sh.ts"
   },
   "scripts": {

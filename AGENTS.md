@@ -2,20 +2,20 @@
 
 ## Project Overview
 
-Rig is a minimal TypeScript agent harness. The core runtime (`skills/rig/rig.ts`) provides declarative agent construction with typed input/output shapes, shell intents, and a pluggable LLM engine. The Copilot SDK engine lives in a sibling module.
+Rig is a minimal TypeScript agent harness. The core runtime (`skills/rig/rig.ts`) provides declarative agent construction with typed input/output shapes, shell intents, a pluggable LLM engine, and the built-in Copilot SDK engine.
 
 ## Architecture
 
 ```
-skills/rig/rig.ts      — Core runtime (agent, sh, p, validate, useEngine, schemas)
+skills/rig/rig.ts      — Core runtime (agent, sh, p, validate, useEngine, copilotEngine, schemas)
 skills/rig/samples/    — 51 sample agents demonstrating patterns
-src/engines/copilot.ts — Copilot SDK engine (rig/engines/copilot)
+src/engines/copilot.test.ts — Copilot engine unit tests (vitest)
 src/rig.test.ts        — Unit tests (vitest)
 scripts/run-sample.test.ts — Sample runner with a stub engine (dry-run)
 skills/rig/SKILL.md    — Framework reference docs
 ```
 
-All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest alias). Submodules are imported as `rig/engines/copilot`.
+All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest alias). `copilotEngine` is exported directly from `rig`.
 
 ## Commands
 
@@ -29,9 +29,7 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 
 ## Code Style
 
-- Keep the core (`skills/rig/rig.ts`) self-contained and free of runtime dependencies
-- Only `@github/copilot-sdk` is allowed, and only inside `src/engines/copilot.ts`
-- Engines live in their own files, not in the core
+- Keep the core (`skills/rig/rig.ts`) self-contained; `@github/copilot-sdk` is imported directly in `skills/rig/rig.ts`
 - Minimal comments; code should be self-explanatory
 - Use `node:` prefix for Node.js built-in imports
 - Types are colocated with the module that defines them, not in separate `.d.ts` files
@@ -53,7 +51,7 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 - **Shell intents (`p.*`)**: `p.bash(cmd)`, `p.result(cmd)`, `p.read(path)`, `p.write(path, content)` — declarative placeholders resolved by the engine, not executed in-process
 - **Event subscription**: `myAgent.subscribe(listener)` — observe `call`, `send`, `response`, `result`, `error` events without wrapping — analogous to pi-agent's `Agent.subscribe()`
 - **Prompts**: `p\`...\`` template tag composes instructions with inline `p.*` helpers
-- **Engine**: Pluggable via `useEngine(engine)`. There is no implicit default — opt in with `useEngine(copilotEngine())` from `rig/engines/copilot`, or supply your own `{ createSession({ model }) => { send(prompt, { signal }) } }`.
+- **Engine**: Pluggable via `useEngine(engine)`. Import `copilotEngine` from `rig` and call `useEngine(copilotEngine())`, or supply your own `{ createSession({ model }) => { send(prompt, { signal }) } }`.
 - **Repair**: `repair: "default"` (or a custom `(error) => string`) re-prompts on parse/validation failure up to `maxTurns`. Disable with `repair: false`.
 
 ## Sample guide
