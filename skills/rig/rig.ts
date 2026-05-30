@@ -372,17 +372,21 @@ async function typecheckProgram(programPath: string, cwd: string): Promise<void>
   const execFileAsync = promisify(execFile);
   const skillTsconfigPath = resolve(dirname(fileURLToPath(import.meta.url)), "tsconfig.json");
   const candidateTsconfigPaths = [resolve(cwd, "tsconfig.json"), skillTsconfigPath];
-  const baseTsconfigPath = await (async () => {
-    for (const tsconfigPath of candidateTsconfigPaths) {
-      try {
-        await access(tsconfigPath);
-        return tsconfigPath;
-      } catch {
-        // Try the next candidate.
-      }
+  let baseTsconfigPath: string | undefined;
+  for (const tsconfigPath of candidateTsconfigPaths) {
+    try {
+      await access(tsconfigPath);
+      baseTsconfigPath = tsconfigPath;
+      break;
+    } catch {
+      // Try the next candidate.
     }
-    throw new Error("Typecheck mode requires a tsconfig.json in the current working directory or skills/rig/.");
-  })();
+  }
+  if (!baseTsconfigPath) {
+    throw new Error(
+      `Typecheck mode requires tsconfig.json at one of: ${candidateTsconfigPaths.join(", ")}`,
+    );
+  }
   const tempRoot = resolve(cwd, ".tmp");
   await mkdir(tempRoot, { recursive: true });
   const tempDir = await mkdtemp(resolve(tempRoot, "rig-typecheck-"));
