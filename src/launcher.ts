@@ -1,7 +1,7 @@
 import { basename, isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { copilotEngine } from "./engines/copilot.ts";
-import type { Engine } from "./rig.ts";
+import type { AgentFn, Engine } from "./rig.ts";
 import { useEngine } from "./rig.ts";
 
 export type LaunchOptions = {
@@ -35,17 +35,70 @@ async function readStdin(stream: NodeJS.ReadableStream): Promise<string> {
   return chunks.join("");
 }
 
-async function runPromptFromStdin(options: LaunchOptions = {}, io: LauncherIo, scriptName: string): Promise<void> {
+function asRootAgent(value: unknown): AgentFn | undefined {
+  if (typeof value !== "function") {
+    return undefined;
+  }
+  if (!("inputSchema" in value) || !("outputSchema" in value)) {
+    return undefined;
+  }
+  return value as AgentFn;
+}
+
+function coerceStdinInput(agentFn: AgentFn, text: string): unknown {
+  const schema = agentFn.inputSchema;
+  if (schema.kind === "string") {
+    return text;
+  }
+  if (schema.kind === "object" && "text" in schema.fields) {
+    return { text };
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function renderStdout(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (
+    value
+    && typeof value === "object"
+    && "text" in value
+    && typeof (value as { text?: unknown }).text === "string"
+  ) {
+    return (value as { text: string }).text;
+  }
+  return JSON.stringify(value);
+}
+
+async function runRootAgentFromStdin(
+  programPath: string,
+  options: LaunchOptions = {},
+  io: LauncherIo,
+  scriptName: string,
+): Promise<void> {
   const prompt = await readStdin(io.stdin);
   if (!prompt.trim()) {
-    throw new Error(`Usage: ${scriptName} [<program-file> | --stdin]`);
+    throw new Error(`Usage: ${scriptName} <program-file> [--stdin]`);
   }
 
   const cwd = options.cwd ?? process.cwd();
   const engine = options.engine ?? copilotEngine({ workingDirectory: cwd });
-  const session = engine.createSession({ model: "gpt-4.1" });
-  const answer = await session.send(prompt, {});
-  io.stdout.write(answer);
+  const resolvedPath = isAbsolute(programPath) ? programPath : resolve(cwd, programPath);
+
+  useEngine(engine);
+  const mod = await import(pathToFileURL(resolvedPath).href);
+  const rootAgent = asRootAgent(mod.default) ?? asRootAgent(mod.root);
+  if (!rootAgent) {
+    throw new Error("Expected program to export a root agent as default export (or named export `root`).");
+  }
+
+  const result = await rootAgent(coerceStdinInput(rootAgent, prompt));
+  io.stdout.write(renderStdout(result));
 }
 
 export async function runLauncherCli(
@@ -54,15 +107,16 @@ export async function runLauncherCli(
   io: LauncherIo = process,
 ): Promise<void> {
   const programPath = argv[0];
+  const useStdin = argv.includes("--stdin");
   const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
   if (!programPath) {
-    throw new Error(`Usage: ${scriptName} [<program-file> | --stdin]`);
+    throw new Error(`Usage: ${scriptName} <program-file> [--stdin]`);
   }
-  if (programPath === "--stdin") {
-    await runPromptFromStdin(options, io, scriptName);
-    return;
+  if (useStdin) {
+    await runRootAgentFromStdin(programPath, options, io, scriptName);
+  } else {
+    await launchRigProgram(programPath, options);
   }
-  await launchRigProgram(programPath, options);
 }
 
 const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;

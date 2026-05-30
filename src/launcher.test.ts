@@ -52,6 +52,7 @@ it("supports cli mode with argv", async () => {
 });
 
 it("supports stdin mode and writes the final answer to stdout", async () => {
+  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin.fixture.ts");
   const stdin = Readable.from(["Review this patch"]);
   const output: string[] = [];
   const stdout = new Writable({
@@ -61,12 +62,13 @@ it("supports stdin mode and writes the final answer to stdout", async () => {
     },
   });
 
-  await runLauncherCli(["--stdin"], { engine: mockEngine({ text: "done" }) }, { stdin, stdout });
+  await runLauncherCli([fixturePath, "--stdin"], { engine: mockEngine({ text: "done" }) }, { stdin, stdout });
 
-  expect(output.join("")).toBe("{\"text\":\"done\"}");
+  expect(output.join("")).toBe("done");
 });
 
 it("rejects stdin mode when prompt is empty", async () => {
+  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin.fixture.ts");
   const stdin = Readable.from(["   \n\t"]);
   const stdout = new Writable({
     write(_chunk, _encoding, callback) {
@@ -74,12 +76,12 @@ it("rejects stdin mode when prompt is empty", async () => {
     },
   });
   await expect(
-    runLauncherCli(["--stdin"], { engine: mockEngine({ text: "ignored" }) }, { stdin, stdout }),
-  ).rejects.toThrow(/\[<program-file> \| --stdin\]/);
+    runLauncherCli([fixturePath, "--stdin"], { engine: mockEngine({ text: "ignored" }) }, { stdin, stdout }),
+  ).rejects.toThrow(/<program-file> \[--stdin\]/);
 });
 
 it("requires a program path in cli mode", async () => {
   await expect(runLauncherCli([], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
-    /\[<program-file> \| --stdin\]/,
+    /<program-file> \[--stdin\]/,
   );
 });

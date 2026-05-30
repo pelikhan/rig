@@ -127,10 +127,10 @@ For runnable programs, use the launcher CLI to mount the Copilot engine in the h
 node src/launcher.ts src/samples/02-review-git-diff.ts
 ```
 
-For one-shot prompt execution, read the prompt from stdin and print the final answer to stdout:
+To run a root agent from a program file, pass the input text on stdin and print the final answer to stdout:
 
 ```bash
-echo "Summarize this repository" | node src/launcher.ts --stdin
+echo "Summarize this repository" | node src/launcher.ts src/program.ts --stdin
 ```
 
 Copilot SDK lifecycle events are logged to stderr as JSONL.
