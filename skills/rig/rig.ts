@@ -117,8 +117,16 @@ function jsonl(value: unknown): string {
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    return JSON.stringify({ source: "copilot-sdk", type: "logger.error", error: reason });
+    return JSON.stringify(rigEvent("logger.error", { error: reason }));
   }
+}
+
+function rigEvent(type: string, data?: unknown): { type: string; data?: unknown } {
+  return { type: `rig.${type}`, data };
+}
+
+function writeEvent(event: unknown): void {
+  process.stderr.write(`${jsonl(event)}\n`);
 }
 
 export type RepairHandler = false | "default" | ((error: AgentError) => string);
@@ -819,7 +827,7 @@ function getCopilotClient(): CopilotClient {
 async function createCopilotSession(model: string): Promise<CopilotSession> {
   const session = await getCopilotClient().createSession({ model, streaming: false }) as CopilotSession;
   session.on?.((event: unknown) => {
-    process.stderr.write(`${jsonl({ source: "copilot-sdk", event })}\n`);
+    writeEvent(event);
   });
   return session;
 }
@@ -827,6 +835,7 @@ async function createCopilotSession(model: string): Promise<CopilotSession> {
 async function sendCopilotPrompt(sessionPromise: Promise<CopilotSession>, prompt: string, signal?: AbortSignal): Promise<string> {
   const session = await sessionPromise;
   const request = signal ? { prompt, signal } : { prompt };
+  writeEvent(rigEvent("copilot-ask", { prompt }));
   const response = await session.sendAndWait(request);
   if (!response) {
     return "";
