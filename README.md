@@ -121,10 +121,10 @@ type EngineSession = {
 };
 ```
 
-For runnable programs, execute `rig.ts` directly to mount the Copilot engine in the harness working directory and execute a file:
+For runnable programs, execute `rig.ts` directly and pass the root agent input on stdin:
 
 ```bash
-node src/rig.ts src/samples/02-review-git-diff.ts --file
+echo "<input>" | node src/rig.ts src/samples/02-review-git-diff.ts
 ```
 
 To run a root agent from a program file (default mode), export the root agent as the default export, pass the input text on stdin, and print the final answer to stdout:

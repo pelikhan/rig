@@ -37,20 +37,6 @@ it("loads a rig program and mounts the provided engine", async () => {
   expect(result).toEqual({ text: "mounted" });
 });
 
-it("supports file mode with argv", async () => {
-  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.fixture.ts");
-
-  await runLauncherCli([fixturePath, "--file"], { engine: mockEngine({ text: "cli-mounted" }) });
-
-  const call = agent({
-    name: "launcher-cli-test",
-    input: s.object({}),
-    output: s.object({ text: s.string }),
-  });
-  const result = await call({});
-  expect(result).toEqual({ text: "cli-mounted" });
-});
-
 it("uses stdin mode by default and writes the final answer to stdout", async () => {
   const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin.fixture.ts");
   const stdin = Readable.from(["Review this patch"]);
@@ -137,19 +123,19 @@ it("rejects stdin mode when prompt is empty", async () => {
   });
   await expect(
     runLauncherCli([fixturePath], { engine: mockEngine({ text: "ignored" }) }, { stdin, stdout }),
-  ).rejects.toThrow(/<program-file> \[--file\]/);
+  ).rejects.toThrow(/<program-file>/);
 });
 
 it("rejects unknown cli arguments", async () => {
   const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.fixture.ts");
 
-  await expect(runLauncherCli([fixturePath, "--stdin"], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
-    /<program-file> \[--file\]/,
+  await expect(runLauncherCli([fixturePath, "--file"], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
+    /<program-file>/,
   );
 });
 
 it("requires a program path in cli mode", async () => {
   await expect(runLauncherCli([], { engine: mockEngine({ text: "ignored" }) })).rejects.toThrow(
-    /<program-file> \[--file\]/,
+    /<program-file>/,
   );
 });

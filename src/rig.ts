@@ -324,7 +324,7 @@ async function runRootAgentFromStdin(
 ): Promise<void> {
   const prompt = await readStdin(io.stdin);
   if (!prompt.trim()) {
-    throw new Error(`Usage: ${scriptName} <program-file> [--file]`);
+    throw new Error(`Usage: ${scriptName} <program-file>`);
   }
 
   const cwd = options.cwd ?? process.cwd();
@@ -349,17 +349,12 @@ export async function runLauncherCli(
 ): Promise<void> {
   const programPath = argv[0];
   const flags = argv.slice(1);
-  const useFile = flags[0] === "--file";
-  const hasInvalidFlags = flags.length > 1 || (flags.length === 1 && !useFile);
+  const hasInvalidFlags = flags.length > 0;
   const scriptName = process.argv[1] ? basename(process.argv[1]) : "launcher";
   if (!programPath || hasInvalidFlags) {
-    throw new Error(`Usage: ${scriptName} <program-file> [--file]`);
+    throw new Error(`Usage: ${scriptName} <program-file>`);
   }
-  if (useFile) {
-    await launchRigProgram(programPath, options);
-  } else {
-    await runRootAgentFromStdin(programPath, options, io, scriptName);
-  }
+  await runRootAgentFromStdin(programPath, options, io, scriptName);
 }
 
 export function agent<
