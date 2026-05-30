@@ -52,8 +52,8 @@ Declare a structured agent.
 |-------|---------|
 | `name` | Agent name used in the prompt |
 | `instructions` | Prompt instructions |
-| `input` | Input schema or shorthand shape |
-| `output` | Output schema or shorthand shape |
+| `input` | Input schema |
+| `output` | Output schema |
 | `model` | Default model name, falling back to `"gpt-4.1"` |
 | `timeout` | Default timeout in milliseconds |
 | `maxTurns` | Retry budget for invalid JSON or invalid output |
@@ -63,13 +63,9 @@ Declare a structured agent.
 
 Use `agent({ name, ... })` as the only agent declaration form.
 
-## Schema styles
+## Schemas
 
-Rig supports two schema styles.
-
-### 1. Explicit schemas — preferred
-
-Use `s.*` helpers when you want the most predictable generated code.
+Use `s.*` helpers for input and output schemas.
 
 ```ts
 input: s.object({
@@ -78,63 +74,7 @@ input: s.object({
 })
 ```
 
-### 2. Shorthand schemas — supported sugar
-
-Plain values are normalized into schemas:
-
-```ts
-input: {
-  title: "issue title",
-  retries: 3,
-  dryRun: true,
-  tags: ["tag"],
-}
-```
-
-This becomes roughly:
-
-```ts
-input: s.object({
-  title: s.string,
-  retries: s.number,
-  dryRun: s.boolean,
-  tags: s.array(s.string),
-})
-```
-
-Prefer **explicit schemas in docs and generated samples**. Use shorthand only for small examples with one or two primitive fields, or when the explicit `s.object(...)` form would add noise without adding clarity.
-
-## Built-in shorthand rules
-
-These rules are real rig syntax:
-
-- `field_: value` means an **optional** field named `field`
-- `{ "*": value }` means `s.record(value)`
-- `[value]` means `s.array(value)`
-- string literals map to `s.string`
-- number literals map to `s.number`
-- boolean literals map to `s.boolean`
-
-Example:
-
-```ts
-output: {
-  summary: "review summary",
-  deletedAt_: s.nullable("2026-05-28T00:00:00Z"),
-  files: [{
-    path: "src/index.ts",
-    line_: 42,
-  }],
-  byFile: {
-    "*": {
-      covered: true,
-      note_: "coverage note",
-    },
-  },
-}
-```
-
-Prefer `s.optional(...)` in explicit schemas over `_` suffixed keys when teaching or generating new examples.
+Use explicit schemas in docs and generated samples.
 
 ## `s` schema helpers
 
@@ -224,14 +164,17 @@ Expose subagents with `agents`:
 ```ts
 const summarizeDiff = agent({
   name: "summarizeDiff",
-  input: { diff: "git diff" },
-  output: { summary: "diff summary" },
+  input: s.object({ diff: s.string }),
+  output: s.object({ summary: s.string }),
 });
 
 const reviewer = agent({
   name: "reviewer",
-  input: { diff: "git diff" },
-  output: { summary: "review summary", issues: ["issue"] },
+  input: s.object({ diff: s.string }),
+  output: s.object({
+    summary: s.string,
+    issues: s.array(s.string),
+  }),
   agents: { summarizeDiff },
   instructions: "Review the diff. You may use the provided subagent conceptually.",
 });
@@ -340,8 +283,6 @@ Event types:
 
 - Do not invent deprecated hooks or compatibility layers.
 - Do not import shell helpers from anywhere except `rig`.
-- Do not mix many shorthand tricks into the same beginner example.
-- Do not rely on `_` suffixed optional keys unless you explain them.
 - Do not leave outputs as unstructured prose when a schema would help.
 
 ## API direction

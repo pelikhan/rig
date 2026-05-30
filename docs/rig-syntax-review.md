@@ -13,7 +13,7 @@ This review scores the **50 existing sample harnesses** in `src/samples/` (sampl
 - **Overall solution quality:** `3.7 / 5`
 - **Overall naturalness:** `3.4 / 5`
 - **Most agent-friendly patterns:** explicit `s.*` schemas, short `agent({ ... })` specs, inline `sh.*` inputs, small focused outputs.
-- **Least agent-friendly patterns:** shorthand objects with `_` suffixed optional fields, advanced options that are absent from the skill doc, and examples that rely on implicit schema sugar without naming it.
+- **Least agent-friendly patterns:** alternate schema spellings, advanced options that are absent from the skill doc, and examples that rely on implicit sugar instead of the explicit `s.*` form.
 
 ## What the current syntax does well
 
@@ -25,28 +25,26 @@ This review scores the **50 existing sample harnesses** in `src/samples/` (sampl
 
 ## Where agents are likely to drift
 
-1. The shorthand schema form is powerful but underexplained.
-2. `_` suffixed keys mean **optional** keys in shorthand objects, but that rule is hidden in implementation details.
-3. `permissions`, `agents`, `collectIntents`, and call-time options are real syntax, but they are not surfaced clearly enough in the skill doc.
-4. Samples mix shorthand schemas and explicit `s.*` schemas without telling the reader which style is preferred.
-5. Some sample names are stronger than the code they currently contain, so an agent can overgeneralize from the filename instead of the actual pattern.
+1. Some samples use alternate schema spellings instead of the explicit `s.*` form, which makes the API easier to miscopy.
+2. `permissions`, `agents`, `collectIntents`, and call-time options are real syntax, but they are not surfaced clearly enough in the skill doc.
+3. The samples do not consistently reinforce one canonical schema style.
+4. Some sample names are stronger than the code they currently contain, so an agent can overgeneralize from the filename instead of the actual pattern.
 
 ## Recommendations to make rig more agent-friendly
 
-1. **Prefer explicit schemas in teaching docs.** Use `s.object(...)` as the default teaching style and present shorthand schemas as sugar.
-2. **Document shorthand rules directly.** Spell out that `field_: value` becomes an optional field named `field`.
-3. **Show one recommended template first.** Teach one “good default” agent shape before presenting variants.
-4. **Separate spec-time from call-time options.** Put `timeout`, `model`, `maxTurns`, and `signal` into their own section.
-5. **Promote advanced fields into the main spec table.** Include `permissions` and `agents` alongside `name`, `instructions`, `input`, and `output`.
-6. **Call out anti-patterns.** Tell agents not to mix implicit sugar and explicit schemas unless there is a reason.
-7. **Bias examples toward structured outputs.** Small typed outputs are easier for agents to mimic than raw prose-only agents.
+1. **Prefer explicit schemas in teaching docs.** Use `s.object(...)` as the default and only documented style.
+2. **Show one recommended template first.** Teach one “good default” agent shape before presenting variants.
+3. **Separate spec-time from call-time options.** Put `timeout`, `model`, `maxTurns`, and `signal` into their own section.
+4. **Promote advanced fields into the main spec table.** Include `permissions` and `agents` alongside `name`, `instructions`, `input`, and `output`.
+5. **Call out anti-patterns.** Tell agents not to invent alternate schema spellings when the explicit `s.*` form is available.
+6. **Bias examples toward structured outputs.** Small typed outputs are easier for agents to mimic than raw prose-only agents.
 
 ## Scenario scores
 
 | # | Sample | Scenario | Solution | Naturalness | Notes |
 |---|--------|----------|----------|-------------|-------|
 | 02 | `02-review-git-diff.ts` | Diff review with optional line numbers | 4 | 4 | Strong structured review output. |
-| 03 | `03-diagnose-test-failure.ts` | Test failure diagnosis | 3 | 2 | `_` optional-field sugar is useful but underdocumented. |
+| 03 | `03-diagnose-test-failure.ts` | Test failure diagnosis | 3 | 2 | Alternate schema sugar reduces discoverability. |
 | 04 | `04-generate-readme.ts` | README generation | 3 | 3 | Natural task, light schema pressure. |
 | 05 | `05-write-readme-intent.ts` | File write intent generation | 3 | 2 | `s.literal` is good; write-intent framing needs coaching. |
 | 06 | `06-list-source-files.ts` | Source file inventory with permissions | 3 | 2 | Realistic, but `permissions` is not taught clearly. |
@@ -55,7 +53,7 @@ This review scores the **50 existing sample harnesses** in `src/samples/` (sampl
 | 09 | `09-classify-issue.ts` | Issue classification | 5 | 5 | Best beginner sample; simple task and crisp enums. |
 | 10 | `10-triage-pr.ts` | PR triage | 4 | 4 | Strong real-world workflow shape. |
 | 11 | `11-release-notes.ts` | Release note drafting | 4 | 3 | Useful, but prose-heavy outputs are less constrained. |
-| 12 | `12-security-scan-review.ts` | Security scan review | 3 | 2 | `_` sugar makes this less discoverable. |
+| 12 | `12-security-scan-review.ts` | Security scan review | 3 | 2 | Alternate schema sugar makes this less discoverable. |
 | 13 | `13-test-plan.ts` | Regression test planning | 4 | 3 | Good planning harness; moderate structure. |
 | 14 | `14-changelog-categorizer.ts` | Changelog categorization | 4 | 4 | Clear categorical output. |
 | 15 | `15-api-diff-summary.ts` | API diff summarization | 4 | 3 | Good pattern, moderate schema ambiguity. |
@@ -68,7 +66,7 @@ This review scores the **50 existing sample harnesses** in `src/samples/` (sampl
 | 22 | `22-config-normalizer.ts` | Config normalization | 4 | 3 | Good typed transform example. |
 | 23 | `23-schema-inference.ts` | Schema inference | 4 | 4 | Clear advanced use of `s.unknown`. |
 | 24 | `24-error-message-improver.ts` | Error message improvement | 3 | 2 | `s.unknown` plus prose output is easy to miscopy. |
-| 25 | `25-migration-guide.ts` | Migration guide writing | 3 | 3 | Practical, but shorthand optional syntax is opaque. |
+| 25 | `25-migration-guide.ts` | Migration guide writing | 3 | 3 | Practical, but alternate schema sugar is opaque. |
 | 26 | `26-design-review.ts` | Design review | 4 | 4 | Strong analysis harness shape. |
 | 27 | `27-dependency-upgrade-plan.ts` | Dependency upgrade plan | 4 | 3 | Good practical workflow. |
 | 28 | `28-license-check.ts` | License review | 3 | 3 | Fine reference sample. |
@@ -84,10 +82,10 @@ This review scores the **50 existing sample harnesses** in `src/samples/` (sampl
 | 38 | `38-exact-literal-output.ts` | Literal and nullable output | 5 | 5 | Excellent example of precise extraction. |
 | 39 | `39-unknown-raw-output.ts` | Raw structured payload | 4 | 4 | Clear example of `s.literal` and `s.unknown`. |
 | 40 | `40-record-output.ts` | Record-shaped output | 4 | 4 | Strong `s.record` example. |
-| 41 | `41-permissioned-agent.ts` | Permissioned-agent style record output | 3 | 3 | Good record pattern, but optional-key sugar is hidden. |
+| 41 | `41-permissioned-agent.ts` | Permissioned-agent style record output | 3 | 3 | Good record pattern, but alternate schema sugar is hidden. |
 | 42 | `42-json-repair.ts` | Repair and retry | 5 | 4 | Important behavior and easy to justify. |
 | 43 | `43-snapshot-test-updater.ts` | Snapshot update planning | 3 | 3 | Useful but more task-specific. |
-| 44 | `44-flaky-test-analysis.ts` | Flaky test analysis | 3 | 2 | Optional shorthand keys reduce readability. |
+| 44 | `44-flaky-test-analysis.ts` | Flaky test analysis | 3 | 2 | Alternate schema sugar reduces readability. |
 | 45 | `45-code-owner-suggestion.ts` | Code owner suggestion | 3 | 3 | Fine reference example. |
 | 46 | `46-prompt-intent-inspection.ts` | Prompt and intent inspection | 4 | 4 | Strong introspection sample. |
 | 47 | `47-validate-output.ts` | Intent collection and validation | 5 | 4 | Excellent advanced sample. |
@@ -102,10 +100,8 @@ The skill file should teach this order:
 
 1. Start with one explicit `agent({ ... })` template.
 2. Show explicit `s.object(...)` schemas as the default.
-3. Introduce shorthand schemas as optional sugar.
-4. Explain `_` suffixed optional keys immediately when shorthand appears.
-5. Add shell intents next.
-6. Add `permissions`, `agents`, and call-time overrides after the core path.
-7. End with extensibility and validation helpers.
+3. Add shell intents next.
+4. Add `permissions`, `agents`, and call-time overrides after the core path.
+5. End with extensibility and validation helpers.
 
 That ordering matches what the current samples reward and reduces the chance that an agent invents unsupported syntax.
