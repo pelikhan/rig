@@ -4,8 +4,10 @@
  *    or: npm run sample -- 02
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { readdirSync } from "fs";
+import { readFileSync, readdirSync } from "fs";
 import { resolve } from "path";
+import { Readable, Writable } from "stream";
+import { runLauncherCli } from "rig";
 
 const mocks = vi.hoisted(() => {
   let sendAndWaitImpl: (request: { prompt: string }) => unknown | Promise<unknown> = async () => ({ text: "stub response" });
@@ -126,11 +128,24 @@ const sampleDir = resolve(__dirname, "../src/samples");
 const allFiles = readdirSync(sampleDir)
   .filter((f) => f.endsWith(".ts"))
   .sort();
+const markdownDir = resolve(__dirname, "../skills/rig/samples");
+const allMarkdownFiles = readdirSync(markdownDir)
+  .filter((f) => f.endsWith(".md"))
+  .sort();
 
 const filter = process.env["RIG_SAMPLE"];
 const targets = filter
   ? allFiles.filter((f) => f.includes(filter))
   : allFiles;
+const markdownTargets = filter
+  ? allMarkdownFiles.filter((f) => f.includes(filter))
+  : allMarkdownFiles;
+
+function extractRigCode(markdown: string): string {
+  const match = markdown.match(/```rig\n([\s\S]*?)\n```/);
+  if (!match) throw new Error("Expected sample markdown to contain a ```rig code fence.");
+  return match[1];
+}
 
 beforeEach(() => {
   mocks.createSession.mockClear();
@@ -155,6 +170,38 @@ describe("samples", () => {
       }
       const elapsed = performance.now() - start;
       expect(elapsed).toBeLessThan(5000);
+    });
+  }
+});
+
+describe("skill markdown samples", () => {
+  for (const file of markdownTargets) {
+    it(file, async () => {
+      const code = extractRigCode(readFileSync(resolve(markdownDir, file), "utf8"));
+      expect(code.split("\n").length).toBeLessThanOrEqual(30);
+      expect(code).toContain("export default");
+      expect(code).toContain("// Agent role:");
+      expect(code).toContain('model: "');
+      expect(code).toContain("instructions:");
+      expect(code).toContain("output:");
+      expect(code).not.toContain("console.log");
+      expect((code.match(/^import .* from "rig";$/gm) ?? [])).toHaveLength(1);
+      expect(code).not.toMatch(/^await\s+\w+\(/m);
+
+      const stdin = Readable.from([code]);
+      const output: string[] = [];
+      const stdout = new Writable({
+        write(chunk, _encoding, callback) {
+          output.push(chunk.toString());
+          callback();
+        },
+      });
+
+      const start = performance.now();
+      await runLauncherCli([], {}, { stdin, stdout });
+      const elapsed = performance.now() - start;
+      expect(elapsed).toBeLessThan(5000);
+      expect(output.join("")).not.toBe("");
     });
   }
 });
