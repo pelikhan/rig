@@ -85,6 +85,8 @@ export const s = {
   },
 };
 
+const defaultTextSchema = s.object({ text: s.string });
+
 export type Engine = {
   createSession(options: { model: string }): EngineSession;
 };
@@ -246,17 +248,14 @@ export function agent<
 >(spec: AgentSpec<Input, Output>): AgentFn<InferSchema<Input>, InferSchema<Output>>;
 export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const normalizedSpec = normalizeSpec(spec);
-  const inputSchema = normalizedSpec.input ?? s.object({ text: s.string });
-  const outputSchema = normalizedSpec.output ?? s.object({ text: s.string });
+  const inputSchema = normalizedSpec.input ?? defaultTextSchema;
+  const outputSchema = normalizedSpec.output ?? defaultTextSchema;
 
   const listeners = new Set<RigListener>();
 
   const fn = (async (input: unknown, options: CallOptions = {}) => {
-    const model = options.model ?? normalizedSpec.model ?? "gpt-4.1";
-    const maxTurns = options.maxTurns ?? normalizedSpec.maxTurns ?? 4;
-    const signal = timeoutSignal(options.signal, options.timeout ?? normalizedSpec.timeout);
-    const repair = normalizedSpec.repair ?? "default";
-    const session = getEngine().createSession({ model });
+    const runtime = resolveRuntime(normalizedSpec, options);
+    const session = getEngine().createSession({ model: runtime.model });
     const normalizedInput = normalizeInput(input, inputSchema);
     let prompt = renderPrompt(normalizedSpec, normalizedInput);
     let lastResponse = "";
@@ -264,54 +263,26 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
     await emitEvent(listeners, { type: "call", agent: normalizedSpec.name, input, options });
 
     try {
-      for (let turn = 1; turn <= maxTurns; turn += 1) {
-        throwIfAborted(signal);
+      for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
+        throwIfAborted(runtime.signal);
         await emitEvent(listeners, { type: "send", agent: normalizedSpec.name, turn, prompt });
-        lastResponse = await session.send(prompt, signal ? { signal } : {});
+        lastResponse = await session.send(prompt, runtime.signal ? { signal: runtime.signal } : {});
         await emitEvent(listeners, { type: "response", agent: normalizedSpec.name, turn, response: lastResponse });
 
-        const parsed = parseJson(lastResponse);
-        if (parsed.ok) {
-          const result = validate(parsed.value, outputSchema);
-          if (result.ok) {
-            await emitEvent(listeners, { type: "result", agent: normalizedSpec.name, output: parsed.value });
-            return parsed.value;
-          }
-
-          const error = new AgentError({
-            kind: "validation",
-            agent: normalizedSpec.name,
-            turn,
-            response: lastResponse,
-            schema: outputSchema,
-            message: `Agent ${normalizedSpec.name} output validation failed: ${result.error}`,
-          });
-
-          if (turn === maxTurns || repair === false) {
-            throw error;
-          }
-
-          prompt = repairPrompt(normalizedSpec, error);
-          continue;
+        const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
+        if (analysis.ok) {
+          await emitEvent(listeners, { type: "result", agent: normalizedSpec.name, output: analysis.output });
+          return analysis.output;
         }
 
-        const error = new AgentError({
-          kind: "parse",
-          agent: normalizedSpec.name,
-          turn,
-          response: lastResponse,
-          schema: outputSchema,
-          message: `Agent ${normalizedSpec.name} returned invalid JSON: ${parsed.error}`,
-        });
-
-        if (turn === maxTurns || repair === false) {
-          throw error;
+        if (turn === runtime.maxTurns || runtime.repair === false) {
+          throw analysis.error;
         }
 
-        prompt = repairPrompt(normalizedSpec, error);
+        prompt = repairPrompt(normalizedSpec, analysis.error);
       }
 
-      throw new Error(`Agent ${normalizedSpec.name} failed after ${maxTurns} turns. Last response:\n${lastResponse}`);
+      throw new Error(`Agent ${normalizedSpec.name} failed after ${runtime.maxTurns} turns. Last response:\n${lastResponse}`);
     } catch (error) {
       await emitEvent(listeners, { type: "error", agent: normalizedSpec.name, error });
       throw error;
@@ -374,7 +345,7 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
   const value = inlineShellPrompts(input);
   const sections = [
     tag("instructions", (spec.instructions ?? "Return only valid JSON matching the output schema.").trim()),
-    tag("output_schema", renderSchema(spec.output ?? s.object({ text: s.string }))),
+    tag("output_schema", renderSchema(spec.output ?? defaultTextSchema)),
     tag("input", json(value)),
   ];
 
@@ -575,6 +546,42 @@ function inlineShellPrompts<T>(value: T): T {
   return walk(value) as T;
 }
 
+type ResponseAnalysis = { ok: true; output: unknown } | { ok: false; error: AgentError };
+
+function analyzeResponse(response: string, outputSchema: Schema, agentName: string, turn: number): ResponseAnalysis {
+  const parsed = parseJson(response);
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      error: new AgentError({
+        kind: "parse",
+        agent: agentName,
+        turn,
+        response,
+        schema: outputSchema,
+        message: `Agent ${agentName} returned invalid JSON: ${parsed.error}`,
+      }),
+    };
+  }
+
+  const result = validate(parsed.value, outputSchema);
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: new AgentError({
+        kind: "validation",
+        agent: agentName,
+        turn,
+        response,
+        schema: outputSchema,
+        message: `Agent ${agentName} output validation failed: ${result.error}`,
+      }),
+    };
+  }
+
+  return { ok: true, output: parsed.value };
+}
+
 function renderShellPrompt(intent: ShIntent): string {
   const options = formatShellOptions(intent.options);
   switch (intent.mode) {
@@ -624,6 +631,20 @@ function withOptions<T extends Omit<Partial<ShIntent>, "__rig" | "id" | "mode">>
 function getEngine(): Engine {
   currentEngine ??= copilotEngine();
   return currentEngine;
+}
+
+function resolveRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
+  model: string;
+  maxTurns: number;
+  signal: AbortSignal | undefined;
+  repair: RepairHandler;
+} {
+  return {
+    model: options.model ?? spec.model ?? "gpt-4.1",
+    maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
+    signal: timeoutSignal(options.signal, options.timeout ?? spec.timeout),
+    repair: spec.repair ?? "default",
+  };
 }
 
 function isSchema(value: unknown): value is Schema {
