@@ -1,6 +1,6 @@
 # Rig syntax review
 
-This review scores the **50 existing sample harnesses** in `src/samples/` (samples `02` through `51`) as examples of current rig syntax.
+This review scores **50 agentic harness scenarios** in `src/samples/` (samples `02` through `51`) as examples of current rig syntax.
 
 ## Scoring rubric
 
@@ -11,7 +11,8 @@ This review scores the **50 existing sample harnesses** in `src/samples/` (sampl
 ## Summary
 
 - **Overall solution quality:** `3.7 / 5`
-- **Overall naturalness:** `3.4 / 5`
+- **Overall naturalness for sample generation:** `3.4 / 5`
+- **Genetic friendliness index** (how reliably agents can mutate/recombine the syntax into correct new programs): `3.5 / 5`
 - **Most agent-friendly patterns:** explicit `s.*` schemas, short `agent({ ... })` specs, inline `sh.*` inputs, small focused outputs.
 - **Least agent-friendly patterns:** alternate schema spellings, advanced options that are absent from the skill doc, and examples that rely on implicit sugar instead of the explicit `s.*` form.
 
@@ -30,7 +31,7 @@ This review scores the **50 existing sample harnesses** in `src/samples/` (sampl
 3. The samples do not consistently reinforce one canonical schema style.
 4. Some sample names are stronger than the code they currently contain, so an agent can overgeneralize from the filename instead of the actual pattern.
 
-## Recommendations to make rig more agent-friendly
+## Recommendations to make rig more genetically friendly
 
 1. **Prefer explicit schemas in teaching docs.** Use `s.object(...)` as the default and only documented style.
 2. **Show one recommended template first.** Teach one “good default” agent shape before presenting variants.
@@ -38,6 +39,15 @@ This review scores the **50 existing sample harnesses** in `src/samples/` (sampl
 4. **Promote advanced fields into the main spec table.** Include `permissions` and `agents` alongside `name`, `instructions`, `input`, and `output`.
 5. **Call out anti-patterns.** Tell agents not to invent alternate schema spellings when the explicit `s.*` form is available.
 6. **Bias examples toward structured outputs.** Small typed outputs are easier for agents to mimic than raw prose-only agents.
+
+## Distilled generation rules
+
+1. Always start with `agent({ name, instructions, input, output })`.
+2. Keep schemas explicit with `s.object(...)` + `s.*` primitives.
+3. Keep outputs narrow and typed; avoid prose-only outputs when schema is possible.
+4. Use `sh.*` helpers as declarative input placeholders.
+5. Use `permissions`, `agents`, and call-time overrides only when scenario needs them.
+6. Treat this as the canonical order for sample generation: core agent shape → explicit schema → shell intents → advanced options → extensibility.
 
 ## Scenario scores
 
@@ -104,4 +114,4 @@ The skill file should teach this order:
 4. Add `permissions`, `agents`, and call-time overrides after the core path.
 5. End with extensibility and validation helpers.
 
-That ordering matches what the current samples reward and reduces the chance that an agent invents unsupported syntax.
+That ordering matches what the current samples reward, improves natural sample generation, and reduces the chance that an agent invents unsupported syntax.

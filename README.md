@@ -40,6 +40,18 @@ const result = await classify({
 });
 ```
 
+## Recommended generation order
+
+When generating new rig programs, use this canonical order:
+
+1. Start with `agent({ name, instructions, input, output })`.
+2. Define explicit typed schemas with `s.object(...)` and `s.*`.
+3. Add `sh.*` placeholders for shell/file context.
+4. Add advanced fields (`permissions`, `agents`) only when needed.
+5. Add call-time overrides (`model`, `timeout`, `maxTurns`, `signal`) at invocation time.
+
+This keeps generated harnesses small, predictable, and easier to reproduce.
+
 ## Schemas
 
 ```ts
@@ -111,6 +123,8 @@ RIG also supports explicit file operations aligned with PyAgent essentials:
 sh.read("README.md")
 sh.write("README.md", "# Updated\n")
 ```
+
+Use shell intents as declarative placeholders in inputs and `p`` templates; avoid embedding raw shell instructions as free-form prose.
 
 ## Engines
 
