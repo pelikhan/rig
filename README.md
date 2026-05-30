@@ -149,7 +149,7 @@ To run a root agent from a program file, export the root agent as the default ex
 echo "Summarize this repository" | node skills/rig/rig.ts src/program.ts
 ```
 
-Copilot SDK lifecycle events are logged to stderr as JSONL.
+Copilot SDK lifecycle events and rig request events are logged to stderr as JSONL.
 
 ## Local development
 

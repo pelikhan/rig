@@ -137,6 +137,30 @@ describe("agent invocation", () => {
     await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
   });
 
+  it("logs raw Copilot SDK events and rig ask events as JSONL", async () => {
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true as any);
+    mocks.setOnImpl((handler) => {
+      handler({ type: "session.idle", data: { done: true } });
+    });
+    mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
+
+    const greet = agent({
+      name: "greeter",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
+
+    const logs = stderr.mock.calls.map(([chunk]) => JSON.parse(String(chunk).trim()));
+    expect(logs).toHaveLength(2);
+    expect(logs[0]).toEqual({ type: "session.idle", data: { done: true } });
+    expect(logs[1]).toMatchObject({
+      type: "rig.copilot-ask",
+      data: { prompt: expect.stringContaining("Hi") },
+    });
+  });
+
   it("retries invalid JSON with the default repair prompt", async () => {
     const prompts: string[] = [];
     let calls = 0;
