@@ -1,26 +1,23 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { agent, s } from "rig";
 import type { AgentAddon } from "rig";
-
-const execFileAsync = promisify(execFile);
+import { $ } from "zx";
 
 async function workspaceFingerprint(): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("git", ["status", "--porcelain"]);
+    const { stdout } = await $`git status --porcelain`;
     return stdout.trim();
   } catch {
     return "";
   }
 }
 
-function lintOnFileChange(lintCommand: [string, ...string[]]): AgentAddon {
+function lintOnFileChange(): AgentAddon {
   return async (_context, next) => {
     const before = await workspaceFingerprint();
     await next();
     const after = await workspaceFingerprint();
     if (before !== after) {
-      await execFileAsync(lintCommand[0], lintCommand.slice(1));
+      await $`npm run typecheck`;
     }
   };
 }
@@ -34,7 +31,7 @@ const fileChangeMiddleware = agent({
     changed: s.boolean,
     summary: s.string,
   }),
-  addons: lintOnFileChange(["npm", "run", "typecheck"]),
+  addons: lintOnFileChange(),
 });
 
 await fileChangeMiddleware("Inspect the workspace and apply a small fix if needed.");
