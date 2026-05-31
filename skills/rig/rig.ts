@@ -155,6 +155,7 @@ export type AgentMiddlewareContext = {
   session: CopilotSession;
   input: unknown;
   outputSchema: Schema;
+  signal: AbortSignal | undefined;
   turn: number;
   maxTurns: number;
   prompt: string;
@@ -174,7 +175,6 @@ export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema
   input?: Input;
   output?: Output;
   model?: string;
-  timeout?: number;
   maxTurns?: number;
   middleware?: AgentMiddleware | AgentMiddleware[];
   agents?: Record<string, AgentFn<any, any>>;
@@ -602,6 +602,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
             session: copilot.session,
             input: normalizedInput,
             outputSchema,
+            signal: runtime.signal,
             turn,
             maxTurns: runtime.maxTurns,
             prompt,
@@ -609,7 +610,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
           };
 
           await runAgentMiddlewares(runtime.middlewares, context, async () => {
-            lastResponse = await sendCopilotPrompt(copilot.session, context.prompt, runtime.signal);
+            lastResponse = await sendCopilotPrompt(copilot.session, context.prompt, context.signal);
             context.response = lastResponse;
           });
 
@@ -687,7 +688,6 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
     spec.output = specOrName.output;
   }
   if (specOrName.model !== undefined) spec.model = specOrName.model;
-  if (specOrName.timeout !== undefined) spec.timeout = specOrName.timeout;
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
   if (specOrName.middleware !== undefined) spec.middleware = specOrName.middleware;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
@@ -1095,7 +1095,7 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
   return {
     model: options.model ?? spec.model ?? "gpt-4.1",
     maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
-    signal: timeoutSignal(options.signal, options.timeout ?? spec.timeout),
+    signal: timeoutSignal(options.signal, options.timeout),
     middlewares: normalizeMiddlewares(spec.middleware),
   };
 }

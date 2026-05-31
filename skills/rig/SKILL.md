@@ -87,7 +87,6 @@ Declare a structured agent.
 | `input` | Input schema |
 | `output` | Output schema |
 | `model` | Default model name; examples should use `"large"`, `"mini"`, or `"nano"` |
-| `timeout` | Default timeout in milliseconds |
 | `maxTurns` | Retry budget for invalid JSON or invalid output |
 | `middleware` | Per-turn middleware for steering, validation, and retry customization |
 | `agents` | Optional named subagents exposed to the harness |
@@ -170,7 +169,7 @@ const result = await myAgent(input, {
 });
 ```
 
-Use call-time options for per-run changes. Use spec fields for stable defaults.
+Use call-time options for per-run changes. Use middleware for stable defaults (for example `timeout({ timeout: ... })`).
 
 ## Subagents
 

@@ -39,7 +39,7 @@ vi.mock("@github/copilot-sdk", () => ({
 }));
 
 import { AgentError, agent, p, s } from "rig";
-import { repair, steering } from "rig/addons";
+import { repair, steering, timeout } from "rig/addons";
 
 beforeEach(() => {
   mocks.createSession.mockClear();
@@ -415,6 +415,19 @@ describe("agent invocation", () => {
 
     const slow = agent({ name: "timeout-test" });
     await expect(slow("go", { timeout: 50 })).rejects.toThrow(/Timed out/);
+  });
+
+  it("supports timeout as middleware", async () => {
+    mocks.setSendAndWaitImpl(async ({ signal }) => {
+      await new Promise((_, reject) => {
+        signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+        setTimeout(() => reject(new Error("should have aborted")), 5000);
+      });
+      return "";
+    });
+
+    const slow = agent({ name: "timeout-test", middleware: timeout({ timeout: 50 }) });
+    await expect(slow("go")).rejects.toThrow(/Timed out/);
   });
 
   it("inlines shell prompts and omits top-level prompt metadata", async () => {
