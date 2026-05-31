@@ -5,7 +5,7 @@ import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
-import type { CopilotClientOptions } from "@github/copilot-sdk";
+import type { CopilotClientOptions, SystemMessageConfig } from "@github/copilot-sdk";
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type ValidationResult = { ok: true } | { ok: false; error: string };
@@ -238,6 +238,7 @@ export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema
   maxTurns?: number;
   addons?: AgentAddon | AgentAddon[];
   agents?: Record<string, AgentFn<any, any>>;
+  systemMessage?: SystemMessageConfig;
 };
 
 export type CallOptions = {
@@ -811,7 +812,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
       const normalizedInput = normalizeInput(input, inputSchema);
       let prompt = renderPrompt(normalizedSpec, normalizedInput);
       let lastResponse = "";
-      const copilot = await createCopilotSession(runtime.model);
+      const copilot = await createCopilotSession(runtime.model, runtime.systemMessage);
       let failure: unknown;
 
       try {
@@ -911,6 +912,7 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
   if (specOrName.addons !== undefined) spec.addons = specOrName.addons;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
+  if (specOrName.systemMessage !== undefined) spec.systemMessage = specOrName.systemMessage;
   return spec;
 }
 
@@ -1278,9 +1280,10 @@ async function withCopilotClient<T>(fn: () => Promise<T>): Promise<T> {
   });
 }
 
-async function createCopilotSession(model: string): Promise<CopilotSessionHandle> {
+async function createCopilotSession(model: string, systemMessage?: SystemMessageConfig): Promise<CopilotSessionHandle> {
   const client = getCopilotClient();
-  const session: CopilotSession = await client.createSession({ model, streaming: false });
+  const config = { model, streaming: false, ...(systemMessage !== undefined && { systemMessage }) };
+  const session: CopilotSession = await client.createSession(config);
   session.on?.((event: unknown) => {
     writeEvent(event);
   });
@@ -1319,12 +1322,14 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
   maxTurns: number;
   signal: AbortSignal | undefined;
   addons: AgentAddon[];
+  systemMessage: SystemMessageConfig | undefined;
 } {
   return {
     model: options.model ?? spec.model ?? "gpt-4.1",
     maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
     signal: timeoutSignal(options.signal, options.timeout),
     addons: normalizeAddons(spec.addons),
+    systemMessage: spec.systemMessage,
   };
 }
 
