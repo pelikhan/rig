@@ -250,17 +250,12 @@ Use `oncePerSession()` from `rig/addons` when you need to register with the Copi
 
 Treat fenced `rig` code blocks in markdown as runnable rig programs.
 Run them by extracting the fence content and piping it into `node skills/rig/rig.ts`.
-Inline programs run a root agent with no required external input and write stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment:
+Inline programs run a default-exported root program with no required external input and write stdout. Export either an agent, a string, or a prompt builder value. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment:
 
 ```bash
 cat <<'RIG' | node skills/rig/rig.ts
 // Agent role: summarize this repository in one sentence.
-const root = agent({
-  name: "review",
-  model: "mini",
-  instructions: "Summarize this repository in one sentence.",
-});
-export default root;
+export default "Summarize this repository in one sentence.";
 RIG
 ```
 
@@ -268,7 +263,7 @@ RIG
 
 Inline mode accepts root agents that either omit `input`, use `input: s.object({})`, or rely on the default `input: s.string` (which is invoked with `""`).
 
-The harness also supports program-file mode. Export the root agent as the default export and pass input on stdin:
+The harness also supports program-file mode. Export the root program as the default export and pass input on stdin:
 
 ```bash
 echo "Review this diff" | node skills/rig/rig.ts src/program.ts
@@ -284,11 +279,8 @@ Pass `--typecheck` to typecheck the rig program before execution:
 
 ```bash
 cat <<'RIG' | node skills/rig/rig.ts --typecheck
-const root = agent({
-  name: "review",
-  model: "mini",
-});
-export default root;
+import { p } from "rig";
+export default p`Summarize this repository and include highlights from ${p.read("README.md")}.`;
 RIG
 ```
 

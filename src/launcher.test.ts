@@ -112,6 +112,40 @@ it("supports stdin mode for string input/output root agents", async () => {
   expect(output.join("")).toBe("done");
 });
 
+it("supports stdin mode when root default export is a string", async () => {
+  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin-default-string.fixture.ts");
+  const stdin = Readable.from(["Review this patch"]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  mocks.setSendAndWaitImpl(async () => JSON.stringify("done"));
+  await runLauncherCli([fixturePath], {}, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
+});
+
+it("supports stdin mode when root default export is a prompt builder", async () => {
+  const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin-default-prompt.fixture.ts");
+  const stdin = Readable.from(["Review this patch"]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  mocks.setSendAndWaitImpl(async () => JSON.stringify("done"));
+  await runLauncherCli([fixturePath], {}, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
+});
+
 it("supports stdin mode for JSON input and JSON stdout output", async () => {
   const fixturePath = resolve(dirname(fileURLToPath(import.meta.url)), "./launcher.stdin-json.fixture.ts");
   const stdin = Readable.from(["{\"message\":\"hello\"}"]);
@@ -154,7 +188,7 @@ it("requires stdin-mode root agent to be a default export", async () => {
 
   await expect(
     runLauncherCli([fixturePath], {}, { stdin, stdout }),
-  ).rejects.toThrow("Expected program to export a root agent as default export.");
+  ).rejects.toThrow("Expected program to export a root value (agent, string, or prompt builder) as default export.");
 });
 
 it("rejects stdin mode when prompt is empty", async () => {
@@ -316,6 +350,40 @@ const reviewer = agent({
   name: "launcher-stdin-program",
   instructions: "Write a short note.",
 });
+`]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  await runLauncherCli([], {}, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
+});
+
+it("runs an inlined stdin program when default export is a string", async () => {
+  const stdin = Readable.from([`
+export default "Write a short note.";
+`]);
+  const output: string[] = [];
+  const stdout = new Writable({
+    write(chunk, _encoding, callback) {
+      output.push(chunk.toString());
+      callback();
+    },
+  });
+
+  await runLauncherCli([], {}, { stdin, stdout });
+
+  expect(output.join("")).toBe("done");
+});
+
+it("runs an inlined stdin program when default export is a prompt builder", async () => {
+  const stdin = Readable.from([`
+export default p\`Write a short note about \${p.read("README.md")}.\`;
 `]);
   const output: string[] = [];
   const stdout = new Writable({
