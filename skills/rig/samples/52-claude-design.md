@@ -6,7 +6,6 @@ import { agent, s } from "rig";
 const writer = agent({
   name: "writer",
   model: "mini",
-  input: s.string,
   output: s.object({ draft: s.string }),
   instructions: "Write a helpful, clear response to the request.",
 });

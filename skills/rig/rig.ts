@@ -105,7 +105,7 @@ export const s = {
   },
 };
 
-const defaultTextSchema = s.object({ text: s.string });
+const defaultStringSchema = s.string;
 
 export type CopilotEngineOptions = Omit<CopilotClientOptions, "connection"> & {
   connection?: CopilotClientOptions["connection"];
@@ -151,7 +151,7 @@ function writeEvent(event: unknown): void {
 
 export type RepairHandler = false | "default" | ((error: AgentError) => string);
 
-export type AgentSpec<Input extends Schema = ObjectSchema<{ text: StringSchema }>, Output extends Schema = ObjectSchema<{ text: StringSchema }>> = {
+export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
   name: string;
   instructions?: string;
   input?: Input;
@@ -321,6 +321,9 @@ function asRootAgent(value: unknown): AgentFn | undefined {
 
 function noInputInvocation(agentFn: AgentFn): unknown | undefined {
   const schema = agentFn.inputSchema;
+  if (schema.kind === "string") {
+    return "";
+  }
   if (schema.kind !== "object") {
     return undefined;
   }
@@ -562,13 +565,13 @@ export async function runLauncherCli(
 }
 
 export function agent<
-  const Input extends Schema = ObjectSchema<{ text: StringSchema }>,
-  const Output extends Schema = ObjectSchema<{ text: StringSchema }>
+  const Input extends Schema = StringSchema,
+  const Output extends Schema = StringSchema
 >(spec: AgentSpec<Input, Output>): AgentFn<InferSchema<Input>, InferSchema<Output>>;
 export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const normalizedSpec = normalizeSpec(spec);
-  const inputSchema = normalizedSpec.input ?? defaultTextSchema;
-  const outputSchema = normalizedSpec.output ?? defaultTextSchema;
+  const inputSchema = normalizedSpec.input ?? defaultStringSchema;
+  const outputSchema = normalizedSpec.output ?? defaultStringSchema;
 
   const fn = (async (input: unknown, options: CallOptions = {}) =>
     withCopilotClient(async () => {
@@ -653,6 +656,9 @@ function normalizeInput(input: unknown, schema: Schema): unknown {
   if (input !== undefined) {
     return input;
   }
+  if (schema.kind === "string") {
+    return "";
+  }
   if (schema.kind === "object") {
     return {};
   }
@@ -663,7 +669,7 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
   const value = inlineShellPrompts(input);
   const sections = [
     tag("instructions", (spec.instructions ?? "Return only valid JSON matching the output schema.").trim()),
-    tag("output_schema", renderSchema(spec.output ?? defaultTextSchema)),
+    tag("output_schema", renderSchema(spec.output ?? defaultStringSchema)),
     tag("input", json(value)),
   ];
 
@@ -685,7 +691,7 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
   }
 
   sections.push(tag("rules", [
-    "Return exactly one JSON object.",
+    "Return exactly one JSON value.",
     "Do not wrap the JSON in Markdown.",
     "Match the output schema exactly.",
   ].join("\n")));
@@ -723,7 +729,7 @@ function parseJson(text: string): { ok: true; value: unknown } | { ok: false; er
 
   const objectMatch = text.match(/\{[\s\S]*\}/);
   if (!objectMatch) {
-    return { ok: false, error: "No JSON object found." };
+    return { ok: false, error: "No JSON value found." };
   }
 
   try {

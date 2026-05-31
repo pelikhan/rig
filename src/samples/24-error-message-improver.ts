@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 const inferShape = agent({
     name: "inferShape",
     model: "mini",
-    input: s.string,
     output: s.object({
         fields: s.array(s.object({
             name: s.string,

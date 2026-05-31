@@ -197,15 +197,12 @@ Expose subagents with `agents`:
 const summarizeDiff = agent({
   name: "summarizeDiff",
   model: "mini",
-  input: s.string,
-  output: s.string,
 });
 
 // Agent role: review the diff using the provided subagent when helpful.
 const reviewer = agent({
   name: "reviewer",
   model: "mini",
-  input: s.string,
   output: s.object({
     summary: s.string,
     issues: s.array(s.string),
@@ -235,8 +232,6 @@ Agents retry invalid output up to `maxTurns`.
 const summarize = agent({
   name: "summarize",
   model: "mini",
-  input: s.string,
-  output: s.string,
   maxTurns: 3,
   repair: "default",
 });
@@ -261,7 +256,6 @@ const root = agent({
   name: "review",
   model: "mini",
   instructions: "Summarize this repository in one sentence.",
-  output: s.string,
 });
 export default root;
 RIG
@@ -269,7 +263,7 @@ RIG
 
 `import { agent, p, s } from "rig"` is optional in inline mode; the harness injects it if omitted.
 
-Inline mode accepts root agents that either omit `input`, use `input: s.object({})`, or rely on the default `input: s.object({ text: s.string })` (which is invoked with `{ text: "" }`).
+Inline mode accepts root agents that either omit `input`, use `input: s.object({})`, or rely on the default `input: s.string` (which is invoked with `""`).
 
 The harness also supports program-file mode. Export the root agent as the default export and pass input on stdin:
 
@@ -290,7 +284,6 @@ cat <<'RIG' | node skills/rig/rig.ts --typecheck
 const root = agent({
   name: "review",
   model: "mini",
-  output: s.string,
 });
 export default root;
 RIG
@@ -310,7 +303,7 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 
 ## Patterns to prefer
 
-- Prefer `s.object(...)` for important examples.
+- Prefer `s.object(...)` for important examples. Omit schemas entirely when the default free-form string is enough.
 - Keep outputs small, typed, and explicit.
 - Use `s.enum(...)` when exact values matter.
 - Prefer `p.*` inside `p\`\`` templates; fall back to inputs only for real caller-provided data.
@@ -320,7 +313,8 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 
 ## Patterns to avoid
 
-- Do not wrap a single string field in an input object; use `input: s.string` directly.
+- When a free-form string is enough, omit `input`/`output` and use the default `s.string` schemas.
+- Do not wrap a single string field in an input object just to carry text.
 - Do not import shell helpers from anywhere except `rig`.
 - Do not require `input` fields just to pass `p.read(...)` / `p.bash(...)` context into instructions.
 - Do not leave outputs as unstructured prose when a schema would help.

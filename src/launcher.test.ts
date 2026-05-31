@@ -6,7 +6,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
 const mocks = vi.hoisted(() => {
-  let sendAndWaitImpl: () => unknown | Promise<unknown> = async () => ({ text: "done" });
+  let sendAndWaitImpl: () => unknown | Promise<unknown> = async () => JSON.stringify("done");
   const disconnectSession = vi.fn(async () => {});
   const stopClient = vi.fn(async () => []);
   const createSession = vi.fn(async () => ({
@@ -44,7 +44,7 @@ beforeEach(() => {
   mocks.copilotClientCtor.mockClear();
   mocks.disconnectSession.mockClear();
   mocks.stopClient.mockClear();
-  mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
+  mocks.setSendAndWaitImpl(async () => JSON.stringify("done"));
 });
 
 async function runCliAndCaptureStdout(argv: string[], stdinChunks: string[] = [""]): Promise<string> {
@@ -66,7 +66,7 @@ it("loads a rig program and mounts a copilot client", async () => {
   const before = globalState.__launcherLoaded ?? 0;
   const fixturePath = resolve(__dirname, "./launcher.fixture.ts");
 
-  mocks.setSendAndWaitImpl(async () => ({ text: "mounted" }));
+  mocks.setSendAndWaitImpl(async () => JSON.stringify("mounted"));
   await launchRigProgram(fixturePath);
 
   expect(globalState.__launcherLoaded).toBe(before + 1);
@@ -74,10 +74,9 @@ it("loads a rig program and mounts a copilot client", async () => {
   const call = agent({
     name: "launcher-test",
     input: s.object({}),
-    output: s.object({ text: s.string }),
   });
   const result = await call({});
-  expect(result).toEqual({ text: "mounted" });
+  expect(result).toBe("mounted");
 });
 
 it("uses stdin mode by default and writes the final answer to stdout", async () => {
@@ -91,7 +90,6 @@ it("uses stdin mode by default and writes the final answer to stdout", async () 
     },
   });
 
-  mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
   await runLauncherCli([fixturePath], {}, { stdin, stdout });
 
   expect(output.join("")).toBe("done");
@@ -244,7 +242,6 @@ it("rejects --typecheck when inline program fails typecheck", async () => {
 const root = agent({
   name: "launcher-stdin-program",
   instructions: 42,
-  output: s.object({ text: s.string }),
 });
 export default root;
 `]);
@@ -270,8 +267,6 @@ const shouldBeString: string = 42;
 void shouldBeString;
 const root = agent({
   name: "launcher-typecheck-fail",
-  input: s.object({ text: s.string }),
-  output: s.object({ text: s.string }),
 });
 export default root;
 `,
@@ -298,7 +293,6 @@ it("runs an inlined stdin program by invoking the default no-input root agent", 
   const stdin = Readable.from([`
 const root = agent({
   name: "launcher-stdin-program",
-  output: s.object({ text: s.string }),
   instructions: "Write a short note.",
 });
 export default root;
@@ -311,7 +305,6 @@ export default root;
     },
   });
 
-  mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
   await runLauncherCli([], {}, { stdin, stdout });
 
   expect(output.join("")).toBe("done");
@@ -321,7 +314,6 @@ it("runs an inlined stdin program by defaulting to the first agent assignment", 
   const stdin = Readable.from([`
 const reviewer = agent({
   name: "launcher-stdin-program",
-  output: s.object({ text: s.string }),
   instructions: "Write a short note.",
 });
 `]);
@@ -333,7 +325,6 @@ const reviewer = agent({
     },
   });
 
-  mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
   await runLauncherCli([], {}, { stdin, stdout });
 
   expect(output.join("")).toBe("done");
@@ -344,7 +335,6 @@ it("rejects an inlined stdin program when the root agent requires input", async 
 const root = agent({
   name: "launcher-stdin-program-with-input",
   input: s.object({ message: s.string }),
-  output: s.object({ text: s.string }),
 });
 export default root;
 `]);
@@ -364,11 +354,9 @@ it("uses the first agent assignment as inline stdin root when no default export 
 const first = agent({
   name: "launcher-stdin-program-with-input",
   input: s.object({ message: s.string }),
-  output: s.object({ text: s.string }),
 });
 const second = agent({
   name: "launcher-stdin-program-no-input",
-  output: s.object({ text: s.string }),
 });
 `]);
   const stdout = new Writable({
@@ -386,12 +374,10 @@ it("uses the first no-input agent assignment as inline stdin root when no defaul
   const stdin = Readable.from([`
 const first = agent({
   name: "launcher-stdin-program-no-input",
-  output: s.object({ text: s.string }),
 });
 const second = agent({
   name: "launcher-stdin-program-with-input",
   input: s.object({ message: s.string }),
-  output: s.object({ text: s.string }),
 });
 `]);
   const output: string[] = [];
@@ -402,7 +388,6 @@ const second = agent({
     },
   });
 
-  mocks.setSendAndWaitImpl(async () => ({ text: "done" }));
   await runLauncherCli([], {}, { stdin, stdout });
 
   expect(output.join("")).toBe("done");

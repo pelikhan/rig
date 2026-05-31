@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 const normalize = agent({
     name: "normalizeConfig",
     model: "mini",
-    input: s.string,
     output: s.object({
         normalized: s.unknown,
         warnings: s.array(s.string)

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  let sendAndWaitImpl: (request: { prompt: string; signal?: AbortSignal }) => unknown | Promise<unknown> = async () => ({ text: "default" });
+  let sendAndWaitImpl: (request: { prompt: string; signal?: AbortSignal }) => unknown | Promise<unknown> = async () => JSON.stringify("default");
   let onImpl: ((handler: (event: unknown) => void) => void) | undefined;
   const disconnectSession = vi.fn(async () => {});
   const stopClient = vi.fn(async () => []);
@@ -48,7 +48,7 @@ beforeEach(() => {
   mocks.disconnectSession.mockClear();
   mocks.stopClient.mockClear();
   mocks.setOnImpl(undefined);
-  mocks.setSendAndWaitImpl(async () => ({ text: "default" }));
+  mocks.setSendAndWaitImpl(async () => JSON.stringify("default"));
   vi.restoreAllMocks();
 });
 
@@ -127,6 +127,26 @@ describe("agent", () => {
   it("does not expose lifecycle subscription APIs on agents", () => {
     const myAgent = agent({ name: "test-agent" }) as { subscribe?: unknown };
     expect(myAgent.subscribe).toBeUndefined();
+  });
+
+  it("defaults omitted input and output schemas to string", () => {
+    const textAgent = agent({ name: "text-agent" });
+    expect(textAgent.inputSchema).toEqual(s.string);
+    expect(textAgent.outputSchema).toEqual(s.string);
+  });
+
+  it("uses empty strings for omitted default string inputs", async () => {
+    const prompts: string[] = [];
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      return JSON.stringify("ok");
+    });
+
+    const textAgent = agent({ name: "text-agent" });
+    await expect((textAgent as (input?: string) => Promise<string>)()).resolves.toBe("ok");
+    expect(prompts[0]).toContain("<output_schema>\nstring\n</output_schema>");
+    expect(prompts[0]).toContain("<input>\n\"\"\n</input>");
+    expect(prompts[0]).toContain("Return exactly one JSON value.");
   });
 });
 
@@ -217,7 +237,7 @@ describe("agent invocation", () => {
     mocks.setSendAndWaitImpl(async ({ prompt }) => {
       prompts.push(prompt);
       calls += 1;
-      return calls === 1 ? "not json" : { text: "repaired" };
+      return calls === 1 ? "not json" : JSON.stringify("repaired");
     });
 
     const repairable = agent({
@@ -225,7 +245,7 @@ describe("agent invocation", () => {
       maxTurns: 2,
     });
 
-    await expect(repairable({ text: "go" })).resolves.toEqual({ text: "repaired" });
+    await expect(repairable("go")).resolves.toBe("repaired");
     expect(prompts).toHaveLength(2);
     expect(prompts[1]).toContain("<repair");
     expect(prompts[1]).toContain("invalid JSON");
@@ -238,7 +258,7 @@ describe("agent invocation", () => {
     mocks.setSendAndWaitImpl(async ({ prompt }) => {
       prompts.push(prompt);
       calls += 1;
-      return calls === 1 ? { wrong: true } : { text: "fixed" };
+      return calls === 1 ? { wrong: true } : JSON.stringify("fixed");
     });
 
     const repairable = agent({
@@ -249,7 +269,7 @@ describe("agent invocation", () => {
       maxTurns: 2,
     });
 
-    await expect(repairable({ text: "go" })).resolves.toEqual({ text: "fixed" });
+    await expect(repairable("go")).resolves.toBe("fixed");
     expect(prompts[1]).toContain("please fix");
   });
 
@@ -261,15 +281,15 @@ describe("agent invocation", () => {
       repair: false,
     });
 
-    await expect(strict({ text: "go" })).rejects.toBeInstanceOf(AgentError);
-    await expect(strict({ text: "go" })).rejects.toMatchObject({ kind: "parse" });
+    await expect(strict("go")).rejects.toBeInstanceOf(AgentError);
+    await expect(strict("go")).rejects.toMatchObject({ kind: "parse" });
   });
 
   it("supports per-call model overrides", async () => {
-    mocks.setSendAndWaitImpl(async () => ({ text: "ok" }));
+    mocks.setSendAndWaitImpl(async () => JSON.stringify("ok"));
 
     const call = agent({ name: "model-test", model: "gpt-4.1" });
-    await call({ text: "x" }, { model: "o3-mini" });
+    await call("x", { model: "o3-mini" });
 
     expect(mocks.createSession).toHaveBeenCalledWith({ model: "o3-mini", streaming: false });
   });
@@ -284,7 +304,7 @@ describe("agent invocation", () => {
     });
 
     const slow = agent({ name: "timeout-test" });
-    await expect(slow({ text: "go" }, { timeout: 50 })).rejects.toThrow(/Timed out/);
+    await expect(slow("go", { timeout: 50 })).rejects.toThrow(/Timed out/);
   });
 
   it("inlines shell prompts and omits top-level prompt metadata", async () => {
@@ -329,7 +349,7 @@ describe("agent invocation", () => {
       output: s.object({ text: s.string }),
     });
 
-    await inspect({ text: "go" });
+    await inspect("go");
 
     expect(prompts[0]).toContain("Review the repo using Run bash command and return stdout as text: git status --short");
     expect(prompts[0]).toContain("Options:");
@@ -352,7 +372,7 @@ describe("agent invocation", () => {
       }, "Response payload"),
     });
 
-    await describeSchema({ text: "go" });
+    await describeSchema("go");
 
     expect(prompts[0]).toContain("text: string /* Final answer text */;");
     expect(prompts[0]).toContain("} /* Response payload */");

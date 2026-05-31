@@ -3,7 +3,6 @@ import { agent, s } from "rig";
 const designReview = agent({
     name: "designReview",
     model: "mini",
-    input: s.string,
     output: s.object({
         decision: s.enum("approve", "revise", "reject"),
         strengths: s.array(s.string),

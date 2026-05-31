@@ -1,9 +1,7 @@
-import { agent, s } from "rig";
+import { agent } from "rig";
 
 const root = agent({
   name: "launcher-stdin-root",
-  input: s.object({ text: s.string }),
-  output: s.object({ text: s.string }),
 });
 
 export default root;

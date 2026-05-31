@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 const flaky = agent({
     name: "flakyAnalysis",
     model: "mini",
-    input: s.string,
     output: s.object({
         likelyFlaky: s.boolean,
         signals: s.array(s.string),

@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 const extractJson = agent({
     name: "extractJson",
     model: "mini",
-    input: s.string,
     output: s.object({
         raw: s.unknown,
         summary: s.string

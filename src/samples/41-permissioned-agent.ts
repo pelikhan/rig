@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 const coverage = agent({
     name: "coverage",
     model: "mini",
-    input: s.string,
     output: s.object({
         files: s.record(s.object({
             lines: s.number,

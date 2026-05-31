@@ -3,7 +3,6 @@ import { agent, s } from "rig";
 const categorize = agent({
     name: "categorizeChange",
     model: "mini",
-    input: s.string,
     output: s.object({
         category: s.enum("added", "changed", "deprecated", "removed", "fixed", "security"),
         entry: s.string

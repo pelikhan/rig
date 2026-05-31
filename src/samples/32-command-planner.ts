@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 const packageMap = agent({
     name: "packageMap",
     model: "mini",
-    input: s.string,
     output: s.object({
         packages: s.array(s.object({
             name: s.string,
