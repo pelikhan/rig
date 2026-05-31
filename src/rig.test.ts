@@ -492,7 +492,7 @@ describe("agent invocation", () => {
       if (calls === 1) {
         return "not json";
       }
-      return prompt.includes("last retry before max turns")
+      return prompt.includes("final attempt before reaching the turn limit")
         ? JSON.stringify("recovered")
         : "still not json";
     });
@@ -505,7 +505,7 @@ describe("agent invocation", () => {
 
     await expect(steerable("go")).resolves.toBe("recovered");
     expect(prompts).toHaveLength(2);
-    expect(prompts[1]).toContain("last retry before max turns");
+    expect(prompts[1]).toContain("final attempt before reaching the turn limit");
   });
 
   it("supports middleware that validates snippets inline", async () => {
