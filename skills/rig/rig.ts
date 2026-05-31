@@ -10,19 +10,20 @@ import type { CopilotClientOptions } from "@github/copilot-sdk";
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type ValidationResult = { ok: true } | { ok: false; error: string };
 
-export type StringSchema = { kind: "string"; description?: string };
-export type NumberSchema = { kind: "number"; description?: string };
-export type BooleanSchema = { kind: "boolean"; description?: string };
+export type StringSchema = { kind: "string"; type: "string"; description?: string };
+export type NumberSchema = { kind: "number"; type: "number"; description?: string };
+export type BooleanSchema = { kind: "boolean"; type: "boolean"; description?: string };
 export type UnknownSchema = { kind: "unknown"; description?: string };
-export type ArraySchema<Item extends Schema = Schema> = { kind: "array"; item: Item; description?: string };
+export type ArraySchema<Item extends Schema = Schema> = { kind: "array"; type: "array"; items: Item; description?: string };
 export type ObjectSchema<Fields extends Record<string, Schema> = Record<string, Schema>> = {
   kind: "object";
-  fields: Fields;
+  type: "object";
+  properties: Fields;
   description?: string;
 };
-export type RecordSchema<Value extends Schema = Schema> = { kind: "record"; value: Value; description?: string };
-export type EnumSchema<Values extends readonly Json[] = readonly Json[]> = { kind: "enum"; values: Values; description?: string };
-export type OptionalSchema<Inner extends Schema = Schema> = { kind: "optional"; inner: Inner; description?: string };
+export type RecordSchema<Value extends Schema = Schema> = { kind: "record"; type: "object"; additionalProperties: Value; description?: string };
+export type EnumSchema<Values extends readonly Json[] = readonly Json[]> = { kind: "enum"; enum: Values; description?: string };
+export type OptionalSchema<Inner extends Schema = Schema> = { kind: "optional"; schema: Inner; description?: string };
 
 export type Schema =
   | StringSchema
@@ -37,9 +38,15 @@ export type Schema =
 
 type SchemaHelperFactory<T extends Schema> = T & ((description?: string) => T);
 
-function createPrimitiveSchema<T extends Schema>(kind: T["kind"]): SchemaHelperFactory<T> {
-  const base = { kind } as T;
+function createTypedPrimitiveSchema<T extends Schema>(kind: T["kind"]): SchemaHelperFactory<T> {
+  const base = { kind, type: kind } as unknown as T;
   const factory = ((description?: string) => (description === undefined ? base : { ...base, description } as T)) as SchemaHelperFactory<T>;
+  return Object.assign(factory, base);
+}
+
+function createUnknownSchema(): SchemaHelperFactory<UnknownSchema> {
+  const base: UnknownSchema = { kind: "unknown" };
+  const factory = ((description?: string) => (description === undefined ? base : { ...base, description })) as SchemaHelperFactory<UnknownSchema>;
   return Object.assign(factory, base);
 }
 
@@ -55,12 +62,12 @@ const createEnumSchema: EnumSchemaFactory = (...args: unknown[]) => {
     && Array.isArray(valuesOrTuple[0])
     && typeof valuesOrTuple[1] === "string"
   ) {
-    const values = valuesOrTuple[0] as readonly Json[];
+    const enumValues = valuesOrTuple[0] as readonly Json[];
     const description = valuesOrTuple[1] as string;
-    return { kind: "enum", values, description };
+    return { kind: "enum", enum: enumValues, description };
   }
-  const values = valuesOrTuple as readonly Json[];
-  return { kind: "enum", values };
+  const enumValues = valuesOrTuple as readonly Json[];
+  return { kind: "enum", enum: enumValues };
 };
 
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
@@ -75,33 +82,33 @@ export type InferSchema<T> =
   T extends { kind: "number" } ? number :
   T extends { kind: "boolean" } ? boolean :
   T extends { kind: "unknown" } ? unknown :
-  T extends { kind: "array"; item: infer Item } ? InferSchema<Item>[] :
-  T extends { kind: "record"; value: infer Value } ? Record<string, InferSchema<Value>> :
-  T extends { kind: "enum"; values: infer Values extends readonly unknown[] } ? Values[number] :
-  T extends { kind: "optional"; inner: infer Inner } ? InferSchema<Inner> | undefined :
-  T extends { kind: "object"; fields: infer Fields extends Record<string, unknown> } ? Simplify<
+  T extends { kind: "array"; items: infer Item } ? InferSchema<Item>[] :
+  T extends { kind: "record"; additionalProperties: infer Value } ? Record<string, InferSchema<Value>> :
+  T extends { kind: "enum"; enum: infer Values extends readonly unknown[] } ? Values[number] :
+  T extends { kind: "optional"; schema: infer Inner } ? InferSchema<Inner> | undefined :
+  T extends { kind: "object"; properties: infer Fields extends Record<string, unknown> } ? Simplify<
     & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? never : K]: InferSchema<Fields[K]> }
-    & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? K : never]?: Fields[K] extends { kind: "optional"; inner: infer Inner } ? InferSchema<Inner> : never }
+    & { [K in keyof Fields as Fields[K] extends { kind: "optional" } ? K : never]?: Fields[K] extends { kind: "optional"; schema: infer Inner } ? InferSchema<Inner> : never }
   > :
   unknown;
 
 export const s = {
-  string: createPrimitiveSchema<StringSchema>("string"),
-  number: createPrimitiveSchema<NumberSchema>("number"),
-  boolean: createPrimitiveSchema<BooleanSchema>("boolean"),
-  unknown: createPrimitiveSchema<UnknownSchema>("unknown"),
-  array<Item extends Schema>(item: Item, description?: string): ArraySchema<Item> {
-    return description === undefined ? { kind: "array", item } : { kind: "array", item, description };
+  string: createTypedPrimitiveSchema<StringSchema>("string"),
+  number: createTypedPrimitiveSchema<NumberSchema>("number"),
+  boolean: createTypedPrimitiveSchema<BooleanSchema>("boolean"),
+  unknown: createUnknownSchema(),
+  array<Item extends Schema>(items: Item, description?: string): ArraySchema<Item> {
+    return description === undefined ? { kind: "array", type: "array", items } : { kind: "array", type: "array", items, description };
   },
-  object<Fields extends Record<string, Schema>>(fields: Fields, description?: string): ObjectSchema<Fields> {
-    return description === undefined ? { kind: "object", fields } : { kind: "object", fields, description };
+  object<Fields extends Record<string, Schema>>(properties: Fields, description?: string): ObjectSchema<Fields> {
+    return description === undefined ? { kind: "object", type: "object", properties } : { kind: "object", type: "object", properties, description };
   },
-  record<Value extends Schema>(value: Value, description?: string): RecordSchema<Value> {
-    return description === undefined ? { kind: "record", value } : { kind: "record", value, description };
+  record<Value extends Schema>(additionalProperties: Value, description?: string): RecordSchema<Value> {
+    return description === undefined ? { kind: "record", type: "object", additionalProperties } : { kind: "record", type: "object", additionalProperties, description };
   },
   enum: createEnumSchema,
-  optional<Inner extends Schema>(inner: Inner, description?: string): OptionalSchema<Inner> {
-    return description === undefined ? { kind: "optional", inner } : { kind: "optional", inner, description };
+  optional<Inner extends Schema>(schema: Inner, description?: string): OptionalSchema<Inner> {
+    return description === undefined ? { kind: "optional", schema } : { kind: "optional", schema, description };
   },
   toJsonSchema,
 };
@@ -109,7 +116,7 @@ export const s = {
 export type JsonSchemaObject = { [key: string]: unknown };
 
 export function toJsonSchema(schema: Schema): JsonSchemaObject {
-  const description = schema.description;
+  const { description } = schema;
   const withDescription = (obj: JsonSchemaObject): JsonSchemaObject =>
     description === undefined ? obj : { ...obj, description };
   switch (schema.kind) {
@@ -122,19 +129,19 @@ export function toJsonSchema(schema: Schema): JsonSchemaObject {
     case "unknown":
       return withDescription({});
     case "enum":
-      return withDescription({ enum: schema.values });
+      return withDescription({ enum: schema.enum });
     case "optional":
-      return toJsonSchema({ ...schema.inner, description: description ?? schema.inner.description });
+      return toJsonSchema({ ...schema.schema, description: description ?? schema.schema.description });
     case "array":
-      return withDescription({ type: "array", items: toJsonSchema(schema.item) });
+      return withDescription({ type: "array", items: toJsonSchema(schema.items) });
     case "record":
-      return withDescription({ type: "object", additionalProperties: toJsonSchema(schema.value) });
+      return withDescription({ type: "object", additionalProperties: toJsonSchema(schema.additionalProperties) });
     case "object": {
       const properties: Record<string, JsonSchemaObject> = {};
       const required: string[] = [];
-      for (const [key, field] of Object.entries(schema.fields) as [string, Schema][]) {
+      for (const [key, field] of Object.entries(schema.properties) as [string, Schema][]) {
         if (field.kind === "optional") {
-          properties[key] = toJsonSchema(field.inner);
+          properties[key] = toJsonSchema(field.schema);
         } else {
           properties[key] = toJsonSchema(field);
           required.push(key);
@@ -528,15 +535,15 @@ function noInputInvocation(agentFn: AgentFn): unknown | undefined {
   if (schema.kind !== "object") {
     return undefined;
   }
-  const keys = Object.keys(schema.fields);
+  const keys = Object.keys(schema.properties);
   if (keys.length === 0) {
     return {};
   }
   if (
     keys.length === 1
-    && "text" in schema.fields
-    && schema.fields.text?.kind === "string"
-    && schema.fields.text.optional !== true
+    && "text" in schema.properties
+    && schema.properties.text?.kind === "string"
+    && schema.properties.text.optional !== true
   ) {
     return { text: "" };
   }
@@ -568,7 +575,7 @@ function coerceStdinInput(agentFn: AgentFn, text: string): unknown {
   if (schema.kind === "string") {
     return text;
   }
-  if (schema.kind === "object" && "text" in schema.fields) {
+  if (schema.kind === "object" && "text" in schema.properties) {
     return { text };
   }
   try {
@@ -989,17 +996,17 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
     case "unknown":
       return ok();
     case "enum":
-      return schema.values.some((item: Json) => deepEqual(item, value))
+      return schema.enum.some((item: Json) => deepEqual(item, value))
         ? ok()
-        : bad(path, schema.values.map((item: Json) => JSON.stringify(item)).join(" | "), value);
+        : bad(path, schema.enum.map((item: Json) => JSON.stringify(item)).join(" | "), value);
     case "optional":
-      return validateSchema(value, schema.inner, path, true);
+      return validateSchema(value, schema.schema, path, true);
     case "array": {
       if (!Array.isArray(value)) {
         return bad(path, "array", value);
       }
       for (let index = 0; index < value.length; index += 1) {
-        const result = validateSchema(value[index], schema.item, `${path}[${index}]`, false);
+        const result = validateSchema(value[index], schema.items, `${path}[${index}]`, false);
         if (!result.ok) {
           return result;
         }
@@ -1011,7 +1018,7 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
         return bad(path, "object", value);
       }
       for (const [key, item] of Object.entries(value)) {
-        const result = validateSchema(item, schema.value, `${path}.${key}`, false);
+        const result = validateSchema(item, schema.additionalProperties, `${path}.${key}`, false);
         if (!result.ok) {
           return result;
         }
@@ -1022,7 +1029,7 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
       if (!value || typeof value !== "object" || Array.isArray(value)) {
         return bad(path, "object", value);
       }
-      for (const [key, fieldSchema] of Object.entries(schema.fields) as [string, Schema][]) {
+      for (const [key, fieldSchema] of Object.entries(schema.properties) as [string, Schema][]) {
         const result = validateSchema(
           (value as Record<string, unknown>)[key],
           fieldSchema,
@@ -1057,18 +1064,18 @@ function renderSchemaNode(schema: Schema, indent: number): string {
     case "unknown":
       return describe("unknown");
     case "enum":
-      return describe(schema.values.map((value: Json) => JSON.stringify(value)).join(" | "));
+      return describe(schema.enum.map((value: Json) => JSON.stringify(value)).join(" | "));
     case "optional":
-      return describe(`${renderSchemaNode(schema.inner, indent)} | undefined`);
+      return describe(`${renderSchemaNode(schema.schema, indent)} | undefined`);
     case "array":
-      return describe(`${renderSchemaNode(schema.item, indent)}[]`);
+      return describe(`${renderSchemaNode(schema.items, indent)}[]`);
     case "record":
-      return describe(`{\n${pad}  [key: string]: ${renderSchemaNode(schema.value, indent + 1)};\n${pad}}`);
+      return describe(`{\n${pad}  [key: string]: ${renderSchemaNode(schema.additionalProperties, indent + 1)};\n${pad}}`);
     case "object": {
       const lines = ["{"];
-      for (const [key, value] of Object.entries(schema.fields) as [string, Schema][]) {
+      for (const [key, value] of Object.entries(schema.properties) as [string, Schema][]) {
         if (value.kind === "optional") {
-          lines.push(`${pad}  ${key}?: ${renderSchemaNode(value.inner, indent + 1)};`);
+          lines.push(`${pad}  ${key}?: ${renderSchemaNode(value.schema, indent + 1)};`);
         } else {
           lines.push(`${pad}  ${key}: ${renderSchemaNode(value, indent + 1)};`);
         }
@@ -1349,16 +1356,16 @@ function assertValidSchema(schema: Schema, agentName: string, slot: "input" | "o
   }
   switch (schema.kind) {
     case "array":
-      assertValidSchema(schema.item, agentName, slot, `${path}[]`);
+      assertValidSchema(schema.items, agentName, slot, `${path}[]`);
       return;
     case "record":
-      assertValidSchema(schema.value, agentName, slot, `${path}.*`);
+      assertValidSchema(schema.additionalProperties, agentName, slot, `${path}.*`);
       return;
     case "optional":
-      assertValidSchema(schema.inner, agentName, slot, path);
+      assertValidSchema(schema.schema, agentName, slot, path);
       return;
     case "object":
-      for (const [key, value] of Object.entries(schema.fields) as [string, Schema][]) {
+      for (const [key, value] of Object.entries(schema.properties) as [string, Schema][]) {
         assertValidSchema(value, agentName, slot, `${path}.${key}`);
       }
       return;
