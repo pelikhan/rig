@@ -230,6 +230,39 @@ describe("agent invocation", () => {
     });
   });
 
+  it("exposes the Copilot session through call hooks", async () => {
+    const onCopilotSession = vi.fn();
+    mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
+
+    const greet = agent({
+      name: "greeter",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    await expect(greet({ text: "Hi" }, { hooks: { onCopilotSession } })).resolves.toEqual({ text: "hello world" });
+    expect(onCopilotSession).toHaveBeenCalledTimes(1);
+    expect(onCopilotSession.mock.calls[0]?.[0]).toMatchObject({
+      sendAndWait: expect.any(Function),
+      disconnect: expect.any(Function),
+    });
+  });
+
+  it("applies default Copilot session hooks from agent spec", async () => {
+    const onCopilotSession = vi.fn();
+    mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
+
+    const greet = agent({
+      name: "greeter",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+      hooks: { onCopilotSession },
+    });
+
+    await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
+    expect(onCopilotSession).toHaveBeenCalledTimes(1);
+  });
+
   it("retries invalid JSON with the default repair prompt", async () => {
     const prompts: string[] = [];
     let calls = 0;

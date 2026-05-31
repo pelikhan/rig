@@ -150,6 +150,10 @@ function writeEvent(event: unknown): void {
 }
 
 export type RepairHandler = false | "default" | ((error: AgentError) => string);
+export type CopilotSession = Awaited<ReturnType<CopilotClient["createSession"]>>;
+export type AgentHooks = {
+  onCopilotSession?: (session: CopilotSession) => void | Promise<void>;
+};
 
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
   name: string;
@@ -160,6 +164,7 @@ export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema
   timeout?: number;
   maxTurns?: number;
   repair?: RepairHandler;
+  hooks?: AgentHooks;
   permissions?: { shell?: "deny" | "readonly" | "ask" | "allow"; write?: "deny" | "workspace" | "allow" };
   agents?: Record<string, AgentFn<any, any>>;
 };
@@ -169,6 +174,7 @@ export type CallOptions = {
   timeout?: number;
   model?: string;
   maxTurns?: number;
+  hooks?: AgentHooks;
 };
 
 export type LaunchOptions = {
@@ -274,11 +280,6 @@ export class AgentError extends Error {
 
 let currentCopilotOptions: CopilotEngineOptions | undefined;
 const currentCopilotClient = new AsyncLocalStorage<CopilotClient>();
-type CopilotSession = {
-  on?: (handler: (event: unknown) => void) => unknown;
-  sendAndWait(request: { prompt: string; signal?: AbortSignal }): Promise<unknown>;
-  disconnect?(): Promise<void>;
-};
 type CopilotSessionHandle = {
   session: CopilotSession;
   close(): Promise<void>;
@@ -579,7 +580,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
       const normalizedInput = normalizeInput(input, inputSchema);
       let prompt = renderPrompt(normalizedSpec, normalizedInput);
       let lastResponse = "";
-      const copilot = await createCopilotSession(runtime.model);
+      const copilot = await createCopilotSession(runtime.model, runtime.hooks);
       let failure: unknown;
 
       try {
@@ -1011,9 +1012,10 @@ async function withCopilotClient<T>(fn: () => Promise<T>): Promise<T> {
   });
 }
 
-async function createCopilotSession(model: string): Promise<CopilotSessionHandle> {
+async function createCopilotSession(model: string, hooks?: AgentHooks): Promise<CopilotSessionHandle> {
   const client = getCopilotClient();
   const session = await client.createSession({ model, streaming: false }) as CopilotSession;
+  await hooks?.onCopilotSession?.(session);
   session.on?.((event: unknown) => {
     writeEvent(event);
   });
@@ -1052,12 +1054,14 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
   maxTurns: number;
   signal: AbortSignal | undefined;
   repair: RepairHandler;
+  hooks: AgentHooks | undefined;
 } {
   return {
     model: options.model ?? spec.model ?? "gpt-4.1",
     maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
     signal: timeoutSignal(options.signal, options.timeout ?? spec.timeout),
     repair: spec.repair ?? "default",
+    hooks: options.hooks ?? spec.hooks,
   };
 }
 
