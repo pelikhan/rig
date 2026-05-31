@@ -34,12 +34,10 @@ You can hook into the underlying Copilot session for direct SDK access (for exam
 ```ts
 const review = agent({
   name: "review",
-  hooks: {
-    onCopilotSession(session) {
-      session.on?.((event) => {
-        // custom event handling
-      });
-    },
+  onCopilotSession(session) {
+    session.on?.((event) => {
+      // custom event handling
+    });
   },
 });
 ```

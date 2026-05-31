@@ -240,7 +240,7 @@ describe("agent invocation", () => {
       output: s.object({ text: s.string }),
     });
 
-    await expect(greet({ text: "Hi" }, { hooks: { onCopilotSession } })).resolves.toEqual({ text: "hello world" });
+    await expect(greet({ text: "Hi" }, { onCopilotSession })).resolves.toEqual({ text: "hello world" });
     expect(onCopilotSession).toHaveBeenCalledTimes(1);
     expect(onCopilotSession.mock.calls[0]?.[0]).toMatchObject({
       sendAndWait: expect.any(Function),
@@ -256,7 +256,7 @@ describe("agent invocation", () => {
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
-      hooks: { onCopilotSession },
+      onCopilotSession,
     });
 
     await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
@@ -273,7 +273,7 @@ describe("agent invocation", () => {
       output: s.object({ text: s.string }),
     });
 
-    await expect(greet({ text: "Hi" }, { hooks: { onCopilotSession } })).rejects.toThrow("hook failed");
+    await expect(greet({ text: "Hi" }, { onCopilotSession })).rejects.toThrow("hook failed");
     expect(mocks.disconnectSession).toHaveBeenCalledTimes(1);
   });
 
