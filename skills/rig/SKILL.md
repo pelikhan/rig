@@ -59,7 +59,7 @@ Use this checklist before finalizing generated code:
 5. Add a `// Agent role: ...` comment above each agent declaration.
 6. Set `model` explicitly to `"large"`, `"mini"`, or `"nano"`.
 7. Prefer `${p.read(...)}` / `${p.bash(...)}` inside `p\`\`` templates when the context source is already known; add input fields only for true caller-provided data.
-8. Put stable defaults in spec; register middleware in spec or with `agent.use(...)`.
+8. Put stable defaults in spec; register addons in spec or with `agent.use(...)`.
 9. Add `agents` only when required by the scenario.
 10. Avoid `console.log(...)` in snippets.
 11. For inline markdown skill mode, export exactly one default root agent with no input and do not call it directly.
@@ -88,7 +88,7 @@ Declare a structured agent.
 | `output` | Output schema |
 | `model` | Default model name; examples should use `"large"`, `"mini"`, or `"nano"` |
 | `maxTurns` | Retry budget for invalid JSON or invalid output |
-| `middleware` | Per-turn middleware for steering, validation, and retry customization |
+| `addon` | Per-turn addons for steering, validation, and retry customization |
 | `agents` | Optional named subagents exposed to the harness |
 
 Use `agent({ name, ... })` as the only agent declaration form.
@@ -169,7 +169,7 @@ const result = await myAgent(input, {
 });
 ```
 
-Use call-time options for per-run changes. Use middleware for stable defaults (for example `timeout({ timeout: ... })`).
+Use call-time options for per-run changes. Use addons for stable defaults (for example `timeout({ timeout: ... })`).
 
 ## Subagents
 
@@ -208,7 +208,7 @@ When the task asks for a runnable markdown example, require exactly one fenced `
 
 ## Repair and retries
 
-Rig starts with no middleware by default. Opt into retry behavior with `repair` from `rig/addons`.
+Rig starts with no addons by default. Opt into retry behavior with `repair` from `rig/addons`.
 
 ```ts
 import { repair } from "rig/addons";
@@ -218,11 +218,11 @@ const summarize = agent({
   name: "summarize",
   model: "mini",
   maxTurns: 3,
-  middleware: repair,
+  addon: repair,
 });
 ```
 
-Use middleware to steer retry prompts when needed (for example `steering()` from `rig/addons`).
+Use addons to steer retry prompts when needed (for example `steering()` from `rig/addons`).
 
 ## Running programs
 
@@ -289,8 +289,8 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 - Use `s.enum(...)` when exact values matter.
 - Prefer `p.*` inside `p\`\`` templates; fall back to inputs only for real caller-provided data.
 - Prefer `p.read(...)` for existing files instead of shelling out through `cat`.
-- Put durable defaults in the agent spec; register middleware in spec or with `agent.use(...)`.
-- Use `steering()` from `rig/addons` when you want the builtin last-retry warning middleware; it is opt-in.
+- Put durable defaults in the agent spec; register addons in spec or with `agent.use(...)`.
+- Use `steering()` from `rig/addons` when you want the builtin last-retry warning addon; it is opt-in.
 - Introduce `agents` only when the scenario needs them.
 
 ## Patterns to avoid
@@ -311,6 +311,6 @@ Use only the current API:
 - `agent({ name, ... })`
 - `p.*` and `p\`...\`` from `rig`
 - `s.*` for explicit schema helpers
-- `repair` / `steering` from `rig/addons` for optional middleware addons
+- `repair` / `steering` from `rig/addons` for optional addons
 
 Do not add deprecated hooks or compatibility layers.

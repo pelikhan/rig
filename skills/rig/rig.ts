@@ -150,7 +150,7 @@ function writeEvent(event: unknown): void {
 }
 
 export type CopilotSession = Awaited<ReturnType<CopilotClient["createSession"]>>;
-export type AgentMiddlewareContext = {
+export type AgentAddonContext = {
   spec: AgentSpec<any, any>;
   session: CopilotSession;
   input: unknown;
@@ -165,8 +165,8 @@ export type AgentMiddlewareContext = {
   nextPrompt?: string;
   error?: unknown;
 };
-export type AgentMiddleware = (
-  context: AgentMiddlewareContext,
+export type AgentAddon = (
+  context: AgentAddonContext,
   next: () => Promise<void>,
 ) => void | Promise<void>;
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
@@ -176,7 +176,7 @@ export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema
   output?: Output;
   model?: string;
   maxTurns?: number;
-  middleware?: AgentMiddleware | AgentMiddleware[];
+  addon?: AgentAddon | AgentAddon[];
   agents?: Record<string, AgentFn<any, any>>;
 };
 
@@ -206,7 +206,7 @@ export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValu
   outputShape: Schema;
   spec: AgentSpec<any, any>;
   _namespace: string;
-  use: (middleware: AgentMiddleware | AgentMiddleware[]) => AgentFn<Input, Output>;
+  use: (addon: AgentAddon | AgentAddon[]) => AgentFn<Input, Output>;
 };
 
 export type IntentOptions = {
@@ -597,7 +597,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
       try {
         for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
           throwIfAborted(runtime.signal);
-          const context: AgentMiddlewareContext = {
+          const context: AgentAddonContext = {
             spec: normalizedSpec,
             session: copilot.session,
             input: normalizedInput,
@@ -609,7 +609,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
             completed: false,
           };
 
-          await runAgentMiddlewares(runtime.middlewares, context, async () => {
+          await runAgentAddons(runtime.addons, context, async () => {
             lastResponse = await sendCopilotPrompt(copilot.session, context.prompt, context.signal);
             context.response = lastResponse;
           });
@@ -632,7 +632,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
             throw analysis.error;
           }
           throw new Error(
-            `Agent ${normalizedSpec.name}: middleware must set context.output with context.completed=true or context.nextPrompt for turn ${turn}.`,
+            `Agent ${normalizedSpec.name}: addon must set context.output with context.completed=true or context.nextPrompt for turn ${turn}.`,
           );
         }
       } catch (error) {
@@ -658,10 +658,10 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   fn.outputShape = outputSchema;
   fn.spec = normalizedSpec;
   fn._namespace = normalizedSpec.name;
-  fn.use = (middleware) => {
-    normalizedSpec.middleware = [
-      ...normalizeMiddlewares(normalizedSpec.middleware),
-      ...normalizeMiddlewares(middleware),
+  fn.use = (addon) => {
+    normalizedSpec.addon = [
+      ...normalizeAddons(normalizedSpec.addon),
+      ...normalizeAddons(addon),
     ];
     return fn;
   };
@@ -689,7 +689,7 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   }
   if (specOrName.model !== undefined) spec.model = specOrName.model;
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
-  if (specOrName.middleware !== undefined) spec.middleware = specOrName.middleware;
+  if (specOrName.addon !== undefined) spec.addon = specOrName.addon;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
   return spec;
 }
@@ -1090,46 +1090,46 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
   model: string;
   maxTurns: number;
   signal: AbortSignal | undefined;
-  middlewares: AgentMiddleware[];
+  addons: AgentAddon[];
 } {
   return {
     model: options.model ?? spec.model ?? "gpt-4.1",
     maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
     signal: timeoutSignal(options.signal, options.timeout),
-    middlewares: normalizeMiddlewares(spec.middleware),
+    addons: normalizeAddons(spec.addon),
   };
 }
 
-function normalizeMiddlewares(middlewares?: AgentMiddleware | AgentMiddleware[]): AgentMiddleware[] {
-  if (!middlewares) {
+function normalizeAddons(addons?: AgentAddon | AgentAddon[]): AgentAddon[] {
+  if (!addons) {
     return [];
   }
-  const items = Array.isArray(middlewares) ? [...middlewares] : [middlewares];
-  for (const middleware of items) {
-    if (typeof middleware !== "function") {
-      throw new Error("Agent middleware entries must be functions.");
+  const items = Array.isArray(addons) ? [...addons] : [addons];
+  for (const addon of items) {
+    if (typeof addon !== "function") {
+      throw new Error("Agent addon entries must be functions.");
     }
   }
   return items;
 }
 
-async function runAgentMiddlewares(
-  middlewares: AgentMiddleware[],
-  context: AgentMiddlewareContext,
+async function runAgentAddons(
+  addons: AgentAddon[],
+  context: AgentAddonContext,
   terminal: () => Promise<void>,
 ): Promise<void> {
   let index = -1;
   const dispatch = async (current: number): Promise<void> => {
     if (current <= index) {
-      throw new Error(`Agent ${context.spec.name} middleware at index ${current} called next() multiple times.`);
+      throw new Error(`Agent ${context.spec.name} addon at index ${current} called next() multiple times.`);
     }
     index = current;
-    const middleware = middlewares[current];
-    if (middleware === undefined) {
+    const addon = addons[current];
+    if (addon === undefined) {
       await terminal();
       return;
     }
-    await middleware(context, () => dispatch(current + 1));
+    await addon(context, () => dispatch(current + 1));
   };
   await dispatch(0);
 }

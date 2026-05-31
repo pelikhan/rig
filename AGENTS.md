@@ -51,7 +51,7 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 - **Shell intents (`p.*`)**: `p.bash(cmd)`, `p.result(cmd)`, `p.read(path)`, `p.write(path, content)` — declarative placeholders resolved by the engine, not executed in-process
 - **Prompts**: `p\`...\`` template tag composes instructions with inline `p.*` helpers
 - **Runtime transport**: Copilot SDK sessions are created by the harness; use launcher `--server` to switch to stdio transport.
-- **Repair**: built-in middleware re-prompts on parse/validation failure up to `maxTurns`, and other middleware can still steer retry prompts.
+- **Repair**: built-in addon re-prompts on parse/validation failure up to `maxTurns`, and other addons can still steer retry prompts.
 
 ## Sample guide
 

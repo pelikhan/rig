@@ -28,9 +28,9 @@ import { addons, repair, steering } from "rig/addons";
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative shell/file intents for prompt templates or inputs.
-- `middleware` accepts express-like `(context, next)` turn middleware for steering, inline validation, and Copilot session access.
-- `rig` starts with no default middleware.
-- `rig/addons` provides optional middleware helpers: `repair`, `steering`, and `addons.{repair,steering}`.
+- `addon` accepts express-like `(context, next)` turn addons for steering, inline validation, and Copilot session access.
+- `rig` starts with no default addons.
+- `rig/addons` provides optional addon helpers: `repair`, `steering`, and `addons.{repair,steering}`.
 - `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
 
 ## Embedding in markdown
@@ -124,13 +124,13 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 
 - Default model: `gpt-4.1`
 - Default max turns: `4`
-- No middleware is loaded by default (including repair/retry behavior)
+- No addons are loaded by default (including repair/retry behavior)
 
 Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 
-## Middleware
+## Addons
 
-Each agent call runs a per-turn middleware chain:
+Each agent call runs a per-turn addon chain:
 
 ```ts
 const steerFinalTurn = async (context, next) => {
@@ -143,7 +143,7 @@ const steerFinalTurn = async (context, next) => {
 const review = agent({
   name: "review",
   maxTurns: 3,
-  middleware: steerFinalTurn,
+  addon: steerFinalTurn,
 });
 ```
 
@@ -155,11 +155,11 @@ For the common retry flow with last-turn steering or stable default timeouts, op
 const review = agent({
   name: "review",
   maxTurns: 3,
-  middleware: [timeout({ timeout: 30_000 }), steering(), repair],
+  addon: [timeout({ timeout: 30_000 }), steering(), repair],
 });
 ```
 
-For direct SDK access, middleware also exposes `context.session`:
+For direct SDK access, addons also expose `context.session`:
 
 ```ts
 const onSessionEvent = async (context, next) => {
@@ -173,19 +173,19 @@ const onSessionEvent = async (context, next) => {
 
 const review = agent({
   name: "review",
-  middleware: onSessionEvent,
+  addon: onSessionEvent,
 });
 ```
 
-You can also register middleware after creating the agent:
+You can also register addons after creating the agent:
 
 ```ts
-const timingMiddleware = async (context, next) => {
+const timingAddon = async (context, next) => {
   await next();
 };
 
 const review = agent({ name: "review" });
-review.use(timingMiddleware);
+review.use(timingAddon);
 ```
 
 ## Copilot SDK runtime

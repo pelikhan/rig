@@ -8,7 +8,7 @@ const worker = agent({
   name: "worker",
   model: "mini",
   instructions: "Return a short response before the timeout expires.",
-  middleware: timeout({ timeout: 5_000 }),
+  addon: timeout({ timeout: 5_000 }),
 });
 export default worker;
 ```

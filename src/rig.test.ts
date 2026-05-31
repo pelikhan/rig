@@ -231,8 +231,8 @@ describe("agent invocation", () => {
     });
   });
 
-  it("exposes the Copilot session through middleware", async () => {
-    const middleware = vi.fn(async (context, next) => {
+  it("exposes the Copilot session through an addon", async () => {
+    const addon = vi.fn(async (context, next) => {
       await next();
       expect(context.session).toMatchObject({
         sendAndWait: expect.any(Function),
@@ -245,15 +245,15 @@ describe("agent invocation", () => {
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
-      middleware,
+      addon,
     });
 
     await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
-    expect(middleware).toHaveBeenCalledTimes(1);
+    expect(addon).toHaveBeenCalledTimes(1);
   });
 
-  it("applies default middleware from agent spec", async () => {
-    const middleware = vi.fn(async (_context, next) => {
+  it("applies default addons from agent spec", async () => {
+    const addon = vi.fn(async (_context, next) => {
       await next();
     });
     mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
@@ -262,14 +262,14 @@ describe("agent invocation", () => {
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
-      middleware,
+      addon,
     });
 
     await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
-    expect(middleware).toHaveBeenCalledTimes(1);
+    expect(addon).toHaveBeenCalledTimes(1);
   });
 
-  it("supports express-like middleware registration with use()", async () => {
+  it("supports express-like addon registration with use()", async () => {
     const order: number[] = [];
     const first = vi.fn(async (_context, next) => {
       order.push(1);
@@ -294,7 +294,7 @@ describe("agent invocation", () => {
     expect(second).toHaveBeenCalledTimes(1);
   });
 
-  it("validates middleware passed to use()", () => {
+  it("validates addons passed to use()", () => {
     const greet = agent({
       name: "greeter",
       input: s.object({ text: s.string }),
@@ -302,26 +302,26 @@ describe("agent invocation", () => {
     });
 
     expect(() => greet.use([null as unknown as any] as any)).toThrow(
-      "Agent middleware entries must be functions.",
+      "Agent addon entries must be functions.",
     );
   });
 
-  it("disconnects the session when middleware throws", async () => {
-    const middleware = vi.fn(() => {
+  it("disconnects the session when an addon throws", async () => {
+    const addon = vi.fn(() => {
       throw new Error("hook failed");
     });
     const greet = agent({
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
-      middleware,
+      addon,
     });
 
     await expect(greet({ text: "Hi" })).rejects.toThrow("hook failed");
     expect(mocks.disconnectSession).toHaveBeenCalledTimes(1);
   });
 
-  it("starts with no repair middleware by default", async () => {
+  it("starts with no repair addon by default", async () => {
     mocks.setSendAndWaitImpl(async () => "not json");
 
     const strict = agent({
@@ -345,7 +345,7 @@ describe("agent invocation", () => {
 
     const repairable = agent({
       name: "repairable",
-      middleware: repair,
+      addon: repair,
       maxTurns: 2,
     });
 
@@ -355,7 +355,7 @@ describe("agent invocation", () => {
     expect(prompts[1]).toContain("invalid JSON");
   });
 
-  it("retries validation failures with middleware-customized repair prompts", async () => {
+  it("retries validation failures with addon-customized repair prompts", async () => {
     const prompts: string[] = [];
     let calls = 0;
 
@@ -367,7 +367,7 @@ describe("agent invocation", () => {
 
     const repairable = agent({
       name: "repairable",
-      middleware: [
+      addon: [
         async (context, next) => {
           await next();
           if (context.nextPrompt) {
@@ -417,7 +417,7 @@ describe("agent invocation", () => {
     await expect(slow("go", { timeout: 50 })).rejects.toThrow(/Timed out/);
   });
 
-  it("supports timeout as middleware", async () => {
+  it("supports timeout as an addon", async () => {
     mocks.setSendAndWaitImpl(async ({ signal }) => {
       await new Promise((_, reject) => {
         signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
@@ -426,7 +426,7 @@ describe("agent invocation", () => {
       return "";
     });
 
-    const slow = agent({ name: "timeout-test", middleware: timeout({ timeout: 50 }) });
+    const slow = agent({ name: "timeout-test", addon: timeout({ timeout: 50 }) });
     await expect(slow("go")).rejects.toThrow(/Timed out/);
   });
 
@@ -484,7 +484,7 @@ describe("agent invocation", () => {
     expect(prompts[0]).toContain("before answering.");
   });
 
-  it("supports middleware that steers retries near max turns", async () => {
+  it("supports addons that steer retries near max turns", async () => {
     const prompts: string[] = [];
     let calls = 0;
 
@@ -502,7 +502,7 @@ describe("agent invocation", () => {
     const steerable = agent({
       name: "steerable",
       maxTurns: 2,
-      middleware: [
+      addon: [
         async (context, next) => {
           await next();
           if (context.nextPrompt && context.turn === context.maxTurns - 1) {
@@ -536,7 +536,7 @@ describe("agent invocation", () => {
     const steerable = agent({
       name: "steerable",
       maxTurns: 2,
-      middleware: [steering(), repair],
+      addon: [steering(), repair],
     });
 
     await expect(steerable("go")).resolves.toBe("recovered");
@@ -544,7 +544,7 @@ describe("agent invocation", () => {
     expect(prompts[1]).toContain("final attempt before reaching the turn limit");
   });
 
-  it("supports middleware that validates snippets inline", async () => {
+  it("supports addons that validate snippets inline", async () => {
     let calls = 0;
     mocks.setSendAndWaitImpl(async () => {
       calls += 1;
@@ -557,7 +557,7 @@ describe("agent invocation", () => {
       name: "snippet-guard",
       maxTurns: 2,
       output: s.object({ code: s.string }),
-      middleware: [
+      addon: [
         async (context, next) => {
           await next();
           if (!context.nextPrompt && context.output && typeof context.output === "object") {
@@ -576,11 +576,11 @@ describe("agent invocation", () => {
     await expect(snippetGuard("go")).resolves.toEqual({ code: "```ts\nconst x = 1;\n```" });
   });
 
-  it("rejects non-function middleware entries", async () => {
+  it("rejects non-function addon entries", async () => {
     mocks.setSendAndWaitImpl(async () => JSON.stringify("ok"));
-    const guarded = agent({ name: "guarded", middleware: [null as unknown as any] as any });
+    const guarded = agent({ name: "guarded", addon: [null as unknown as any] as any });
     await expect(guarded("go")).rejects.toThrow(
-      "Agent middleware entries must be functions.",
+      "Agent addon entries must be functions.",
     );
   });
 
