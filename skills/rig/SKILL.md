@@ -209,18 +209,21 @@ When the task asks for a runnable markdown example, require exactly one fenced `
 
 ## Repair and retries
 
-Agents retry invalid output up to `maxTurns` with built-in repair middleware.
+Rig starts with no middleware by default. Opt into retry behavior with `repair` from `rig/addons`.
 
 ```ts
+import { repair } from "rig/addons";
+
 // Agent role: repair invalid output and return a stable summary.
 const summarize = agent({
   name: "summarize",
   model: "mini",
   maxTurns: 3,
+  middleware: repair,
 });
 ```
 
-Use middleware to steer retry prompts when needed.
+Use middleware to steer retry prompts when needed (for example `steering()` from `rig/addons`).
 
 ## Running programs
 
@@ -288,7 +291,7 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 - Prefer `p.*` inside `p\`\`` templates; fall back to inputs only for real caller-provided data.
 - Prefer `p.read(...)` for existing files instead of shelling out through `cat`.
 - Put durable defaults in the agent spec; register middleware in spec or with `agent.use(...)`.
-- Use `warnOnMaxTurns()` when you want the builtin last-retry warning middleware; it is opt-in.
+- Use `steering()` from `rig/addons` when you want the builtin last-retry warning middleware; it is opt-in.
 - Introduce `agents` only when the scenario needs them.
 
 ## Patterns to avoid
@@ -309,6 +312,6 @@ Use only the current API:
 - `agent({ name, ... })`
 - `p.*` and `p\`...\`` from `rig`
 - `s.*` for explicit schema helpers
-- `warnOnMaxTurns()` for the optional builtin max-turn warning middleware
+- `repair` / `steering` from `rig/addons` for optional middleware addons
 
 Do not add deprecated hooks or compatibility layers.

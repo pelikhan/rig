@@ -38,7 +38,8 @@ vi.mock("@github/copilot-sdk", () => ({
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
 }));
 
-import { AgentError, agent, p, s, warnOnMaxTurns } from "rig";
+import { AgentError, agent, p, s } from "rig";
+import { repair, steering } from "rig/addons";
 
 beforeEach(() => {
   mocks.createSession.mockClear();
@@ -320,7 +321,19 @@ describe("agent invocation", () => {
     expect(mocks.disconnectSession).toHaveBeenCalledTimes(1);
   });
 
-  it("retries invalid JSON with the default repair prompt", async () => {
+  it("starts with no repair middleware by default", async () => {
+    mocks.setSendAndWaitImpl(async () => "not json");
+
+    const strict = agent({
+      name: "strict",
+      maxTurns: 2,
+    });
+
+    await expect(strict("go")).rejects.toBeInstanceOf(AgentError);
+    await expect(strict("go")).rejects.toMatchObject({ kind: "parse", turn: 1 });
+  });
+
+  it("retries invalid JSON with the repair addon", async () => {
     const prompts: string[] = [];
     let calls = 0;
 
@@ -332,6 +345,7 @@ describe("agent invocation", () => {
 
     const repairable = agent({
       name: "repairable",
+      middleware: repair,
       maxTurns: 2,
     });
 
@@ -353,12 +367,15 @@ describe("agent invocation", () => {
 
     const repairable = agent({
       name: "repairable",
-      middleware: async (context, next) => {
-        await next();
-        if (context.nextPrompt) {
-          context.nextPrompt = `please fix: ${context.nextPrompt}`;
-        }
-      },
+      middleware: [
+        async (context, next) => {
+          await next();
+          if (context.nextPrompt) {
+            context.nextPrompt = `please fix: ${context.nextPrompt}`;
+          }
+        },
+        repair,
+      ],
       maxTurns: 2,
     });
 
@@ -472,12 +489,15 @@ describe("agent invocation", () => {
     const steerable = agent({
       name: "steerable",
       maxTurns: 2,
-      middleware: async (context, next) => {
-        await next();
-        if (context.nextPrompt && context.turn === context.maxTurns - 1) {
-          context.nextPrompt = `${context.nextPrompt}\nAdd a short correction because you are running out of turns.`;
-        }
-      },
+      middleware: [
+        async (context, next) => {
+          await next();
+          if (context.nextPrompt && context.turn === context.maxTurns - 1) {
+            context.nextPrompt = `${context.nextPrompt}\nAdd a short correction because you are running out of turns.`;
+          }
+        },
+        repair,
+      ],
     });
 
     await expect(steerable("go")).resolves.toBe("recovered");
@@ -485,7 +505,7 @@ describe("agent invocation", () => {
     expect(prompts[1]).toContain("running out of turns");
   });
 
-  it("exports a builtin middleware that warns near max turns", async () => {
+  it("exports a steering addon that warns near max turns", async () => {
     const prompts: string[] = [];
     let calls = 0;
 
@@ -503,7 +523,7 @@ describe("agent invocation", () => {
     const steerable = agent({
       name: "steerable",
       maxTurns: 2,
-      middleware: warnOnMaxTurns(),
+      middleware: [steering(), repair],
     });
 
     await expect(steerable("go")).resolves.toBe("recovered");
@@ -524,17 +544,20 @@ describe("agent invocation", () => {
       name: "snippet-guard",
       maxTurns: 2,
       output: s.object({ code: s.string }),
-      middleware: async (context, next) => {
-        await next();
-        if (!context.nextPrompt && context.output && typeof context.output === "object") {
-          const code = (context.output as { code?: unknown }).code;
-          if (typeof code === "string" && !code.includes("```")) {
-            context.completed = false;
-            context.output = undefined;
-            context.nextPrompt = "Return the same payload but wrap code in a fenced markdown block.";
+      middleware: [
+        async (context, next) => {
+          await next();
+          if (!context.nextPrompt && context.output && typeof context.output === "object") {
+            const code = (context.output as { code?: unknown }).code;
+            if (typeof code === "string" && !code.includes("```")) {
+              context.completed = false;
+              context.output = undefined;
+              context.nextPrompt = "Return the same payload but wrap code in a fenced markdown block.";
+            }
           }
-        }
-      },
+        },
+        repair,
+      ],
     });
 
     await expect(snippetGuard("go")).resolves.toEqual({ code: "```ts\nconst x = 1;\n```" });

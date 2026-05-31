@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./skills/rig/rig.ts"
+    ".": "./skills/rig/rig.ts",
+    "./addons": "./skills/rig/addons.ts"
   },
   "scripts": {
     "test": "vitest run src/",
