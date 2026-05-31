@@ -293,6 +293,7 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 - Prefer `p.*` inside `p\`\`` templates; fall back to inputs only for real caller-provided data.
 - Prefer `p.read(...)` for existing files instead of shelling out through `cat`.
 - Put durable defaults in the agent spec; register middleware in spec or with `agent.use(...)`.
+- Use `warnOnMaxTurns()` when you want the builtin last-retry warning middleware; it is opt-in.
 - Introduce `agents` only when the scenario needs them.
 
 ## Patterns to avoid
@@ -313,5 +314,6 @@ Use only the current API:
 - `agent({ name, ... })`
 - `p.*` and `p\`...\`` from `rig`
 - `s.*` for explicit schema helpers
+- `warnOnMaxTurns()` for the optional builtin max-turn warning middleware
 
 Do not add deprecated hooks or compatibility layers.

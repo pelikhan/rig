@@ -21,6 +21,7 @@ import {
   agent,
   p,
   s,
+  warnOnMaxTurns,
 } from "rig";
 ```
 
@@ -28,6 +29,7 @@ import {
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative shell/file intents for prompt templates or inputs.
 - `middleware` accepts express-like `(context, next)` turn middleware for steering, inline validation, and Copilot session access.
+- `warnOnMaxTurns()` is an optional builtin steering middleware; it is never loaded by default.
 - `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
 
 ## Embedding in markdown
@@ -146,6 +148,16 @@ const review = agent({
 ```
 
 `context` includes `prompt`, `response`, `turn`, `maxTurns`, `output`, `nextPrompt`, `error`, and `completed`.
+
+For the common "last retry" warning, you can opt into the builtin middleware:
+
+```ts
+const review = agent({
+  name: "review",
+  maxTurns: 3,
+  middleware: warnOnMaxTurns(),
+});
+```
 
 For direct SDK access, middleware also exposes `context.session`:
 

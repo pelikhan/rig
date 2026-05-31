@@ -38,7 +38,7 @@ vi.mock("@github/copilot-sdk", () => ({
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
 }));
 
-import { AgentError, agent, p, s } from "rig";
+import { AgentError, agent, p, s, warnOnMaxTurns } from "rig";
 
 beforeEach(() => {
   mocks.createSession.mockClear();
@@ -480,6 +480,32 @@ describe("agent invocation", () => {
     await expect(steerable("go")).resolves.toBe("recovered");
     expect(prompts).toHaveLength(2);
     expect(prompts[1]).toContain("running out of turns");
+  });
+
+  it("exports a builtin middleware that warns near max turns", async () => {
+    const prompts: string[] = [];
+    let calls = 0;
+
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      calls += 1;
+      if (calls === 1) {
+        return "not json";
+      }
+      return prompt.includes("last retry before max turns")
+        ? JSON.stringify("recovered")
+        : "still not json";
+    });
+
+    const steerable = agent({
+      name: "steerable",
+      maxTurns: 2,
+      middleware: warnOnMaxTurns(),
+    });
+
+    await expect(steerable("go")).resolves.toBe("recovered");
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1]).toContain("last retry before max turns");
   });
 
   it("supports middleware that validates snippets inline", async () => {

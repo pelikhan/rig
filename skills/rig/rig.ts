@@ -169,6 +169,9 @@ export type AgentMiddleware = (
   context: AgentMiddlewareContext,
   next: () => Promise<void>,
 ) => void | Promise<void>;
+export type WarnOnMaxTurnsOptions = {
+  message?: string;
+};
 
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
   name: string;
@@ -189,6 +192,16 @@ export type CallOptions = {
   model?: string;
   maxTurns?: number;
 };
+
+export function warnOnMaxTurns(options: WarnOnMaxTurnsOptions = {}): AgentMiddleware {
+  const message = options.message?.trim() || "You are running out of turns. This is your last retry before max turns. Return corrected JSON now.";
+  return async (context, next) => {
+    await next();
+    if (context.nextPrompt && context.turn === context.maxTurns - 1) {
+      context.nextPrompt = `${context.nextPrompt}\n${message}`;
+    }
+  };
+}
 
 export type LaunchOptions = {
   cwd?: string;
