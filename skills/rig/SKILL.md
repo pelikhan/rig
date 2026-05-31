@@ -63,6 +63,9 @@ Use this checklist before finalizing generated code:
 9. Add `agents` only when required by the scenario.
 10. Avoid `console.log(...)` in snippets.
 11. For inline markdown skill mode, export exactly one default root agent with no input and do not call it directly.
+12. Assume Node.js 24 runtime for operational examples and generated snippets.
+13. For bash-like operations from TypeScript, prefer `google/zx` (`import { $ } from "zx"`).
+14. Prefer Node.js native APIs (for example built-in `fetch` and native glob support) over extra helper dependencies.
 
 ## Canonical construction order
 
@@ -308,6 +311,9 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 - Use `s.enum(...)` when exact values matter.
 - Prefer `p.*` inside `p\`\`` templates; fall back to inputs only for real caller-provided data.
 - Prefer `p.read(...)` for existing files instead of shelling out through `cat`.
+- Assume Node.js 24 runtime for operational code.
+- Prefer `google/zx` for shell-style automation in TypeScript examples.
+- Prefer Node.js native APIs (including built-in `fetch` and native glob support) before adding dependencies.
 - Put durable defaults in the agent spec; register addons in spec or with `agent.use(...)`.
 - Use `steering()` from `rig/addons` when you want the builtin last-retry warning addon; it is opt-in.
 - Introduce `agents` only when the scenario needs them.
@@ -321,6 +327,7 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 - Do not leave outputs as unstructured prose when a schema would help.
 - Do not invent alternate schema syntaxes when explicit `s.*` is available.
 - Do not replace file reads with `cat`-style shell commands or large in-memory strings when a file path already exists.
+- Do not add third-party fetch or glob helpers when Node.js 24 native APIs already cover the requirement.
 - Do not put call-time overrides (`model`, `timeout`, `maxTurns`, `signal`) into unrelated config objects.
 
 ## API direction
