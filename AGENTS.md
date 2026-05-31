@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Rig is a minimal TypeScript agent harness. The core runtime (`skills/rig/rig.ts`) provides declarative agent construction with typed input/output shapes, shell intents, and a Copilot SDK runtime.
+Rig is a minimal TypeScript agent harness. The core runtime (`skills/rig/rig.ts`) provides declarative agent construction with typed input/output shapes, prompt intents, and a Copilot SDK runtime.
 
 ## Architecture
 
@@ -39,7 +39,7 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 ## Testing
 
 - Framework: vitest
-- Tests live in `src/rig.test.ts` (agent definition, invocation, validation, and shell intent coverage)
+- Tests live in `src/rig.test.ts` (agent definition, invocation, validation, and prompt intent coverage)
 - Stub the Copilot SDK client with `vi.mock("@github/copilot-sdk", ...)`
 - All unit tests must pass before committing
 - Samples run via a stub Copilot SDK client that synthesizes shape-conforming output from the prompt's `<output_schema>` block
@@ -48,7 +48,7 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 
 - **Shape descriptors**: JS values used as type exemplars (e.g., `""` = string, `0` = number, `[""]` = string array). Promoted to schemas via `SchemaLike`.
 - **Schema helpers (`s.*`)**: `s.string`, `s.number`, `s.boolean`, `s.unknown`, `s.array`, `s.object`, `s.record`, `s.enum`, `s.optional`
-- **Shell intents (`p.*`)**: `p.bash(cmd)`, `p.result(cmd)`, `p.read(path)`, `p.write(path, content)` — declarative placeholders resolved by the engine, not executed in-process
+- **Prompt intents (`p.*`)**: `p.bash(cmd)`, `p.result(cmd)`, `p.read(path)`, `p.write(path, content)` — declarative placeholders resolved into prompt instructions, not executed in-process
 - **Prompts**: `p\`...\`` template tag composes instructions with inline `p.*` helpers
 - **Runtime transport**: Copilot SDK sessions are created by the harness; use launcher `--server` to switch to stdio transport.
 - **Repair**: built-in addon re-prompts on parse/validation failure up to `maxTurns`, and other addons can still steer retry prompts.
@@ -57,5 +57,5 @@ All imports use the `"rig"` path alias (resolved via tsconfig paths + vitest ali
 
 - `20-issue-reproducer.ts` — chained diagnosis, fix planning, and review
 - `36-subagent-delegation.ts` — focused-agent delegation
-- `47-shell-intents.ts` — shell intent primitives
+- `47-prompt-intents.ts` — prompt intent primitives
 - `50-end-to-end-release-agent.ts` — end-to-end release workflow orchestration

@@ -1,12 +1,12 @@
-# 47 - Shell Intents
+# 47 - Prompt Intents
 
 ```rig
 import { agent, p, s } from "rig";
 
 // Agent role: summarize the current git workspace changes.
 
-const shellIntents = agent({
-  name: "shellIntents",
+const promptIntents = agent({
+  name: "promptIntents",
   model: "mini",
   instructions: "Summarize the current git workspace changes.",
   output: s.object({
@@ -15,5 +15,5 @@ const shellIntents = agent({
   }),
 });
 
-export default shellIntents;
+export default promptIntents;
 ```
