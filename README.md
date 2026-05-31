@@ -124,22 +124,24 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 - Default repair mode: `"default"`
 - Retry loop reparses/revalidates responses until success or max turns
 
-Per call, you can override `model`, `timeout`, `maxTurns`, `signal`, and `middleware`.
+Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 
 ## Middleware
 
 Each agent call runs a per-turn middleware chain:
 
 ```ts
+const steerFinalTurn = async (context, next) => {
+  await next();
+  if (context.nextPrompt && context.turn === context.maxTurns - 1) {
+    context.nextPrompt = `${context.nextPrompt}\nYou are running out of turns. Return corrected JSON now.`;
+  }
+};
+
 const review = agent({
   name: "review",
   maxTurns: 3,
-  middleware: async (context, next) => {
-    await next();
-    if (context.nextPrompt && context.turn === context.maxTurns - 1) {
-      context.nextPrompt = `${context.nextPrompt}\nYou are running out of turns. Return corrected JSON now.`;
-    }
-  },
+  middleware: steerFinalTurn,
 });
 ```
 
@@ -148,26 +150,30 @@ const review = agent({
 For direct SDK access, middleware also exposes `context.session`:
 
 ```ts
+const onSessionEvent = async (context, next) => {
+  if (context.turn === 1) {
+    context.session.on?.((event) => {
+      // custom event handling
+    });
+  }
+  await next();
+};
+
 const review = agent({
   name: "review",
-  middleware: async (context, next) => {
-    if (context.turn === 1) {
-      context.session.on?.((event) => {
-        // custom event handling
-      });
-    }
-    await next();
-  },
+  middleware: onSessionEvent,
 });
 ```
 
 You can also register middleware after creating the agent:
 
 ```ts
-const review = agent({ name: "review" });
-review.use(async (context, next) => {
+const timingMiddleware = async (context, next) => {
   await next();
-});
+};
+
+const review = agent({ name: "review" });
+review.use(timingMiddleware);
 ```
 
 ## Copilot SDK runtime
