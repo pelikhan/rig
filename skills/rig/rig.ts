@@ -285,6 +285,38 @@ function renderCodeRegion(language: string, body: unknown): string {
   return `\`\`\`${language}\n${normalized}\`\`\`\n`;
 }
 
+function normalizePromptTemplateText(text: string): string {
+  if (!text.includes("\n")) {
+    return text;
+  }
+  const lines = text.split("\n");
+  while (lines.length > 0 && lines[0]?.trim() === "") {
+    lines.shift();
+  }
+  while (lines.length > 0 && lines[lines.length - 1]?.trim() === "") {
+    lines.pop();
+  }
+  if (lines.length === 0) {
+    return "";
+  }
+  const indents = lines
+    .filter((line) => line.trim() !== "")
+    .map((line) => line.match(/^[\t ]*/)?.[0].length ?? 0);
+  const minIndent = indents.length > 0 ? Math.min(...indents) : 0;
+  if (minIndent <= 0) {
+    return lines.join("\n");
+  }
+  return lines.map((line) => line.slice(minIndent)).join("\n");
+}
+
+function promptTemplateDelimiter(strings: TemplateStringsArray): string {
+  let delimiter = "\u0000";
+  while (strings.some((part) => part.includes(delimiter))) {
+    delimiter += "\u0000";
+  }
+  return delimiter;
+}
+
 function promptFactory(): PromptBuilder;
 function promptFactory(strings: TemplateStringsArray, ...values: unknown[]): PromptBuilder;
 function promptFactory(...args: unknown[]): PromptBuilder {
@@ -298,8 +330,10 @@ function promptFactory(...args: unknown[]): PromptBuilder {
   const strings = args[0];
   const values = args.slice(1);
   const builder = new PromptBuilder();
-  for (let index = 0; index < strings.length; index += 1) {
-    builder.write(strings[index] ?? "");
+  const delimiter = promptTemplateDelimiter(strings);
+  const normalizedStrings = normalizePromptTemplateText(strings.join(delimiter)).split(delimiter);
+  for (let index = 0; index < normalizedStrings.length; index += 1) {
+    builder.write(normalizedStrings[index] ?? "");
     if (index < values.length) {
       builder.write(values[index]);
     }

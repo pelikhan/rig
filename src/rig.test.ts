@@ -716,6 +716,25 @@ describe("prompt builder", () => {
     expect(String(builder)).toContain("Run bash command and return stdout as text: git status --short");
   });
 
+  it("normalizes indentation for multiline tagged template syntax", () => {
+    const builder = p`
+      Generate a patch.
+      Use ${p.read("README.md")} as context.
+      Return only valid JSON.
+    `;
+
+    const rendered = String(builder);
+    expect(rendered).toContain("Generate a patch.");
+    expect(rendered).toContain("Use Read file and return its contents as text: \"README.md\"");
+    expect(rendered).toContain("sandboxed agentic workflow");
+    expect(rendered).toContain("as context.");
+    expect(rendered).toContain("Return only valid JSON.");
+    expect(rendered.startsWith("Generate a patch.\nUse ")).toBe(true);
+    expect(rendered.startsWith("\n")).toBe(false);
+    expect(rendered.endsWith("\n")).toBe(false);
+    expect(rendered.split("\n").every((line) => !line.startsWith("      "))).toBe(true);
+  });
+
   it("builds prompt text with variables and intents", () => {
     const builder = p();
     const repo = builder.var("repo", "rig");
