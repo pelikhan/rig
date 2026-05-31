@@ -28,10 +28,11 @@ import { addons, oncePerSession, repair, steering, timeout } from "rig/addons";
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative prompt intents for prompt templates or inputs.
+- `p()` and ``p`...` `` create a prompt builder with `var`, `write`, and `region` primitives for assembling prompts.
 - `addons` accepts express-like `(context, next)` turn addons for steering, inline validation, and Copilot session access.
 - `rig` starts with no default addons.
 - `rig/addons` provides optional addon helpers: `oncePerSession`, `repair`, `steering`, `timeout`, and `addons.{oncePerSession,repair,steering,timeout}`.
-- `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
+- `p\`...\`` returns a prompt builder and renders intent values when coerced to string; prefer `${p.read(...)}` / `${p.bash(...)}` when the context source is already known.
 
 ## Embedding in markdown
 
@@ -109,6 +110,15 @@ const reviewWorkspace = agent({
   name: "reviewWorkspace",
   instructions: p`Review ${p.read("README.md")} against ${p.bash("git status --short")}.`,
 });
+```
+
+```ts
+const b = p();
+const repo = b.var("repo", "rig");
+b.write("Summarize repository ", repo, ".\n");
+b.write("Start by checking ", b.bash("git status --short"), ".\n");
+b.region("ts", "type Summary = { text: string };");
+const prompt = b.toString();
 ```
 
 ## Evaluating agentic performance

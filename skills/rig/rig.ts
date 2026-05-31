@@ -66,9 +66,9 @@ const createEnumSchema: EnumSchemaFactory = (...args: unknown[]) => {
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
 export type AgentInputValue<T> =
-  T extends readonly (infer Item)[] ? PromptIntent | AgentInputValue<Item>[] :
-  T extends object ? PromptIntent | { [K in keyof T]: AgentInputValue<T[K]> } :
-  T | PromptIntent;
+  T extends readonly (infer Item)[] ? PromptIntent | PromptBuilder | AgentInputValue<Item>[] :
+  T extends object ? PromptIntent | PromptBuilder | { [K in keyof T]: AgentInputValue<T[K]> } :
+  T | PromptIntent | PromptBuilder;
 
 export type InferSchema<T> =
   T extends { kind: "string" } ? string :
@@ -171,7 +171,7 @@ export type AgentAddon = (
 ) => void | Promise<void>;
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
   name: string;
-  instructions?: string;
+  instructions?: string | PromptBuilder;
   input?: Input;
   output?: Output;
   model?: string;
@@ -230,33 +230,148 @@ export type PromptIntent = {
 let nextPromptIntentId = 1;
 
 type PromptHelpers = {
-  (strings: TemplateStringsArray, ...values: unknown[]): string;
+  (): PromptBuilder;
+  (strings: TemplateStringsArray, ...values: unknown[]): PromptBuilder;
   bash(command: string, options?: PromptIntentOptions): PromptIntent;
   read(path: string, options?: PromptIntentOptions): PromptIntent;
   write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent;
+  var<T>(name: string, value: T): PromptVariable<T>;
+  region(language: string, body: unknown): string;
 };
 
-function renderPromptTemplate(strings: TemplateStringsArray, ...values: unknown[]): string {
-  let result = strings[0] ?? "";
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index];
-    result += isPromptIntent(value) ? renderPromptIntentValue(value) : String(value);
-    result += strings[index + 1] ?? "";
-  }
-  return result;
+export type PromptVariable<T = unknown> = {
+  __rig: "prompt.var";
+  name: string;
+  value: T;
+};
+
+function isTemplateStringsArray(value: unknown): value is TemplateStringsArray {
+  return Array.isArray(value) && Array.isArray((value as { raw?: unknown })?.raw);
 }
 
-export const p: PromptHelpers = Object.assign(renderPromptTemplate, {
+function isPromptVariable(value: unknown): value is PromptVariable {
+  return !!value && typeof value === "object" && (value as { __rig?: string }).__rig === "prompt.var";
+}
+
+function createPromptVariable<T>(name: string, value: T): PromptVariable<T> {
+  return { __rig: "prompt.var", name, value };
+}
+
+function renderPromptPart(value: unknown): string {
+  if (isPromptIntent(value)) {
+    return renderPromptIntentValue(value);
+  }
+  if (value instanceof PromptBuilder) {
+    return value.toString();
+  }
+  if (isPromptVariable(value)) {
+    return renderPromptPart(value.value);
+  }
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "object") {
+    return json(value);
+  }
+  return String(value);
+}
+
+function renderCodeRegion(language: string, body: unknown): string {
+  const content = renderPromptPart(body);
+  const normalized = content.endsWith("\n") ? content : `${content}\n`;
+  return `\`\`\`${language}\n${normalized}\`\`\`\n`;
+}
+
+function promptFactory(): PromptBuilder;
+function promptFactory(strings: TemplateStringsArray, ...values: unknown[]): PromptBuilder;
+function promptFactory(...args: unknown[]): PromptBuilder {
+  if (args.length === 0) {
+    return new PromptBuilder();
+  }
+  if (!isTemplateStringsArray(args[0])) {
+    const receivedType = args[0] === null ? "null" : typeof args[0];
+    throw new TypeError(`p() expects either no arguments (for builder) or tagged template syntax like p\`...\` (received ${args.length} arg(s), first arg type: ${receivedType})`);
+  }
+  const strings = args[0];
+  const values = args.slice(1);
+  const builder = new PromptBuilder();
+  for (let index = 0; index < strings.length; index += 1) {
+    builder.write(strings[index] ?? "");
+    if (index < values.length) {
+      builder.write(values[index]);
+    }
+  }
+  return builder;
+}
+
+export const p: PromptHelpers = Object.assign(
+  promptFactory,
+  {
+    bash(command: string, options?: PromptIntentOptions): PromptIntent {
+      return createPromptIntent("prompt.text", withOptions({ command }, options));
+    },
+    read(path: string, options?: PromptIntentOptions): PromptIntent {
+      return createPromptIntent("prompt.read", withOptions({ path }, options));
+    },
+    write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent {
+      return createPromptIntent("prompt.write", withOptions({ path, contents }, options));
+    },
+    var<T>(name: string, value: T): PromptVariable<T> {
+      return createPromptVariable(name, value);
+    },
+    region(language: string, body: unknown): string {
+      return renderCodeRegion(language, body);
+    },
+  },
+);
+
+export class PromptBuilder {
+  readonly vars = new Map<string, PromptVariable>();
+  private readonly chunks: string[] = [];
+
   bash(command: string, options?: PromptIntentOptions): PromptIntent {
-    return createPromptIntent("prompt.text", withOptions({ command }, options));
-  },
+    return p.bash(command, options);
+  }
+
   read(path: string, options?: PromptIntentOptions): PromptIntent {
-    return createPromptIntent("prompt.read", withOptions({ path }, options));
-  },
-  write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent {
-    return createPromptIntent("prompt.write", withOptions({ path, contents }, options));
-  },
-});
+    return p.read(path, options);
+  }
+
+  file(path: string, contents: string, options?: PromptIntentOptions): PromptIntent {
+    return p.write(path, contents, options);
+  }
+
+  var<T>(name: string, value: T): PromptVariable<T> {
+    const variable = createPromptVariable(name, value);
+    this.vars.set(name, variable);
+    return variable;
+  }
+
+  get<T = unknown>(name: string): T | undefined {
+    return this.vars.get(name)?.value as T | undefined;
+  }
+
+  write(...values: unknown[]): this {
+    this.chunks.push(values.map(renderPromptPart).join(""));
+    return this;
+  }
+
+  line(...values: unknown[]): this {
+    return this.write(...values, "\n");
+  }
+
+  region(language: string, body: unknown): this {
+    this.chunks.push(renderCodeRegion(language, body));
+    return this;
+  }
+
+  toString(): string {
+    return this.chunks.join("");
+  }
+}
 
 export class AgentError extends Error {
   readonly kind: "parse" | "validation";
@@ -705,8 +820,9 @@ function normalizeInput(input: unknown, schema: Schema): unknown {
 
 function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
   const value = inlinePromptIntents(input);
+  const instructions = renderInstructions(spec.instructions);
   const sections = [
-    tag("instructions", (spec.instructions ?? "Return only valid JSON matching the output schema.").trim()),
+    tag("instructions", instructions.trim()),
     tag("output_schema", renderSchema(spec.output ?? defaultStringSchema)),
     tag("input", json(value)),
   ];
@@ -716,7 +832,7 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
       "subagents",
       json(Object.entries(spec.agents).map(([name, subagent]) => ({
         name,
-        instructions: subagent.spec.instructions ?? null,
+        instructions: subagent.spec.instructions === undefined ? null : renderInstructions(subagent.spec.instructions),
         model: subagent.spec.model ?? null,
         input: renderSchema(subagent.inputSchema),
         output: renderSchema(subagent.outputSchema),
@@ -731,6 +847,16 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
   ].join("\n")));
 
   return sections.join("\n\n");
+}
+
+function renderInstructions(instructions?: AgentSpec<any, any>["instructions"]): string {
+  if (instructions === undefined) {
+    return "Return only valid JSON matching the output schema.";
+  }
+  if (typeof instructions === "string") {
+    return instructions;
+  }
+  return instructions.toString();
 }
 
 export function defaultRepairPrompt(spec: AgentSpec<any, any>, error: AgentError): string {
@@ -879,6 +1005,9 @@ function inlinePromptIntents<T>(value: T): T {
   const seen = new WeakSet<object>();
 
   const walk = (current: unknown): unknown => {
+    if (current instanceof PromptBuilder) {
+      return current.toString();
+    }
     if (isPromptIntent(current)) {
       return renderPromptIntentValue(current);
     }

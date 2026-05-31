@@ -38,7 +38,7 @@ vi.mock("@github/copilot-sdk", () => ({
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
 }));
 
-import { AgentError, agent, p, s } from "rig";
+import { AgentError, PromptBuilder, agent, p, s } from "rig";
 import { oncePerSession, repair, steering, timeout } from "rig/addons";
 
 beforeEach(() => {
@@ -698,5 +698,40 @@ describe("prompt intents", () => {
     const intent = p.bash("echo hi", { cwd: "/tmp", signal: controller.signal });
 
     expect(intent.options).toEqual({ cwd: "/tmp" });
+  });
+});
+
+describe("prompt builder", () => {
+  it("exposes prompt helpers on p", () => {
+    expect(p.read("README.md").mode).toBe("prompt.read");
+    expect(p.bash("git status --short").mode).toBe("prompt.text");
+    expect(p.write("README.md", "# Updated\n").mode).toBe("prompt.write");
+  });
+
+  it("returns a prompt builder from tagged template syntax", () => {
+    const builder = p`Repository: ${p.var("repo", "rig")}\nStatus: ${p.bash("git status --short")}`;
+
+    expect(builder).toBeInstanceOf(PromptBuilder);
+    expect(String(builder)).toContain("Repository: rig");
+    expect(String(builder)).toContain("Run bash command and return stdout as text: git status --short");
+  });
+
+  it("builds prompt text with variables and intents", () => {
+    const builder = p();
+    const repo = builder.var("repo", "rig");
+    builder.write("Repository: ", repo, "\n");
+    builder.write("Status: ", builder.bash("git status --short"));
+
+    expect(builder.get("repo")).toBe("rig");
+    expect(String(builder)).toContain("Repository: rig");
+    expect(String(builder)).toContain("Run bash command and return stdout as text: git status --short");
+  });
+
+  it("creates code regions", () => {
+    const builder = p();
+    builder.region("ts", "const done = true;");
+
+    expect(String(builder)).toBe("```ts\nconst done = true;\n```\n");
+    expect(p.region("json", "{\n  \"ok\": true\n}")).toContain("```json");
   });
 });
