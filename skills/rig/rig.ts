@@ -106,7 +106,7 @@ export const s = {
 };
 
 const defaultStringSchema = s.string;
-const defaultMaxTurnWarningMessage = "You are running out of turns. This is your last retry before max turns. Please correct your output now.";
+const DEFAULT_MAX_TURN_WARNING = "You are running out of turns. This is your last retry before max turns. Please correct your output now.";
 
 export type CopilotEngineOptions = Omit<CopilotClientOptions, "connection"> & {
   connection?: CopilotClientOptions["connection"];
@@ -195,7 +195,7 @@ export type CallOptions = {
 };
 
 export function warnOnMaxTurns(options: WarnOnMaxTurnsOptions = {}): AgentMiddleware {
-  const message = options.message?.trim() || defaultMaxTurnWarningMessage;
+  const message = options.message?.trim() ?? DEFAULT_MAX_TURN_WARNING;
   return async (context, next) => {
     await next();
     if (context.nextPrompt && context.turn === context.maxTurns - 1) {
