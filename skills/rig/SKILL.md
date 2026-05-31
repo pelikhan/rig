@@ -19,7 +19,7 @@ gh skills clone pelikhan/rig
 ## Preferred imports
 
 ```ts
-import { P, agent, p, s } from "rig";
+import { agent, p, s } from "rig";
 ```
 
 ## Recommended default pattern
@@ -83,7 +83,7 @@ Declare a structured agent.
 | Field | Purpose |
 |-------|---------|
 | `name` | Agent name used in the prompt |
-| `instructions` | Prompt instructions as a plain string or a `P\`...\`` prompt builder |
+| `instructions` | Prompt instructions as a plain string or a ``p`...` `` prompt builder |
 | `input` | Input schema |
 | `output` | Output schema |
 | `model` | Default model name; examples should use `"large"`, `"mini"`, or `"nano"` |
@@ -154,21 +154,21 @@ const prompt = p`Review the repository status using ${p.bash("git status --short
 
 Only introduce `input` fields for data the caller truly supplies at runtime. Do not require inputs just to thread known file or shell context into the prompt.
 
-## `P` — prompt builder template literal
+## `p` as a prompt builder for instructions
 
-`P` is a tagged template literal that returns a `PromptBuilder`. Use it in `instructions` when you want to embed prompt intents or inline context directly in the agent instructions.
+``p`...` `` can also be used in `instructions` when you want to embed prompt intents or inline context directly in the agent instructions.
 
 ```ts
-import { P, agent, p, s } from "rig";
+import { agent, p, s } from "rig";
 
 const reviewAgent = agent({
   name: "review",
-  instructions: P`Review the repository using ${p.bash("git status --short")} and summarize changes.`,
+  instructions: p`Review the repository using ${p.bash("git status --short")} and summarize changes.`,
   output: s.object({ summary: s.string }),
 });
 ```
 
-- `P\`...\`` accepts the same `${p.bash(...)}`, `${p.read(...)}`, and `${p.write(...)}` expressions as `p\`...\``.
+- ``p`...` `` accepts `${p.bash(...)}`, `${p.read(...)}`, and `${p.write(...)}` expressions.
 - Nested `PromptBuilder` values used as interpolations are inlined as plain text.
 - The rendered `PromptBuilder` replaces the instructions string when the agent prompt is assembled.
 
@@ -329,7 +329,6 @@ Use only the current API:
 
 - `agent({ name, ... })`
 - `p.*` and `p\`...\`` from `rig`
-- `P\`...\`` from `rig` for building prompt instructions
 - `s.*` for explicit schema helpers
 - `oncePerSession` / `repair` / `steering` / `timeout` from `rig/addons` for optional addons
 

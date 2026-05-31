@@ -18,7 +18,6 @@ gh skills clone pelikhan/rig
 
 ```ts
 import {
-  P,
   agent,
   p,
   s,
@@ -30,7 +29,7 @@ import { addons, oncePerSession, repair, steering, timeout } from "rig/addons";
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative prompt intents for prompt templates or inputs.
 - `p()` and ``p`...` `` create a prompt builder with `var`, `write`, and `region` primitives for assembling prompts.
-- ``P`...` `` is a tagged template literal that returns a `PromptBuilder`. Use it in `instructions` to embed prompt intents directly: `` instructions: P`Review ${p.bash("git status")}` ``.
+- ``p`...` `` also works in `instructions` to embed prompt intents directly: `` instructions: p`Review ${p.bash("git status")}` ``.
 - `addons` accepts express-like `(context, next)` turn addons for steering, inline validation, and Copilot session access.
 - `rig` starts with no default addons.
 - `rig/addons` provides optional addon helpers: `oncePerSession`, `repair`, `steering`, `timeout`, and `addons.{oncePerSession,repair,steering,timeout}`.

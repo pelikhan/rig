@@ -38,7 +38,7 @@ vi.mock("@github/copilot-sdk", () => ({
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
 }));
 
-import { AgentError, P, PromptBuilder, agent, p, s } from "rig";
+import { AgentError, PromptBuilder, agent, p, s } from "rig";
 import { oncePerSession, repair, steering, timeout } from "rig/addons";
 
 beforeEach(() => {
@@ -755,16 +755,16 @@ describe("prompt builder", () => {
   });
 });
 
-describe("P template literal", () => {
+describe("p template literal for instructions", () => {
   it("returns a PromptBuilder from tagged template syntax", () => {
-    const builder = P`Review the diff.`;
+    const builder = p`Review the diff.`;
 
     expect(builder).toBeInstanceOf(PromptBuilder);
     expect(String(builder)).toBe("Review the diff.");
   });
 
   it("inlines prompt intents as expressions", () => {
-    const builder = P`Review the repo using ${p.bash("git status --short")} before answering.`;
+    const builder = p`Review the repo using ${p.bash("git status --short")} before answering.`;
 
     expect(builder).toBeInstanceOf(PromptBuilder);
     expect(String(builder)).toContain("Review the repo using Run bash command and return stdout as text: git status --short");
@@ -772,8 +772,8 @@ describe("P template literal", () => {
   });
 
   it("inlines nested PromptBuilder as an expression", () => {
-    const inner = P`World`;
-    const outer = P`Hello ${inner}`;
+    const inner = p`World`;
+    const outer = p`Hello ${inner}`;
 
     expect(String(outer)).toBe("Hello World");
   });
@@ -788,7 +788,7 @@ describe("P template literal", () => {
 
     const reviewAgent = agent({
       name: "review",
-      instructions: P`Use ${p.bash("git diff --stat")} to review changes.`,
+      instructions: p`Use ${p.bash("git diff --stat")} to review changes.`,
       output: s.object({ text: s.string }),
     });
 

@@ -407,10 +407,6 @@ export class PromptBuilder {
   }
 }
 
-export function P(strings: TemplateStringsArray, ...values: unknown[]): PromptBuilder {
-  return promptFactory(strings, ...values);
-}
-
 export class AgentError extends Error {
   readonly kind: "parse" | "validation";
   readonly agent: string;
