@@ -21,15 +21,16 @@ import {
   agent,
   p,
   s,
-  warnOnMaxTurns,
 } from "rig";
+import { addons, repair, steering } from "rig/addons";
 ```
 
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative shell/file intents for prompt templates or inputs.
 - `middleware` accepts express-like `(context, next)` turn middleware for steering, inline validation, and Copilot session access.
-- `warnOnMaxTurns()` is an optional builtin steering middleware; it is never loaded by default.
+- `rig` starts with no default middleware.
+- `rig/addons` provides optional middleware helpers: `repair`, `steering`, and `addons.{repair,steering}`.
 - `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
 
 ## Embedding in markdown
@@ -123,7 +124,7 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 
 - Default model: `gpt-4.1`
 - Default max turns: `4`
-- Built-in repair middleware reparses/revalidates responses until success or max turns
+- No middleware is loaded by default (including repair/retry behavior)
 
 Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 
@@ -148,13 +149,13 @@ const review = agent({
 
 `context` includes `prompt`, `response`, `turn`, `maxTurns`, `output`, `nextPrompt`, `error`, and `completed`.
 
-For the common "last retry" warning, you can opt into the builtin middleware:
+For the common retry flow with last-turn steering, opt into addons:
 
 ```ts
 const review = agent({
   name: "review",
   maxTurns: 3,
-  middleware: warnOnMaxTurns(),
+  middleware: [steering(), repair],
 });
 ```
 

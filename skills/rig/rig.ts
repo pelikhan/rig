@@ -106,7 +106,6 @@ export const s = {
 };
 
 const defaultStringSchema = s.string;
-const DEFAULT_MAX_TURN_WARNING = "You are running out of turns. This is your final attempt before reaching the turn limit. Please correct your output now.";
 
 export type CopilotEngineOptions = Omit<CopilotClientOptions, "connection"> & {
   connection?: CopilotClientOptions["connection"];
@@ -169,10 +168,6 @@ export type AgentMiddleware = (
   context: AgentMiddlewareContext,
   next: () => Promise<void>,
 ) => void | Promise<void>;
-export type WarnOnMaxTurnsOptions = {
-  message?: string;
-};
-
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
   name: string;
   instructions?: string;
@@ -191,16 +186,6 @@ export type CallOptions = {
   model?: string;
   maxTurns?: number;
 };
-
-export function warnOnMaxTurns(options: WarnOnMaxTurnsOptions = {}): AgentMiddleware {
-  const message = options.message ?? DEFAULT_MAX_TURN_WARNING;
-  return async (context, next) => {
-    await next();
-    if (context.nextPrompt && context.turn + 1 === context.maxTurns) {
-      context.nextPrompt = `${context.nextPrompt}\n${message}`;
-    }
-  };
-}
 
 export type LaunchOptions = {
   cwd?: string;
@@ -634,12 +619,20 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
           if (context.completed) {
             return context.output;
           }
-          if (context.nextPrompt === undefined) {
-            throw new Error(
-              `Agent ${normalizedSpec.name}: middleware must set context.output with context.completed=true or context.nextPrompt for turn ${turn}.`,
-            );
+          if (context.nextPrompt !== undefined) {
+            prompt = context.nextPrompt;
+            continue;
           }
-          prompt = context.nextPrompt;
+          if (context.response !== undefined) {
+            const analysis = analyzeResponse(context.response, context.outputSchema, context.spec.name, context.turn);
+            if (analysis.ok) {
+              return analysis.output;
+            }
+            throw analysis.error;
+          }
+          throw new Error(
+            `Agent ${normalizedSpec.name}: middleware must set context.output with context.completed=true or context.nextPrompt for turn ${turn}.`,
+          );
         }
       } catch (error) {
         failure = error;
@@ -744,7 +737,7 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
   return sections.join("\n\n");
 }
 
-function defaultRepairPrompt(spec: AgentSpec<any, any>, error: AgentError): string {
+export function defaultRepairPrompt(spec: AgentSpec<any, any>, error: AgentError): string {
   return [
     `<repair agent="${escapeAttribute(spec.name)}" turn="${error.turn}">`,
     tag("instructions", "Your previous response was invalid. Return only corrected JSON."),
@@ -909,9 +902,9 @@ function inlineShellPrompts<T>(value: T): T {
   return walk(value) as T;
 }
 
-type ResponseAnalysisResult = { ok: true; output: unknown } | { ok: false; error: AgentError };
+export type ResponseAnalysisResult = { ok: true; output: unknown } | { ok: false; error: AgentError };
 
-function analyzeResponse(response: string, outputSchema: Schema, agentName: string, turn: number): ResponseAnalysisResult {
+export function analyzeResponse(response: string, outputSchema: Schema, agentName: string, turn: number): ResponseAnalysisResult {
   const parsed = parseJson(response);
   if (!parsed.ok) {
     return {
@@ -1103,7 +1096,7 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
     model: options.model ?? spec.model ?? "gpt-4.1",
     maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
     signal: timeoutSignal(options.signal, options.timeout ?? spec.timeout),
-    middlewares: [...normalizeMiddlewares(spec.middleware), builtinRepairMiddleware],
+    middlewares: normalizeMiddlewares(spec.middleware),
   };
 }
 
@@ -1119,27 +1112,6 @@ function normalizeMiddlewares(middlewares?: AgentMiddleware | AgentMiddleware[])
   }
   return items;
 }
-
-const builtinRepairMiddleware: AgentMiddleware = async (context, next) => {
-  await next();
-  if (context.completed || context.error !== undefined || context.nextPrompt !== undefined) {
-    return;
-  }
-  if (context.response === undefined) {
-    return;
-  }
-  const analysis = analyzeResponse(context.response, context.outputSchema, context.spec.name, context.turn);
-  if (analysis.ok) {
-    context.completed = true;
-    context.output = analysis.output;
-    return;
-  }
-  if (context.turn >= context.maxTurns) {
-    context.error = analysis.error;
-    return;
-  }
-  context.nextPrompt = defaultRepairPrompt(context.spec, analysis.error);
-};
 
 async function runAgentMiddlewares(
   middlewares: AgentMiddleware[],
