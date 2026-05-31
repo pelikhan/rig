@@ -106,6 +106,7 @@ export const s = {
 };
 
 const defaultStringSchema = s.string;
+const DEFAULT_MAX_TURN_WARNING = "You are running out of turns. This is your final attempt before reaching the turn limit. Please correct your output now.";
 
 export type CopilotEngineOptions = Omit<CopilotClientOptions, "connection"> & {
   connection?: CopilotClientOptions["connection"];
@@ -168,6 +169,9 @@ export type AgentMiddleware = (
   context: AgentMiddlewareContext,
   next: () => Promise<void>,
 ) => void | Promise<void>;
+export type WarnOnMaxTurnsOptions = {
+  message?: string;
+};
 
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
   name: string;
@@ -187,6 +191,16 @@ export type CallOptions = {
   model?: string;
   maxTurns?: number;
 };
+
+export function warnOnMaxTurns(options: WarnOnMaxTurnsOptions = {}): AgentMiddleware {
+  const message = options.message ?? DEFAULT_MAX_TURN_WARNING;
+  return async (context, next) => {
+    await next();
+    if (context.nextPrompt && context.turn + 1 === context.maxTurns) {
+      context.nextPrompt = `${context.nextPrompt}\n${message}`;
+    }
+  };
+}
 
 export type LaunchOptions = {
   cwd?: string;
