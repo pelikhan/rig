@@ -41,11 +41,7 @@ Use `rig` code fences in markdown files to define runnable harness programs:
 
 ````markdown
 ```rig
-const root = agent({
-  name: "review",
-  instructions: "Summarize this repository.",
-});
-export default root;
+export default "Summarize this repository.";
 ```
 ````
 
@@ -207,15 +203,12 @@ For runnable programs, you can pipe a rig program directly on stdin (assumes the
 
 ```bash
 cat <<'RIG' | node skills/rig/rig.ts
-const root = agent({
-  name: "review",
-  instructions: "Summarize this repository.",
-});
-export default root;
+import { p } from "rig";
+export default p`Summarize this repository and include highlights from ${p.read("README.md")}.`;
 RIG
 ```
 
-Inline stdin programs run a root agent with no required external input and write the result to stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment.  
+Inline stdin programs run a default-exported root program with no required external input and write the result to stdout. Export either an agent, a string, or a prompt builder. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment.  
 `import { agent, p, s } from "rig"` is optional in inline mode because the harness injects it when missing.
 
 Inline mode accepts root agents that either omit `input`, use `input: s.object({})`, or rely on the default `input: s.string` (which is invoked with `""`).
@@ -232,7 +225,7 @@ Pass `--typecheck` to typecheck the rig program before execution:
 cat ./program.ts | node skills/rig/rig.ts --typecheck
 ```
 
-To run a root agent from a program file, export the root agent as the default export and pass input on stdin:
+To run a root program from a program file, export the root value as the default export and pass input on stdin:
 
 ```bash
 echo "Summarize this repository" | node skills/rig/rig.ts src/program.ts

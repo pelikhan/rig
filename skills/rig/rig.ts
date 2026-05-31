@@ -476,6 +476,21 @@ function asRootAgent(value: unknown): AgentFn | undefined {
   return value as AgentFn;
 }
 
+/**
+ * Normalizes supported launcher root exports to an agent function.
+ * Strings and prompt builders are wrapped in a default agent.
+ */
+function asRootProgram(value: unknown, name: string): AgentFn | undefined {
+  const rootAgent = asRootAgent(value);
+  if (rootAgent) {
+    return rootAgent;
+  }
+  if (typeof value === "string" || value instanceof PromptBuilder) {
+    return agent({ name, instructions: value }) as AgentFn;
+  }
+  return undefined;
+}
+
 function noInputInvocation(agentFn: AgentFn): unknown | undefined {
   const schema = agentFn.inputSchema;
   if (schema.kind === "string") {
@@ -620,9 +635,9 @@ async function runRootAgentFromStdin(
 
   configureCopilot(resolveCopilotOptions(cwd, options));
   const mod = await import(pathToFileURL(resolvedPath).href);
-  const rootAgent = asRootAgent(mod.default);
+  const rootAgent = asRootProgram(mod.default, "launcher-root");
   if (!rootAgent) {
-    throw new Error("Expected program to export a root agent as default export.");
+    throw new Error("Expected program to export a root value (agent, string, or prompt builder) as default export.");
   }
 
   const result = await rootAgent(coerceStdinInput(rootAgent, prompt));
@@ -652,9 +667,9 @@ async function runProgramCodeFromStdin(
     }
     configureCopilot(resolveCopilotOptions(cwd, options));
     const mod = await import(pathToFileURL(tempProgramPath).href);
-    const rootAgent = asRootAgent(mod.default);
+    const rootAgent = asRootProgram(mod.default, "launcher-inline-root");
     if (!rootAgent) {
-      throw new Error("Expected program to export a root agent as default export.");
+      throw new Error("Expected program to export a root value (agent, string, or prompt builder) as default export.");
     }
     const input = noInputInvocation(rootAgent);
     if (input === undefined) {
@@ -678,8 +693,8 @@ function renderLauncherUsage(scriptName: string): string {
     `Usage: ${scriptName} [<program-file>] [--server] [--typecheck]`,
     "",
     "Modes:",
-    "  <no program-file>  Read a rig program from stdin and run its default root agent.",
-    "  <program-file>     Read root-agent input from stdin and run the program file.",
+    "  <no program-file>  Read a rig program from stdin and run its default root export.",
+    "  <program-file>     Read stdin input and run the program file root export.",
     "",
     "Help aliases:",
     "  --help, -h, help, /help, /?",
