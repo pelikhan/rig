@@ -13,7 +13,6 @@ const summarize = agent({
     summary: s.string,
   }),
   maxTurns: 2,
-  repair: "default",
 });
 
 export default summarize;

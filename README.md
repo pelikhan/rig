@@ -121,8 +121,7 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 
 - Default model: `gpt-4.1`
 - Default max turns: `4`
-- Default repair mode: `"default"`
-- Retry loop reparses/revalidates responses until success or max turns
+- Built-in repair middleware reparses/revalidates responses until success or max turns
 
 Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 
