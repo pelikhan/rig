@@ -237,6 +237,12 @@ type PromptHelpers = {
   write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent;
 };
 
+export type PromptVariable<T = unknown> = {
+  __rig: "prompt.var";
+  name: string;
+  value: T;
+};
+
 function renderPromptTemplate(strings: TemplateStringsArray, ...values: unknown[]): string {
   let result = strings[0] ?? "";
   for (let index = 0; index < values.length; index += 1) {
@@ -245,6 +251,39 @@ function renderPromptTemplate(strings: TemplateStringsArray, ...values: unknown[
     result += strings[index + 1] ?? "";
   }
   return result;
+}
+
+function isPromptVariable(value: unknown): value is PromptVariable {
+  return !!value && typeof value === "object" && (value as { __rig?: string }).__rig === "prompt.var";
+}
+
+function createPromptVariable<T>(name: string, value: T): PromptVariable<T> {
+  return { __rig: "prompt.var", name, value };
+}
+
+function renderPromptPart(value: unknown): string {
+  if (isPromptIntent(value)) {
+    return renderPromptIntentValue(value);
+  }
+  if (isPromptVariable(value)) {
+    return renderPromptPart(value.value);
+  }
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "object") {
+    return json(value);
+  }
+  return String(value);
+}
+
+function renderCodeRegion(language: string, body: unknown): string {
+  const content = renderPromptPart(body);
+  const normalized = content.endsWith("\n") ? content : `${content}\n`;
+  return `\`\`\`${language}\n${normalized}\`\`\`\n`;
 }
 
 export const p: PromptHelpers = Object.assign(renderPromptTemplate, {
@@ -261,6 +300,93 @@ export const p: PromptHelpers = Object.assign(renderPromptTemplate, {
     return createPromptIntent("prompt.write", withOptions({ path, contents }, options));
   },
 });
+
+export class PromptBuilder {
+  readonly vars = new Map<string, PromptVariable>();
+  private readonly chunks: string[] = [];
+
+  bash(command: string, options?: PromptIntentOptions): PromptIntent {
+    return p.bash(command, options);
+  }
+
+  result(command: string, options?: PromptIntentOptions): PromptIntent {
+    return p.result(command, options);
+  }
+
+  read(path: string, options?: PromptIntentOptions): PromptIntent {
+    return p.read(path, options);
+  }
+
+  file(path: string, contents: string, options?: PromptIntentOptions): PromptIntent {
+    return p.write(path, contents, options);
+  }
+
+  var<T>(name: string, value: T): PromptVariable<T> {
+    const variable = createPromptVariable(name, value);
+    this.vars.set(name, variable);
+    return variable;
+  }
+
+  get<T = unknown>(name: string): T | undefined {
+    return this.vars.get(name)?.value as T | undefined;
+  }
+
+  write(...values: unknown[]): this {
+    this.chunks.push(values.map(renderPromptPart).join(""));
+    return this;
+  }
+
+  line(...values: unknown[]): this {
+    return this.write(...values, "\n");
+  }
+
+  region(language: string, body: unknown): this {
+    this.chunks.push(renderCodeRegion(language, body));
+    return this;
+  }
+
+  build(): string {
+    return this.chunks.join("");
+  }
+
+  toString(): string {
+    return this.build();
+  }
+}
+
+type PromptApi = {
+  bash(command: string, options?: PromptIntentOptions): PromptIntent;
+  result(command: string, options?: PromptIntentOptions): PromptIntent;
+  read(path: string, options?: PromptIntentOptions): PromptIntent;
+  write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent;
+  builder(): PromptBuilder;
+  var<T>(name: string, value: T): PromptVariable<T>;
+  region(language: string, body: unknown): string;
+};
+
+export const P: PromptApi = {
+  bash(command: string, options?: PromptIntentOptions): PromptIntent {
+    return p.bash(command, options);
+  },
+  result(command: string, options?: PromptIntentOptions): PromptIntent {
+    return p.result(command, options);
+  },
+  read(path: string, options?: PromptIntentOptions): PromptIntent {
+    return p.read(path, options);
+  },
+  write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent {
+    return p.write(path, contents, options);
+  },
+  builder(): PromptBuilder {
+    return new PromptBuilder();
+  },
+  var<T>(name: string, value: T): PromptVariable<T> {
+    return createPromptVariable(name, value);
+  },
+  region(language: string, body: unknown): string {
+    return renderCodeRegion(language, body);
+  },
+};
 
 export class AgentError extends Error {
   readonly kind: "parse" | "validation";
