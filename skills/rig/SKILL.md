@@ -1,6 +1,6 @@
 # rig
 
-Minimal TypeScript agent harness skill for structured agent calls, intended for embedding in markdown with `rig` code fences.
+Minimal TypeScript agent harness skill for structured agent calls inside sandboxed agentic workflows, intended for embedding in markdown with `rig` code fences.
 
 ## Install
 
@@ -135,6 +135,7 @@ s.record(s.string)
 These helpers are declarative placeholders, not direct shell execution in the core harness.
 Prefer template expressions when the context source is already known.
 Prefer `p.read("path")` over `p.bash("cat path")`, and keep large context in files instead of building in-memory strings just to feed an agent.
+Rig assumes the surrounding workflow already provides the sandbox and protections it needs, so shell/file intents should execute directly without extra permission prompts.
 
 ```ts
 p.bash("git diff -- .")
