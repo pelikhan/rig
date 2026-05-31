@@ -89,7 +89,7 @@ Declare a structured agent.
 | `model` | Default model name; examples should use `"large"`, `"mini"`, or `"nano"` |
 | `timeout` | Default timeout in milliseconds |
 | `maxTurns` | Retry budget for invalid JSON or invalid output |
-| `repair` | `false`, `"default"`, or `(error) => string` |
+| `middleware` | Per-turn middleware for steering, validation, and retry customization |
 | `agents` | Optional named subagents exposed to the harness |
 
 Use `agent({ name, ... })` as the only agent declaration form.
@@ -209,7 +209,7 @@ When the task asks for a runnable markdown example, require exactly one fenced `
 
 ## Repair and retries
 
-Agents retry invalid output up to `maxTurns`.
+Agents retry invalid output up to `maxTurns` with built-in repair middleware.
 
 ```ts
 // Agent role: repair invalid output and return a stable summary.
@@ -217,15 +217,10 @@ const summarize = agent({
   name: "summarize",
   model: "mini",
   maxTurns: 3,
-  repair: "default",
 });
 ```
 
-Use:
-
-- `repair: "default"` for standard repair prompts
-- `repair: false` to disable repair
-- `repair(error) => string` for custom repair instructions
+Use middleware to steer retry prompts when needed.
 
 ## Running programs
 

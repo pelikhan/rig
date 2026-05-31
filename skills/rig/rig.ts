@@ -149,7 +149,6 @@ function writeEvent(event: unknown): void {
   process.stderr.write(`${jsonl(event)}\n`);
 }
 
-export type RepairHandler = false | "default" | ((error: AgentError) => string);
 export type CopilotSession = Awaited<ReturnType<CopilotClient["createSession"]>>;
 export type AgentMiddlewareContext = {
   spec: AgentSpec<any, any>;
@@ -178,7 +177,6 @@ export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema
   model?: string;
   timeout?: number;
   maxTurns?: number;
-  repair?: RepairHandler;
   middleware?: AgentMiddleware | AgentMiddleware[];
   agents?: Record<string, AgentFn<any, any>>;
 };
@@ -614,17 +612,6 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
           await runAgentMiddlewares(runtime.middlewares, context, async () => {
             lastResponse = await sendCopilotPrompt(copilot.session, context.prompt, runtime.signal);
             context.response = lastResponse;
-            const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
-            if (analysis.ok) {
-              context.completed = true;
-              context.output = analysis.output;
-              return;
-            }
-            if (turn === runtime.maxTurns || runtime.repair === false) {
-              context.error = analysis.error;
-              return;
-            }
-            context.nextPrompt = repairPrompt(normalizedSpec, analysis.error);
           });
 
           if (context.error !== undefined) {
@@ -695,7 +682,6 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   if (specOrName.model !== undefined) spec.model = specOrName.model;
   if (specOrName.timeout !== undefined) spec.timeout = specOrName.timeout;
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
-  if (specOrName.repair !== undefined) spec.repair = specOrName.repair;
   if (specOrName.middleware !== undefined) spec.middleware = specOrName.middleware;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
   return spec;
@@ -744,10 +730,7 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
   return sections.join("\n\n");
 }
 
-function repairPrompt(spec: AgentSpec<any, any>, error: AgentError): string {
-  if (typeof spec.repair === "function") {
-    return spec.repair(error);
-  }
+function defaultRepairPrompt(spec: AgentSpec<any, any>, error: AgentError): string {
   return [
     `<repair agent="${escapeAttribute(spec.name)}" turn="${error.turn}">`,
     tag("instructions", "Your previous response was invalid. Return only corrected JSON."),
@@ -1100,15 +1083,13 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
   model: string;
   maxTurns: number;
   signal: AbortSignal | undefined;
-  repair: RepairHandler;
   middlewares: AgentMiddleware[];
 } {
   return {
     model: options.model ?? spec.model ?? "gpt-4.1",
     maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
     signal: timeoutSignal(options.signal, options.timeout ?? spec.timeout),
-    repair: spec.repair ?? "default",
-    middlewares: normalizeMiddlewares(spec.middleware),
+    middlewares: [...normalizeMiddlewares(spec.middleware), builtinRepairMiddleware],
   };
 }
 
@@ -1124,6 +1105,24 @@ function normalizeMiddlewares(middlewares?: AgentMiddleware | AgentMiddleware[])
   }
   return items;
 }
+
+const builtinRepairMiddleware: AgentMiddleware = async (context, next) => {
+  await next();
+  if (context.completed || context.error !== undefined || context.nextPrompt !== undefined) {
+    return;
+  }
+  const analysis = analyzeResponse(context.response ?? "", context.outputSchema, context.spec.name, context.turn);
+  if (analysis.ok) {
+    context.completed = true;
+    context.output = analysis.output;
+    return;
+  }
+  if (context.turn === context.maxTurns) {
+    context.error = analysis.error;
+    return;
+  }
+  context.nextPrompt = defaultRepairPrompt(context.spec, analysis.error);
+};
 
 async function runAgentMiddlewares(
   middlewares: AgentMiddleware[],

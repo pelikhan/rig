@@ -341,7 +341,7 @@ describe("agent invocation", () => {
     expect(prompts[1]).toContain("invalid JSON");
   });
 
-  it("retries validation failures with a custom repair prompt", async () => {
+  it("retries validation failures with middleware-customized repair prompts", async () => {
     const prompts: string[] = [];
     let calls = 0;
 
@@ -353,8 +353,11 @@ describe("agent invocation", () => {
 
     const repairable = agent({
       name: "repairable",
-      repair(error) {
-        return `please fix: ${error.message}`;
+      middleware: async (context, next) => {
+        await next();
+        if (context.nextPrompt) {
+          context.nextPrompt = `please fix: ${context.nextPrompt}`;
+        }
       },
       maxTurns: 2,
     });
@@ -363,12 +366,12 @@ describe("agent invocation", () => {
     expect(prompts[1]).toContain("please fix");
   });
 
-  it("throws AgentError when repair is disabled", async () => {
+  it("throws AgentError after the final invalid turn", async () => {
     mocks.setSendAndWaitImpl(async () => "not json");
 
     const strict = agent({
       name: "strict",
-      repair: false,
+      maxTurns: 1,
     });
 
     await expect(strict("go")).rejects.toBeInstanceOf(AgentError);
