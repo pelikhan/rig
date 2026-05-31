@@ -21,7 +21,7 @@ const packageMap = agent({
     instructions: `Build a package map for a JavaScript monorepo.`,
 });
 await packageMap({
-    manifests: p.read("package.json"),
+    manifests: p.read("**/package.json"),
 });
 
 export default packageMap;

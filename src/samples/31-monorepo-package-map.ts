@@ -14,7 +14,7 @@ const actionReview = agent({
     instructions: `Review the workflow for reliability, caching, and least privilege.`,
 });
 await actionReview({
-    workflow: p.read(".github/workflows/ci.yml"),
+    workflow: p.read(".github/workflows/*.{yml,yaml}"),
 });
 
 export default actionReview;
