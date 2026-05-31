@@ -476,6 +476,10 @@ function asRootAgent(value: unknown): AgentFn | undefined {
   return value as AgentFn;
 }
 
+/**
+ * Normalizes supported launcher root exports to an agent function.
+ * Strings and prompt builders are wrapped in a default agent.
+ */
 function asRootProgram(value: unknown, name: string): AgentFn | undefined {
   const rootAgent = asRootAgent(value);
   if (rootAgent) {
