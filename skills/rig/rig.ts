@@ -285,6 +285,30 @@ function renderCodeRegion(language: string, body: unknown): string {
   return `\`\`\`${language}\n${normalized}\`\`\`\n`;
 }
 
+function normalizePromptTemplateText(text: string): string {
+  if (!text.includes("\n")) {
+    return text;
+  }
+  const lines = text.split("\n");
+  while (lines.length > 0 && lines[0]?.trim() === "") {
+    lines.shift();
+  }
+  while (lines.length > 0 && lines[lines.length - 1]?.trim() === "") {
+    lines.pop();
+  }
+  if (lines.length === 0) {
+    return "";
+  }
+  const indents = lines
+    .filter((line) => line.trim() !== "")
+    .map((line) => line.match(/^[\t ]*/)?.[0].length ?? 0);
+  const minIndent = indents.length > 0 ? Math.min(...indents) : 0;
+  if (minIndent <= 0) {
+    return lines.join("\n");
+  }
+  return lines.map((line) => line.slice(minIndent)).join("\n");
+}
+
 function promptFactory(): PromptBuilder;
 function promptFactory(strings: TemplateStringsArray, ...values: unknown[]): PromptBuilder;
 function promptFactory(...args: unknown[]): PromptBuilder {
@@ -298,12 +322,20 @@ function promptFactory(...args: unknown[]): PromptBuilder {
   const strings = args[0];
   const values = args.slice(1);
   const builder = new PromptBuilder();
+  const placeholders = values.map((_value, index) => `__RIG_PROMPT_SLOT_${index}__`);
+  let text = "";
   for (let index = 0; index < strings.length; index += 1) {
-    builder.write(strings[index] ?? "");
+    text += strings[index] ?? "";
     if (index < values.length) {
-      builder.write(values[index]);
+      text += placeholders[index];
     }
   }
+  const normalized = normalizePromptTemplateText(text);
+  const rendered = values.reduce<string>(
+    (current, value, index) => current.replaceAll(placeholders[index]!, renderPromptPart(value)),
+    normalized,
+  );
+  builder.write(rendered);
   return builder;
 }
 
