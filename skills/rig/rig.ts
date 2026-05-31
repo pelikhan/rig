@@ -482,7 +482,7 @@ function asRootProgram(value: unknown, name: string): AgentFn | undefined {
     return rootAgent;
   }
   if (typeof value === "string" || value instanceof PromptBuilder) {
-    return agent({ name, instructions: value });
+    return agent({ name, instructions: value }) as AgentFn;
   }
   return undefined;
 }
