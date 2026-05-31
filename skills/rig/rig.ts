@@ -194,7 +194,7 @@ export type CallOptions = {
 };
 
 export function warnOnMaxTurns(options: WarnOnMaxTurnsOptions = {}): AgentMiddleware {
-  const message = options.message?.trim() || "You are running out of turns. This is your last retry before max turns. Return corrected JSON now.";
+  const message = options.message?.trim() || "You are running out of turns. This is your last retry before max turns. Please correct your output now.";
   return async (context, next) => {
     await next();
     if (context.nextPrompt && context.turn === context.maxTurns - 1) {
