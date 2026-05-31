@@ -46,7 +46,51 @@ function generateOutput(prompt: string): unknown {
   const match = prompt.match(/<output_schema>([\s\S]*?)<\/output_schema>/);
   if (!match) return { text: "stub response" };
   const schema = match[1].trim();
+  try {
+    return parseJsonSchema(JSON.parse(schema));
+  } catch {
+    // Backward compatibility with historical schema text format.
+  }
   return parseTypeText(schema);
+}
+
+function parseJsonSchema(schema: any): unknown {
+  if (!schema || typeof schema !== "object") return "stub";
+  if (Array.isArray(schema.enum) && schema.enum.length > 0) return schema.enum[0];
+  if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) return parseJsonSchema(schema.oneOf[0]);
+  if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) return parseJsonSchema(schema.anyOf[0]);
+
+  switch (schema.type) {
+    case "string":
+      return "stub";
+    case "number":
+    case "integer":
+      return 0;
+    case "boolean":
+      return true;
+    case "array":
+      return [];
+    case "object": {
+      const properties = schema.properties && typeof schema.properties === "object" ? schema.properties : {};
+      const result: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(properties)) {
+        result[key] = parseJsonSchema(value);
+      }
+      if (schema.additionalProperties && Object.keys(result).length === 0) {
+        result["example"] = parseJsonSchema(schema.additionalProperties);
+      }
+      return result;
+    }
+    default:
+      if (schema.properties && typeof schema.properties === "object") {
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(schema.properties)) {
+          result[key] = parseJsonSchema(value);
+        }
+        return result;
+      }
+      return null;
+  }
 }
 
 function parseTypeText(text: string): unknown {
