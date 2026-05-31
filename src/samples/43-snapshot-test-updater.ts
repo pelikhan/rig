@@ -3,7 +3,6 @@ import { agent, s } from "rig";
 const repair = agent({
     name: "jsonRepair",
     model: "mini",
-    input: s.string,
     output: s.object({
         repaired: s.unknown,
         changes: s.array(s.string)

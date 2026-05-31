@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 const actionReview = agent({
     name: "actionReview",
     model: "mini",
-    input: s.string,
     output: s.object({
         summary: s.string,
         problems: s.array(s.string),

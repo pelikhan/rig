@@ -4,9 +4,9 @@
 import { agent, p, s } from "rig";
 const Diagnosis = s.object({ rootCause: s.string, confidence: s.number });
 // Agent role: diagnose the failing test output.
-const diagnose = agent({ name: "diagnose", model: "mini", input: s.string, output: Diagnosis, instructions: "Diagnose the failing test output." });
+const diagnose = agent({ name: "diagnose", model: "mini", output: Diagnosis, instructions: "Diagnose the failing test output." });
 // Agent role: write the smallest safe patch for the diagnosis.
-const fix = agent({ name: "fix", model: "mini", input: s.object({ diagnosis: Diagnosis }), output: s.string, instructions: "Write the smallest safe patch.", permissions: { shell: "ask", write: "workspace" } });
+const fix = agent({ name: "fix", model: "mini", input: s.object({ diagnosis: Diagnosis }), instructions: "Write the smallest safe patch.", permissions: { shell: "ask", write: "workspace" } });
 // Agent role: reproduce and fix the bug using the provided specialists when helpful.
 const issueReproducer = agent({
   name: "issueReproducer",

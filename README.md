@@ -25,7 +25,7 @@ import {
 ```
 
 - `agent(spec)` creates a typed agent function.
-- `s.*` defines input/output schemas.
+- `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative shell/file intents for prompt templates or inputs.
 - `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
 
@@ -38,7 +38,6 @@ Use `rig` code fences in markdown files to define runnable harness programs:
 const root = agent({
   name: "review",
   instructions: "Summarize this repository.",
-  output: s.string,
 });
 export default root;
 ```
@@ -103,7 +102,6 @@ p.write("README.md", "# Updated\n")
 const reviewWorkspace = agent({
   name: "reviewWorkspace",
   instructions: p`Review ${p.read("README.md")} against ${p.bash("git status --short")}.`,
-  output: s.string,
 });
 ```
 
@@ -140,7 +138,6 @@ cat <<'RIG' | node skills/rig/rig.ts
 const root = agent({
   name: "review",
   instructions: "Summarize this repository.",
-  output: s.string,
 });
 export default root;
 RIG
@@ -149,7 +146,7 @@ RIG
 Inline stdin programs run a root agent with no required external input and write the result to stdout. If `export default` is omitted, the harness defaults to the first `const/let/var name = agent(...)` assignment.  
 `import { agent, p, s } from "rig"` is optional in inline mode because the harness injects it when missing.
 
-Inline mode accepts root agents that either omit `input`, use `input: s.object({})`, or rely on the default `input: s.object({ text: s.string })` (which is invoked with `{ text: "" }`).
+Inline mode accepts root agents that either omit `input`, use `input: s.object({})`, or rely on the default `input: s.string` (which is invoked with `""`).
 
 Pass `--server` to start the Copilot server automatically as part of the run:
 

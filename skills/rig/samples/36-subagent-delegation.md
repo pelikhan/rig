@@ -6,7 +6,6 @@ import { agent, s } from "rig";
 const researcher = agent({
   name: "researcher",
   model: "mini",
-  input: s.string,
   output: s.object({ summary: s.string, risks: s.array(s.string) }),
   instructions: "Extract the most important implementation details from the topic.",
 });

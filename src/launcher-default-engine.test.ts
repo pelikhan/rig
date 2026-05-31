@@ -23,7 +23,7 @@ vi.mock("@github/copilot-sdk", () => ({
 import { agent, launchRigProgram, s } from "rig";
 
 it("uses the launcher cwd when mounting the default copilot engine", async () => {
-  const sendAndWait = vi.fn().mockResolvedValue(JSON.stringify({ text: "default-mounted" }));
+  const sendAndWait = vi.fn().mockResolvedValue(JSON.stringify("default-mounted"));
   mocks.createSession.mockResolvedValue({ sendAndWait });
 
   const cwd = "/tmp/workspace/pelikhan/rig/src";
@@ -34,15 +34,14 @@ it("uses the launcher cwd when mounting the default copilot engine", async () =>
   const call = agent({
     name: "launcher-default-engine-test",
     input: s.object({}),
-    output: s.object({ text: s.string }),
   });
   const result = await call({});
-  expect(result).toEqual({ text: "default-mounted" });
+  expect(result).toBe("default-mounted");
   expect(mocks.copilotClientCtor).toHaveBeenCalledWith(expect.objectContaining({ workingDirectory: cwd }));
 });
 
 it("uses COPILOT_SDK_URI when mounting the default copilot engine", async () => {
-  const sendAndWait = vi.fn().mockResolvedValue(JSON.stringify({ text: "env-mounted" }));
+  const sendAndWait = vi.fn().mockResolvedValue(JSON.stringify("env-mounted"));
   mocks.createSession.mockResolvedValue({ sendAndWait });
   process.env["COPILOT_SDK_URI"] = "http://127.0.0.1:4141";
   mocks.forUri.mockImplementation(((url: string) => ({ kind: "uri", url })) as any);
@@ -55,10 +54,9 @@ it("uses COPILOT_SDK_URI when mounting the default copilot engine", async () => 
     const call = agent({
       name: "launcher-default-engine-uri-test",
       input: s.object({}),
-      output: s.object({ text: s.string }),
     });
     const result = await call({});
-    expect(result).toEqual({ text: "env-mounted" });
+    expect(result).toBe("env-mounted");
     expect(mocks.forUri).toHaveBeenCalledWith("http://127.0.0.1:4141");
     expect(mocks.copilotClientCtor).toHaveBeenCalledWith(
       expect.objectContaining({

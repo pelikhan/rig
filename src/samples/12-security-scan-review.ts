@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 const releaseNotes = agent({
     name: "releaseNotes",
     model: "mini",
-    input: s.string,
     output: s.object({
         version: s.optional(s.string),
         highlights: s.array(s.string),

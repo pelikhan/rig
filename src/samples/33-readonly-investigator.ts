@@ -3,7 +3,6 @@ import { agent, s } from "rig";
 const commandPlanner = agent({
     name: "commandPlanner",
     model: "mini",
-    input: s.string,
     output: s.object({
         commands: s.array(s.object({
             command: s.string,

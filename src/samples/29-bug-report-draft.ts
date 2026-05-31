@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 const licenseCheck = agent({
     name: "licenseCheck",
     model: "mini",
-    input: s.string,
     output: s.object({
         compliant: s.boolean,
         unknown: s.array(s.string),

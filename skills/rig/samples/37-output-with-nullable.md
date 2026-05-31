@@ -6,7 +6,6 @@ import { agent, s } from "rig";
 const summarizeDiff = agent({
     name: "summarizeDiff",
     model: "mini",
-    input: s.string,
     output: s.object({
         summary: s.string,
         files: s.array(s.string)

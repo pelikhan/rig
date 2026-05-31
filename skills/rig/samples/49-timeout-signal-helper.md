@@ -6,8 +6,7 @@ import { agent, s } from "rig";
 const worker = agent({
   name: "worker",
   model: "mini",
-  instructions: "Return a short response in output.text before the timeout expires.",
-  output: s.object({ text: s.string }),
+  instructions: "Return a short response before the timeout expires.",
   timeout: 5_000,
 });
 export default worker;

@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => {
   const createSession = vi.fn(async () => ({
     sendAndWait: async (request: { prompt: string }) => {
       const response = await sendAndWaitImpl(request);
-      return typeof response === "string" ? response : JSON.stringify(response);
+      return JSON.stringify(response);
     },
     disconnect: disconnectSession,
   }));
@@ -197,7 +197,6 @@ describe("skill markdown samples", () => {
       expect(code).toContain("// Agent role:");
       expect(code).toContain('model: "');
       expect(code).toContain("instructions:");
-      expect(code).toContain("output:");
       expect(code).not.toContain("console.log");
       expect((code.match(/^import .* from "rig";$/gm) ?? [])).toHaveLength(1);
       expect(code).not.toMatch(/^await\s+\w+\(/m);

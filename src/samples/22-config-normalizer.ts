@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 const ciDiagnosis = agent({
     name: "ciDiagnosis",
     model: "mini",
-    input: s.string,
     output: s.object({
         failure: s.string,
         likelyCause: s.string,
