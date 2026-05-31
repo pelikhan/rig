@@ -38,7 +38,7 @@ vi.mock("@github/copilot-sdk", () => ({
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
 }));
 
-import { AgentError, PromptBuilder, agent, p, s } from "rig";
+import { AgentError, PromptBuilder, agent, p, s, toJsonSchema } from "rig";
 import { oncePerSession, repair, steering, timeout } from "rig/addons";
 
 beforeEach(() => {
@@ -797,5 +797,84 @@ describe("p template literal for instructions", () => {
     expect(prompts[0]).toContain("Use Run bash command and return stdout as text: git diff --stat");
     expect(prompts[0]).toContain("to review changes.");
     expect(prompts[0]).toContain("Rig runs inside a sandboxed agentic workflow.");
+  });
+});
+
+describe("toJsonSchema", () => {
+  it("converts primitive schemas", () => {
+    expect(toJsonSchema(s.string)).toEqual({ type: "string" });
+    expect(toJsonSchema(s.number)).toEqual({ type: "number" });
+    expect(toJsonSchema(s.boolean)).toEqual({ type: "boolean" });
+    expect(toJsonSchema(s.unknown)).toEqual({});
+  });
+
+  it("includes description when present", () => {
+    expect(toJsonSchema(s.string("A text value"))).toEqual({ type: "string", description: "A text value" });
+    expect(toJsonSchema(s.number("A numeric value"))).toEqual({ type: "number", description: "A numeric value" });
+  });
+
+  it("converts enum schemas", () => {
+    expect(toJsonSchema(s.enum("a", "b", "c"))).toEqual({ enum: ["a", "b", "c"] });
+    expect(toJsonSchema(s.enum(["x", "y"], "A choice"))).toEqual({ enum: ["x", "y"], description: "A choice" });
+  });
+
+  it("converts array schemas", () => {
+    expect(toJsonSchema(s.array(s.string))).toEqual({ type: "array", items: { type: "string" } });
+    expect(toJsonSchema(s.array(s.number, "A list"))).toEqual({ type: "array", items: { type: "number" }, description: "A list" });
+  });
+
+  it("converts record schemas", () => {
+    expect(toJsonSchema(s.record(s.string))).toEqual({ type: "object", additionalProperties: { type: "string" } });
+  });
+
+  it("converts object schemas with required fields", () => {
+    expect(toJsonSchema(s.object({ name: s.string, age: s.number }))).toEqual({
+      type: "object",
+      properties: { name: { type: "string" }, age: { type: "number" } },
+      required: ["name", "age"],
+    });
+  });
+
+  it("omits required for all-optional object fields", () => {
+    expect(toJsonSchema(s.object({ name: s.optional(s.string) }))).toEqual({
+      type: "object",
+      properties: { name: { type: "string" } },
+    });
+  });
+
+  it("separates required and optional object fields", () => {
+    expect(toJsonSchema(s.object({ name: s.string, age: s.optional(s.number) }))).toEqual({
+      type: "object",
+      properties: { name: { type: "string" }, age: { type: "number" } },
+      required: ["name"],
+    });
+  });
+
+  it("converts optional schemas to their inner schema", () => {
+    expect(toJsonSchema(s.optional(s.string))).toEqual({ type: "string" });
+    expect(toJsonSchema(s.optional(s.string, "maybe text"))).toEqual({ type: "string", description: "maybe text" });
+  });
+
+  it("converts nested schemas", () => {
+    expect(toJsonSchema(s.object({
+      items: s.array(s.object({ id: s.number, label: s.string })),
+    }))).toEqual({
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: { id: { type: "number" }, label: { type: "string" } },
+            required: ["id", "label"],
+          },
+        },
+      },
+      required: ["items"],
+    });
+  });
+
+  it("is accessible as s.toJsonSchema", () => {
+    expect(s.toJsonSchema(s.string)).toEqual({ type: "string" });
   });
 });

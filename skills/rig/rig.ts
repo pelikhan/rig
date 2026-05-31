@@ -103,7 +103,51 @@ export const s = {
   optional<Inner extends Schema>(inner: Inner, description?: string): OptionalSchema<Inner> {
     return description === undefined ? { kind: "optional", inner } : { kind: "optional", inner, description };
   },
+  toJsonSchema,
 };
+
+export type JsonSchemaObject = { [key: string]: unknown };
+
+export function toJsonSchema(schema: Schema): JsonSchemaObject {
+  const description = schema.description;
+  const withDescription = (obj: JsonSchemaObject): JsonSchemaObject =>
+    description === undefined ? obj : { ...obj, description };
+  switch (schema.kind) {
+    case "string":
+      return withDescription({ type: "string" });
+    case "number":
+      return withDescription({ type: "number" });
+    case "boolean":
+      return withDescription({ type: "boolean" });
+    case "unknown":
+      return withDescription({});
+    case "enum":
+      return withDescription({ enum: schema.values });
+    case "optional":
+      return toJsonSchema({ ...schema.inner, description: description ?? schema.inner.description });
+    case "array":
+      return withDescription({ type: "array", items: toJsonSchema(schema.item) });
+    case "record":
+      return withDescription({ type: "object", additionalProperties: toJsonSchema(schema.value) });
+    case "object": {
+      const properties: Record<string, JsonSchemaObject> = {};
+      const required: string[] = [];
+      for (const [key, field] of Object.entries(schema.fields) as [string, Schema][]) {
+        if (field.kind === "optional") {
+          properties[key] = toJsonSchema(field.inner);
+        } else {
+          properties[key] = toJsonSchema(field);
+          required.push(key);
+        }
+      }
+      const obj: JsonSchemaObject = { type: "object", properties };
+      if (required.length > 0) {
+        obj["required"] = required;
+      }
+      return withDescription(obj);
+    }
+  }
+}
 
 const defaultStringSchema = s.string;
 
