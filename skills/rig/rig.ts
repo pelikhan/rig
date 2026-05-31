@@ -1122,7 +1122,13 @@ function normalizeMiddlewares(middlewares?: AgentMiddleware | AgentMiddleware[])
   if (!middlewares) {
     return [];
   }
-  return Array.isArray(middlewares) ? [...middlewares] : [middlewares];
+  const items = Array.isArray(middlewares) ? [...middlewares] : [middlewares];
+  for (const middleware of items) {
+    if (typeof middleware !== "function") {
+      throw new Error("Agent middleware entries must be functions.");
+    }
+  }
+  return items;
 }
 
 async function runAgentMiddlewares(
@@ -1137,7 +1143,7 @@ async function runAgentMiddlewares(
     }
     index = current;
     const middleware = middlewares[current];
-    if (!middleware) {
+    if (middleware === undefined) {
       await terminal();
       return;
     }

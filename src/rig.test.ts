@@ -468,6 +468,14 @@ describe("agent invocation", () => {
     await expect(snippetGuard("go")).resolves.toEqual({ code: "```ts\nconst x = 1;\n```" });
   });
 
+  it("rejects non-function middleware entries", async () => {
+    mocks.setSendAndWaitImpl(async () => JSON.stringify("ok"));
+    const guarded = agent({ name: "guarded" });
+    await expect(guarded("go", { middleware: [null as unknown as any] as any })).rejects.toThrow(
+      "Agent middleware entries must be functions.",
+    );
+  });
+
   it("renders schema descriptions for discovery", async () => {
     const prompts: string[] = [];
 
