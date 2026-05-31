@@ -195,7 +195,7 @@ export type CallOptions = {
 };
 
 export function warnOnMaxTurns(options: WarnOnMaxTurnsOptions = {}): AgentMiddleware {
-  const message = options.message?.trim() ?? DEFAULT_MAX_TURN_WARNING;
+  const message = options.message ?? DEFAULT_MAX_TURN_WARNING;
   return async (context, next) => {
     await next();
     if (context.nextPrompt && context.turn === context.maxTurns - 1) {
