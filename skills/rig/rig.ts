@@ -230,11 +230,14 @@ export type PromptIntent = {
 let nextPromptIntentId = 1;
 
 type PromptHelpers = {
+  (): PromptBuilder;
   (strings: TemplateStringsArray, ...values: unknown[]): string;
   bash(command: string, options?: PromptIntentOptions): PromptIntent;
   result(command: string, options?: PromptIntentOptions): PromptIntent;
   read(path: string, options?: PromptIntentOptions): PromptIntent;
   write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent;
+  var<T>(name: string, value: T): PromptVariable<T>;
+  region(language: string, body: unknown): string;
 };
 
 export type PromptVariable<T = unknown> = {
@@ -286,20 +289,40 @@ function renderCodeRegion(language: string, body: unknown): string {
   return `\`\`\`${language}\n${normalized}\`\`\`\n`;
 }
 
-export const p: PromptHelpers = Object.assign(renderPromptTemplate, {
-  bash(command: string, options?: PromptIntentOptions): PromptIntent {
-    return createPromptIntent("prompt.text", withOptions({ command }, options));
+function promptBuilderOrTemplate(): PromptBuilder;
+function promptBuilderOrTemplate(strings: TemplateStringsArray, ...values: unknown[]): string;
+function promptBuilderOrTemplate(...args: unknown[]): PromptBuilder | string {
+  if (args.length === 0) {
+    return new PromptBuilder();
+  }
+  const strings = args[0] as TemplateStringsArray;
+  const values = args.slice(1);
+  return renderPromptTemplate(strings, ...values);
+}
+
+export const p: PromptHelpers = Object.assign(
+  promptBuilderOrTemplate,
+  {
+    bash(command: string, options?: PromptIntentOptions): PromptIntent {
+      return createPromptIntent("prompt.text", withOptions({ command }, options));
+    },
+    result(command: string, options?: PromptIntentOptions): PromptIntent {
+      return createPromptIntent("prompt.result", withOptions({ command }, options));
+    },
+    read(path: string, options?: PromptIntentOptions): PromptIntent {
+      return createPromptIntent("prompt.read", withOptions({ path }, options));
+    },
+    write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent {
+      return createPromptIntent("prompt.write", withOptions({ path, contents }, options));
+    },
+    var<T>(name: string, value: T): PromptVariable<T> {
+      return createPromptVariable(name, value);
+    },
+    region(language: string, body: unknown): string {
+      return renderCodeRegion(language, body);
+    },
   },
-  result(command: string, options?: PromptIntentOptions): PromptIntent {
-    return createPromptIntent("prompt.result", withOptions({ command }, options));
-  },
-  read(path: string, options?: PromptIntentOptions): PromptIntent {
-    return createPromptIntent("prompt.read", withOptions({ path }, options));
-  },
-  write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent {
-    return createPromptIntent("prompt.write", withOptions({ path, contents }, options));
-  },
-});
+);
 
 export class PromptBuilder {
   readonly vars = new Map<string, PromptVariable>();
@@ -353,40 +376,6 @@ export class PromptBuilder {
     return this.build();
   }
 }
-
-type PromptApi = {
-  bash(command: string, options?: PromptIntentOptions): PromptIntent;
-  result(command: string, options?: PromptIntentOptions): PromptIntent;
-  read(path: string, options?: PromptIntentOptions): PromptIntent;
-  write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent;
-  builder(): PromptBuilder;
-  var<T>(name: string, value: T): PromptVariable<T>;
-  region(language: string, body: unknown): string;
-};
-
-export const P: PromptApi = {
-  bash(command: string, options?: PromptIntentOptions): PromptIntent {
-    return p.bash(command, options);
-  },
-  result(command: string, options?: PromptIntentOptions): PromptIntent {
-    return p.result(command, options);
-  },
-  read(path: string, options?: PromptIntentOptions): PromptIntent {
-    return p.read(path, options);
-  },
-  write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent {
-    return p.write(path, contents, options);
-  },
-  builder(): PromptBuilder {
-    return new PromptBuilder();
-  },
-  var<T>(name: string, value: T): PromptVariable<T> {
-    return createPromptVariable(name, value);
-  },
-  region(language: string, body: unknown): string {
-    return renderCodeRegion(language, body);
-  },
-};
 
 export class AgentError extends Error {
   readonly kind: "parse" | "validation";

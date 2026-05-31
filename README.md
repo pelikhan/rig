@@ -18,7 +18,6 @@ gh skills clone pelikhan/rig
 
 ```ts
 import {
-  P,
   agent,
   p,
   s,
@@ -29,8 +28,7 @@ import { addons, oncePerSession, repair, steering, timeout } from "rig/addons";
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative prompt intents for prompt templates or inputs.
-- `P.builder()` creates a prompt builder with `var`, `write`, and `region` primitives for assembling prompts.
-- `P.*` also exposes top-level prompt intent helpers like `bash`, `result`, `read`, and `write`.
+- `p()` creates a prompt builder with `var`, `write`, and `region` primitives for assembling prompts.
 - `addons` accepts express-like `(context, next)` turn addons for steering, inline validation, and Copilot session access.
 - `rig` starts with no default addons.
 - `rig/addons` provides optional addon helpers: `oncePerSession`, `repair`, `steering`, `timeout`, and `addons.{oncePerSession,repair,steering,timeout}`.
@@ -115,7 +113,7 @@ const reviewWorkspace = agent({
 ```
 
 ```ts
-const b = P.builder();
+const b = p();
 const repo = b.var("repo", "rig");
 b.write("Summarize repository ", repo, ".\n");
 b.write("Start by checking ", b.bash("git status --short"), ".\n");
