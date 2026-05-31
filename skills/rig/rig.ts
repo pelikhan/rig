@@ -648,6 +648,7 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   if (specOrName.timeout !== undefined) spec.timeout = specOrName.timeout;
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
   if (specOrName.repair !== undefined) spec.repair = specOrName.repair;
+  if (specOrName.hooks !== undefined) spec.hooks = specOrName.hooks;
   if (specOrName.permissions !== undefined) spec.permissions = specOrName.permissions;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
   return spec;
