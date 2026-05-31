@@ -57,7 +57,7 @@ const issueReproducer = agent({
     instructions: "Use the provided subagents to diagnose, patch, and review a failing test case.",
     output: s.object({
         approved: s.boolean,
-        issues: s.array(s.string)
+        issues: s.array(s.string),
     }),
     agents: { diagnose, fix, review }
 });
