@@ -147,15 +147,15 @@ const review = agent({
 });
 ```
 
-`context` includes `prompt`, `response`, `turn`, `maxTurns`, `output`, `nextPrompt`, `error`, and `completed`.
+`context` includes `prompt`, `response`, `turn`, `maxTurns`, `signal`, `output`, `nextPrompt`, `error`, and `completed`.
 
-For the common retry flow with last-turn steering, opt into addons:
+For the common retry flow with last-turn steering or stable default timeouts, opt into addons:
 
 ```ts
 const review = agent({
   name: "review",
   maxTurns: 3,
-  middleware: [steering(), repair],
+  middleware: [timeout({ timeout: 30_000 }), steering(), repair],
 });
 ```
 

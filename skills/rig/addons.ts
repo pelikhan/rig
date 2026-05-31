@@ -7,6 +7,10 @@ export type SteeringOptions = {
   message?: string;
 };
 
+export type TimeoutOptions = {
+  timeout: number;
+};
+
 export function steering(options: SteeringOptions = {}): AgentMiddleware {
   const message = options.message ?? DEFAULT_STEERING_WARNING;
   return async (context, next) => {
@@ -38,7 +42,30 @@ export const repair: AgentMiddleware = async (context, next) => {
   context.nextPrompt = defaultRepairPrompt(context.spec, analysis.error);
 };
 
+export function timeout(options: TimeoutOptions): AgentMiddleware {
+  return async (context, next) => {
+    context.signal = timeoutSignal(context.signal, options.timeout);
+    await next();
+  };
+}
+
+function timeoutSignal(parent?: AbortSignal, timeoutMs?: number): AbortSignal | undefined {
+  if (!timeoutMs) {
+    return parent;
+  }
+  const controller = new AbortController();
+  const onAbort = () => controller.abort(parent?.reason);
+  parent?.addEventListener("abort", onAbort, { once: true });
+  const timer = setTimeout(
+    () => controller.abort(new Error(`Timed out after ${timeoutMs}ms`)),
+    timeoutMs,
+  );
+  controller.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
+  return controller.signal;
+}
+
 export const addons = {
+  timeout,
   repair,
   steering,
 };
