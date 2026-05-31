@@ -176,7 +176,7 @@ export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema
   output?: Output;
   model?: string;
   maxTurns?: number;
-  addon?: AgentAddon | AgentAddon[];
+  addons?: AgentAddon | AgentAddon[];
   agents?: Record<string, AgentFn<any, any>>;
 };
 
@@ -206,7 +206,7 @@ export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValu
   outputShape: Schema;
   spec: AgentSpec<any, any>;
   _namespace: string;
-  use: (addon: AgentAddon | AgentAddon[]) => AgentFn<Input, Output>;
+  use: (addons: AgentAddon | AgentAddon[]) => AgentFn<Input, Output>;
 };
 
 export type PromptIntentOptions = {
@@ -632,7 +632,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
             throw analysis.error;
           }
           throw new Error(
-            `Agent ${normalizedSpec.name}: addon must set context.output with context.completed=true or context.nextPrompt for turn ${turn}.`,
+            `Agent ${normalizedSpec.name}: addons must set context.output with context.completed=true or context.nextPrompt for turn ${turn}.`,
           );
         }
       } catch (error) {
@@ -658,10 +658,10 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   fn.outputShape = outputSchema;
   fn.spec = normalizedSpec;
   fn._namespace = normalizedSpec.name;
-  fn.use = (addon) => {
-    normalizedSpec.addon = [
-      ...normalizeAddons(normalizedSpec.addon),
-      ...normalizeAddons(addon),
+  fn.use = (addons) => {
+    normalizedSpec.addons = [
+      ...normalizeAddons(normalizedSpec.addons),
+      ...normalizeAddons(addons),
     ];
     return fn;
   };
@@ -689,7 +689,7 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   }
   if (specOrName.model !== undefined) spec.model = specOrName.model;
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
-  if (specOrName.addon !== undefined) spec.addon = specOrName.addon;
+  if (specOrName.addons !== undefined) spec.addons = specOrName.addons;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
   return spec;
 }
@@ -1096,7 +1096,7 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
     model: options.model ?? spec.model ?? "gpt-4.1",
     maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
     signal: timeoutSignal(options.signal, options.timeout),
-    addons: normalizeAddons(spec.addon),
+    addons: normalizeAddons(spec.addons),
   };
 }
 

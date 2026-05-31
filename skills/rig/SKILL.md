@@ -88,7 +88,7 @@ Declare a structured agent.
 | `output` | Output schema |
 | `model` | Default model name; examples should use `"large"`, `"mini"`, or `"nano"` |
 | `maxTurns` | Retry budget for invalid JSON or invalid output |
-| `addon` | Per-turn addons for steering, validation, and retry customization |
+| `addons` | Per-turn addons for steering, validation, and retry customization |
 | `agents` | Optional named subagents exposed to the harness |
 
 Use `agent({ name, ... })` as the only agent declaration form.
@@ -218,11 +218,12 @@ const summarize = agent({
   name: "summarize",
   model: "mini",
   maxTurns: 3,
-  addon: repair,
+  addons: repair,
 });
 ```
 
 Use addons to steer retry prompts when needed (for example `steering()` from `rig/addons`).
+Use `oncePerSession()` from `rig/addons` when you need to register with the Copilot session once per call instead of checking `context.turn === 1`.
 
 ## Running programs
 
@@ -311,6 +312,6 @@ Use only the current API:
 - `agent({ name, ... })`
 - `p.*` and `p\`...\`` from `rig`
 - `s.*` for explicit schema helpers
-- `repair` / `steering` from `rig/addons` for optional addons
+- `oncePerSession` / `repair` / `steering` / `timeout` from `rig/addons` for optional addons
 
 Do not add deprecated hooks or compatibility layers.
