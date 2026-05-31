@@ -289,9 +289,9 @@ function renderCodeRegion(language: string, body: unknown): string {
   return `\`\`\`${language}\n${normalized}\`\`\`\n`;
 }
 
-function promptBuilderOrTemplate(): PromptBuilder;
-function promptBuilderOrTemplate(strings: TemplateStringsArray, ...values: unknown[]): string;
-function promptBuilderOrTemplate(...args: unknown[]): PromptBuilder | string {
+function promptFactory(): PromptBuilder;
+function promptFactory(strings: TemplateStringsArray, ...values: unknown[]): string;
+function promptFactory(...args: unknown[]): PromptBuilder | string {
   if (args.length === 0) {
     return new PromptBuilder();
   }
@@ -301,7 +301,7 @@ function promptBuilderOrTemplate(...args: unknown[]): PromptBuilder | string {
 }
 
 export const p: PromptHelpers = Object.assign(
-  promptBuilderOrTemplate,
+  promptFactory,
   {
     bash(command: string, options?: PromptIntentOptions): PromptIntent {
       return createPromptIntent("prompt.text", withOptions({ command }, options));
