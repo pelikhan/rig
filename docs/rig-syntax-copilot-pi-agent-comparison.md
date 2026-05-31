@@ -13,7 +13,7 @@ The focus is generation reliability: what an agent can produce quickly with low 
 |---|---|---|
 | `agent({ name, instructions, input, output })` | App-level session setup + prompt contract + response parsing/validation | Agent definition/config + prompt contract + response parsing/validation |
 | `s.object(...)`, `s.enum(...)`, `s.array(...)` | Explicit JSON schema or prompt-constrained JSON validated in app code | Same pattern: schema-constrained JSON validated by the harness/app |
-| `p.read(...)`, `p.bash(...)`, `p.result(...)` | Tool/context calls orchestrated by the host app before/within turns | Tool/context calls via pi-agent tool integration/orchestration |
+| `p.read(...)`, `p.bash(...)` | Tool/context calls orchestrated by the host app before/within turns | Tool/context calls via pi-agent tool integration/orchestration |
 | `agents: { subagent }` | Multiple sessions/roles coordinated in app orchestration | Multi-agent graph/delegation orchestration |
 | `maxTurns`, optional `rig/addons` repair addon | Explicit retry + repair loop in app logic | Retry/repair policies in agent workflow/harness |
 | `permissions` | Host-side policy gates around shell/write operations | Host-side tool permission policies |

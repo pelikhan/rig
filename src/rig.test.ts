@@ -38,7 +38,7 @@ vi.mock("@github/copilot-sdk", () => ({
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
 }));
 
-import { AgentError, agent, p, s } from "rig";
+import { AgentError, PromptBuilder, agent, p, s } from "rig";
 import { oncePerSession, repair, steering, timeout } from "rig/addons";
 
 beforeEach(() => {
@@ -446,14 +446,14 @@ describe("agent invocation", () => {
 
     await inspect({
       status: p.bash("git status --short"),
-      diff: p.result("git diff --stat", { cwd: "/tmp/workspace" }),
+      diff: p.bash("git diff --stat", { cwd: "/tmp/workspace" }),
     });
 
     expect(prompts[0]).not.toContain("<intents>");
     expect(prompts[0]).not.toContain("<input_schema>");
     expect(prompts[0]).not.toContain('<agent name="inspect">');
     expect(prompts[0]).toContain("Run bash command and return stdout as text: git status --short");
-    expect(prompts[0]).toContain("Run bash command and return a structured result (stdout, stderr, exitCode): git diff --stat");
+    expect(prompts[0]).toContain("Run bash command and return stdout as text: git diff --stat");
     expect(prompts[0]).toContain("Rig runs inside a sandboxed agentic workflow.");
     expect(prompts[0]).toContain("without asking for extra permission or confirmation.");
     expect(prompts[0]).toContain("Options:");
@@ -684,12 +684,12 @@ describe("prompt intents", () => {
 
   it("creates prompt intents via p helpers", () => {
     const diff = p.bash("git diff");
-    const result = p.result("npm test", { cwd: "/tmp/workspace" });
+    const testOutput = p.bash("npm test", { cwd: "/tmp/workspace" });
     const readme = p.read("README.md");
 
     expect(diff.mode).toBe("prompt.text");
-    expect(result.mode).toBe("prompt.result");
-    expect(result.options).toEqual({ cwd: "/tmp/workspace" });
+    expect(testOutput.mode).toBe("prompt.text");
+    expect(testOutput.options).toEqual({ cwd: "/tmp/workspace" });
     expect(readme.mode).toBe("prompt.read");
   });
 
@@ -708,6 +708,13 @@ describe("prompt builder", () => {
     expect(p.write("README.md", "# Updated\n").mode).toBe("prompt.write");
   });
 
+  it("returns a prompt builder from tagged template syntax", () => {
+    const builder = p`Repository: ${p.var("repo", "rig")}`;
+
+    expect(builder).toBeInstanceOf(PromptBuilder);
+    expect(String(builder)).toContain("Repository: rig");
+  });
+
   it("builds prompt text with variables and intents", () => {
     const builder = p();
     const repo = builder.var("repo", "rig");
@@ -715,15 +722,15 @@ describe("prompt builder", () => {
     builder.write("Status: ", builder.bash("git status --short"));
 
     expect(builder.get("repo")).toBe("rig");
-    expect(builder.build()).toContain("Repository: rig");
-    expect(builder.build()).toContain("Run bash command and return stdout as text: git status --short");
+    expect(String(builder)).toContain("Repository: rig");
+    expect(String(builder)).toContain("Run bash command and return stdout as text: git status --short");
   });
 
   it("creates code regions", () => {
     const builder = p();
     builder.region("ts", "const done = true;");
 
-    expect(builder.build()).toBe("```ts\nconst done = true;\n```\n");
+    expect(String(builder)).toBe("```ts\nconst done = true;\n```\n");
     expect(p.region("json", "{\n  \"ok\": true\n}")).toContain("```json");
   });
 });

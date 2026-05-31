@@ -4,12 +4,7 @@ const snapshotReview = agent({
     name: "snapshotReview",
     model: "mini",
     input: s.object({
-        testResult: s.object({
-            ok: s.boolean,
-            stdout: s.string,
-            stderr: s.string,
-            exitCode: s.number
-        }),
+        testResult: s.string,
         diff: s.string
     }),
     output: s.object({
@@ -20,7 +15,7 @@ const snapshotReview = agent({
     instructions: `Decide whether snapshot updates are legitimate.`,
 });
 await snapshotReview({
-    testResult: p.result("npm test -- --runInBand"),
+    testResult: p.bash("npm test -- --runInBand"),
     diff: p.bash("git diff -- '*snap*'"),
 });
 

@@ -66,9 +66,9 @@ const createEnumSchema: EnumSchemaFactory = (...args: unknown[]) => {
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
 export type AgentInputValue<T> =
-  T extends readonly (infer Item)[] ? PromptIntent | AgentInputValue<Item>[] :
-  T extends object ? PromptIntent | { [K in keyof T]: AgentInputValue<T[K]> } :
-  T | PromptIntent;
+  T extends readonly (infer Item)[] ? PromptIntent | PromptBuilder | AgentInputValue<Item>[] :
+  T extends object ? PromptIntent | PromptBuilder | { [K in keyof T]: AgentInputValue<T[K]> } :
+  T | PromptIntent | PromptBuilder;
 
 export type InferSchema<T> =
   T extends { kind: "string" } ? string :
@@ -171,7 +171,7 @@ export type AgentAddon = (
 ) => void | Promise<void>;
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
   name: string;
-  instructions?: string;
+  instructions?: string | PromptBuilder;
   input?: Input;
   output?: Output;
   model?: string;
@@ -220,7 +220,7 @@ export type PromptIntentOptions = {
 export type PromptIntent = {
   __rig: "prompt";
   id: string;
-  mode: "prompt.text" | "prompt.result" | "prompt.read" | "prompt.write";
+  mode: "prompt.text" | "prompt.read" | "prompt.write";
   command?: string;
   path?: string;
   contents?: string;
@@ -231,9 +231,8 @@ let nextPromptIntentId = 1;
 
 type PromptHelpers = {
   (): PromptBuilder;
-  (strings: TemplateStringsArray, ...values: unknown[]): string;
+  (strings: TemplateStringsArray, ...values: unknown[]): PromptBuilder;
   bash(command: string, options?: PromptIntentOptions): PromptIntent;
-  result(command: string, options?: PromptIntentOptions): PromptIntent;
   read(path: string, options?: PromptIntentOptions): PromptIntent;
   write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent;
   var<T>(name: string, value: T): PromptVariable<T>;
@@ -245,16 +244,6 @@ export type PromptVariable<T = unknown> = {
   name: string;
   value: T;
 };
-
-function renderPromptTemplate(strings: TemplateStringsArray, ...values: unknown[]): string {
-  let result = strings[0] ?? "";
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index];
-    result += isPromptIntent(value) ? renderPromptIntentValue(value) : String(value);
-    result += strings[index + 1] ?? "";
-  }
-  return result;
-}
 
 function isTemplateStringsArray(value: unknown): value is TemplateStringsArray {
   return Array.isArray(value) && Array.isArray((value as { raw?: unknown })?.raw);
@@ -271,6 +260,9 @@ function createPromptVariable<T>(name: string, value: T): PromptVariable<T> {
 function renderPromptPart(value: unknown): string {
   if (isPromptIntent(value)) {
     return renderPromptIntentValue(value);
+  }
+  if (value instanceof PromptBuilder) {
+    return value.toString();
   }
   if (isPromptVariable(value)) {
     return renderPromptPart(value.value);
@@ -294,8 +286,8 @@ function renderCodeRegion(language: string, body: unknown): string {
 }
 
 function promptFactory(): PromptBuilder;
-function promptFactory(strings: TemplateStringsArray, ...values: unknown[]): string;
-function promptFactory(...args: unknown[]): PromptBuilder | string {
+function promptFactory(strings: TemplateStringsArray, ...values: unknown[]): PromptBuilder;
+function promptFactory(...args: unknown[]): PromptBuilder {
   if (args.length === 0) {
     return new PromptBuilder();
   }
@@ -305,7 +297,14 @@ function promptFactory(...args: unknown[]): PromptBuilder | string {
   }
   const strings = args[0];
   const values = args.slice(1);
-  return renderPromptTemplate(strings, ...values);
+  const builder = new PromptBuilder();
+  for (let index = 0; index < strings.length; index += 1) {
+    builder.write(strings[index] ?? "");
+    if (index < values.length) {
+      builder.write(values[index]);
+    }
+  }
+  return builder;
 }
 
 export const p: PromptHelpers = Object.assign(
@@ -313,9 +312,6 @@ export const p: PromptHelpers = Object.assign(
   {
     bash(command: string, options?: PromptIntentOptions): PromptIntent {
       return createPromptIntent("prompt.text", withOptions({ command }, options));
-    },
-    result(command: string, options?: PromptIntentOptions): PromptIntent {
-      return createPromptIntent("prompt.result", withOptions({ command }, options));
     },
     read(path: string, options?: PromptIntentOptions): PromptIntent {
       return createPromptIntent("prompt.read", withOptions({ path }, options));
@@ -338,10 +334,6 @@ export class PromptBuilder {
 
   bash(command: string, options?: PromptIntentOptions): PromptIntent {
     return p.bash(command, options);
-  }
-
-  result(command: string, options?: PromptIntentOptions): PromptIntent {
-    return p.result(command, options);
   }
 
   read(path: string, options?: PromptIntentOptions): PromptIntent {
@@ -376,12 +368,8 @@ export class PromptBuilder {
     return this;
   }
 
-  build(): string {
-    return this.chunks.join("");
-  }
-
   toString(): string {
-    return this.build();
+    return this.chunks.join("");
   }
 }
 
@@ -832,8 +820,9 @@ function normalizeInput(input: unknown, schema: Schema): unknown {
 
 function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
   const value = inlinePromptIntents(input);
+  const instructions = renderInstructions(spec.instructions);
   const sections = [
-    tag("instructions", (spec.instructions ?? "Return only valid JSON matching the output schema.").trim()),
+    tag("instructions", instructions.trim()),
     tag("output_schema", renderSchema(spec.output ?? defaultStringSchema)),
     tag("input", json(value)),
   ];
@@ -843,7 +832,7 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
       "subagents",
       json(Object.entries(spec.agents).map(([name, subagent]) => ({
         name,
-        instructions: subagent.spec.instructions ?? null,
+        instructions: subagent.spec.instructions === undefined ? null : renderInstructions(subagent.spec.instructions),
         model: subagent.spec.model ?? null,
         input: renderSchema(subagent.inputSchema),
         output: renderSchema(subagent.outputSchema),
@@ -858,6 +847,16 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
   ].join("\n")));
 
   return sections.join("\n\n");
+}
+
+function renderInstructions(instructions?: AgentSpec<any, any>["instructions"]): string {
+  if (instructions === undefined) {
+    return "Return only valid JSON matching the output schema.";
+  }
+  if (typeof instructions === "string") {
+    return instructions;
+  }
+  return instructions.toString();
 }
 
 export function defaultRepairPrompt(spec: AgentSpec<any, any>, error: AgentError): string {
@@ -1006,6 +1005,9 @@ function inlinePromptIntents<T>(value: T): T {
   const seen = new WeakSet<object>();
 
   const walk = (current: unknown): unknown => {
+    if (current instanceof PromptBuilder) {
+      return current.toString();
+    }
     if (isPromptIntent(current)) {
       return renderPromptIntentValue(current);
     }
@@ -1066,8 +1068,6 @@ function renderPromptIntentInstruction(intent: PromptIntent): string {
   switch (intent.mode) {
     case "prompt.text":
       return `Run bash command and return stdout as text: ${intent.command}${promptExecutionContext()}${options}`;
-    case "prompt.result":
-      return `Run bash command and return a structured result (stdout, stderr, exitCode): ${intent.command}${promptExecutionContext()}${options}`;
     case "prompt.read":
       return `Read file and return its contents as text: ${JSON.stringify(requiredPath(intent))}${promptExecutionContext()}${options}`;
     case "prompt.write":
