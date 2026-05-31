@@ -151,9 +151,11 @@ For direct SDK access, middleware also exposes `context.session`:
 const review = agent({
   name: "review",
   middleware: async (context, next) => {
-    context.session.on?.((event) => {
-      // custom event handling
-    });
+    if (context.turn === 1) {
+      context.session.on?.((event) => {
+        // custom event handling
+      });
+    }
     await next();
   },
 });
@@ -165,24 +167,6 @@ You can also register middleware after creating the agent:
 const review = agent({ name: "review" });
 review.use(async (context, next) => {
   await next();
-});
-```
-
-You can also pass `middleware` in call options to attach request-specific logic:
-
-```ts
-await review("task", {
-  middleware: async (context, next) => {
-    await next();
-    if (!context.nextPrompt && context.output && typeof context.output === "object") {
-      const code = (context.output as { code?: unknown }).code;
-      if (typeof code === "string" && !code.includes("```")) {
-        context.completed = false;
-        context.output = undefined;
-        context.nextPrompt = "Wrap code snippets in fenced markdown blocks.";
-      }
-    }
-  },
 });
 ```
 

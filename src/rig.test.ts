@@ -230,7 +230,7 @@ describe("agent invocation", () => {
     });
   });
 
-  it("exposes the Copilot session through call middleware", async () => {
+  it("exposes the Copilot session through middleware", async () => {
     const middleware = vi.fn(async (context, next) => {
       await next();
       expect(context.session).toMatchObject({
@@ -244,9 +244,10 @@ describe("agent invocation", () => {
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
+      middleware,
     });
 
-    await expect(greet({ text: "Hi" }, { middleware })).resolves.toEqual({ text: "hello world" });
+    await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
     expect(middleware).toHaveBeenCalledTimes(1);
   });
 
@@ -312,9 +313,10 @@ describe("agent invocation", () => {
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
+      middleware,
     });
 
-    await expect(greet({ text: "Hi" }, { middleware })).rejects.toThrow("hook failed");
+    await expect(greet({ text: "Hi" })).rejects.toThrow("hook failed");
     expect(mocks.disconnectSession).toHaveBeenCalledTimes(1);
   });
 
@@ -511,8 +513,8 @@ describe("agent invocation", () => {
 
   it("rejects non-function middleware entries", async () => {
     mocks.setSendAndWaitImpl(async () => JSON.stringify("ok"));
-    const guarded = agent({ name: "guarded" });
-    await expect(guarded("go", { middleware: [null as unknown as any] as any })).rejects.toThrow(
+    const guarded = agent({ name: "guarded", middleware: [null as unknown as any] as any });
+    await expect(guarded("go")).rejects.toThrow(
       "Agent middleware entries must be functions.",
     );
   });

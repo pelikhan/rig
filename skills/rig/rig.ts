@@ -188,7 +188,6 @@ export type CallOptions = {
   timeout?: number;
   model?: string;
   maxTurns?: number;
-  middleware?: AgentMiddleware | AgentMiddleware[];
 };
 
 export type LaunchOptions = {
@@ -1109,10 +1108,7 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
     maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
     signal: timeoutSignal(options.signal, options.timeout ?? spec.timeout),
     repair: spec.repair ?? "default",
-    middlewares: [
-      ...normalizeMiddlewares(spec.middleware),
-      ...normalizeMiddlewares(options.middleware),
-    ],
+    middlewares: normalizeMiddlewares(spec.middleware),
   };
 }
 
