@@ -39,7 +39,7 @@ export type Schema =
 type SchemaHelperFactory<T extends Schema> = T & ((description?: string) => T);
 
 function createTypedPrimitiveSchema<T extends Schema>(kind: T["kind"]): SchemaHelperFactory<T> {
-  const base = { kind, type: kind } as unknown as T;
+  const base = { kind, type: kind } as T;
   const factory = ((description?: string) => (description === undefined ? base : { ...base, description } as T)) as SchemaHelperFactory<T>;
   return Object.assign(factory, base);
 }
@@ -543,7 +543,6 @@ function noInputInvocation(agentFn: AgentFn): unknown | undefined {
     keys.length === 1
     && "text" in schema.properties
     && schema.properties.text?.kind === "string"
-    && schema.properties.text.optional !== true
   ) {
     return { text: "" };
   }
