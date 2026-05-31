@@ -16,7 +16,7 @@ const coverage = agent({
     instructions: `Parse coverage by file path.`,
 });
 await coverage({
-    report: p.bash("cat coverage/coverage-summary.json"),
+    report: p.read("coverage/coverage-summary.json"),
 });
 
 export default coverage;

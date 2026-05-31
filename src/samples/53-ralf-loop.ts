@@ -41,4 +41,16 @@ for (let i = 0; i < MAX_ITERATIONS; i++) {
   await fix({ rootCause: d.rootCause });
 }
 
-export default diagnose;
+// Agent role: orchestrate diagnose/fix iterations as the runnable root for this loop.
+const ralfLoop = agent({
+  name: "ralfLoop",
+  model: "mini",
+  instructions: "Use the provided subagents to iterate diagnose/fix until done.",
+  output: s.object({
+    done: s.boolean,
+    rootCause: s.string,
+  }),
+  agents: { diagnose, fix },
+});
+
+export default ralfLoop;

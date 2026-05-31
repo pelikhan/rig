@@ -37,4 +37,16 @@ const research = await researcher({
 
 await planner(research);
 
-export default researcher;
+// Agent role: orchestrate research and planning as the runnable root for delegation.
+const delegateTask = agent({
+  name: "delegateTask",
+  model: "mini",
+  instructions: "Use the provided subagents to research a topic and produce practical next steps.",
+  output: s.object({
+    decision: s.string,
+    nextSteps: s.array(s.string),
+  }),
+  agents: { researcher, planner },
+});
+
+export default delegateTask;

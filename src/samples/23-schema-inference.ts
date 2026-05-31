@@ -13,7 +13,7 @@ const normalize = agent({
     instructions: `Normalize the config into a JSON-compatible object.`,
 });
 await normalize({
-    config: p.bash("cat config.json 2>/dev/null || cat config.js"),
+    config: p.read("config.json"),
 });
 
 export default normalize;

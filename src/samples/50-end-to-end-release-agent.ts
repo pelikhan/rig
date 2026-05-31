@@ -63,4 +63,17 @@ await draftRelease({
   ...version,
 });
 
-export default analyzeChanges;
+// Agent role: orchestrate release analysis, versioning, and release draft planning.
+const releaseCoordinator = agent({
+  name: "releaseCoordinator",
+  model: "mini",
+  instructions: "Use the provided subagents to produce a complete release draft from repo signals.",
+  output: s.object({
+    title: s.string,
+    checklist: s.array(s.string),
+    risks: s.array(s.string),
+  }),
+  agents: { analyzeChanges, chooseVersion, draftRelease },
+});
+
+export default releaseCoordinator;

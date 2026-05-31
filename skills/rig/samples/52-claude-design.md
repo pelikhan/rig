@@ -2,7 +2,7 @@
 
 ```rig
 import { agent, s } from "rig";
-// Agent role: write an initial response to the user request.
+// Agent role: coordinate writer/critic/reviser to produce one final response.
 const writer = agent({
   name: "writer",
   model: "mini",
@@ -10,7 +10,6 @@ const writer = agent({
   output: s.object({ draft: s.string }),
   instructions: "Write a helpful, clear response to the request.",
 });
-// Agent role: critique the draft against helpfulness, harmlessness, and honesty principles.
 const critic = agent({
   name: "critic",
   model: "mini",
@@ -18,7 +17,6 @@ const critic = agent({
   output: s.object({ issues: s.array(s.string), score: s.number, acceptable: s.boolean }),
   instructions: "Evaluate the draft against helpfulness, harmlessness, and honesty principles.",
 });
-// Agent role: revise the draft to address all issues identified by the critic.
 const reviser = agent({
   name: "reviser",
   model: "mini",
@@ -26,5 +24,11 @@ const reviser = agent({
   output: s.object({ response: s.string }),
   instructions: "Revise the draft to address all issues identified by the critic.",
 });
-export default reviser;
+const root = agent({
+  name: "root", model: "mini",
+  instructions: "Use writer, critic, and reviser to produce one final response.",
+  output: s.object({ response: s.string }),
+  agents: { writer, critic, reviser },
+});
+export default root;
 ```
