@@ -130,11 +130,11 @@ s.record(s.string)
 
 ## Prompt helpers
 
-`p` is both the prompt template tag and the shell/file helper namespace.
+`p` is both the prompt template tag and the prompt-intent helper namespace.
 These helpers are declarative placeholders, not direct shell execution in the core harness.
 Prefer template expressions when the context source is already known.
 Prefer `p.read("path")` over `p.bash("cat path")`, and keep large context in files instead of building in-memory strings just to feed an agent.
-Rig assumes the surrounding workflow already provides the sandbox and protections it needs, so shell/file intents should execute directly without extra permission prompts.
+Rig assumes the surrounding workflow already provides the sandbox and protections it needs, so prompt intents for shell/file actions should execute directly without extra permission prompts.
 
 ```ts
 p.bash("git diff -- .")
@@ -297,7 +297,7 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 
 - When a free-form string is enough, omit `input`/`output` and use the default `s.string` schemas.
 - Do not wrap a single string field in an input object just to carry text.
-- Do not import shell helpers from anywhere except `rig`.
+- Do not import prompt helpers from anywhere except `rig`.
 - Do not require `input` fields just to pass `p.read(...)` / `p.bash(...)` context into instructions.
 - Do not leave outputs as unstructured prose when a schema would help.
 - Do not invent alternate schema syntaxes when explicit `s.*` is available.
