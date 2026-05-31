@@ -256,6 +256,14 @@ function renderPromptTemplate(strings: TemplateStringsArray, ...values: unknown[
   return result;
 }
 
+function isTemplateStringsArray(value: unknown): value is TemplateStringsArray {
+  return (
+    Array.isArray(value)
+    && Object.prototype.hasOwnProperty.call(value, "raw")
+    && Array.isArray((value as { raw?: unknown }).raw)
+  );
+}
+
 function isPromptVariable(value: unknown): value is PromptVariable {
   return !!value && typeof value === "object" && (value as { __rig?: string }).__rig === "prompt.var";
 }
@@ -295,7 +303,10 @@ function promptFactory(...args: unknown[]): PromptBuilder | string {
   if (args.length === 0) {
     return new PromptBuilder();
   }
-  const strings = args[0] as TemplateStringsArray;
+  if (!isTemplateStringsArray(args[0])) {
+    throw new TypeError("p() expects either no arguments or template literal usage");
+  }
+  const strings = args[0];
   const values = args.slice(1);
   return renderPromptTemplate(strings, ...values);
 }
