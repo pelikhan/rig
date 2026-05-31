@@ -145,7 +145,7 @@ describe("agent", () => {
 
     const textAgent = agent({ name: "text-agent" });
     await expect((textAgent as (input?: string) => Promise<string>)()).resolves.toBe("ok");
-    expect(prompts[0]).toContain("<output_schema>\nstring\n</output_schema>");
+    expect(prompts[0]).toContain("<output_schema>\n{\n  \"type\": \"string\"\n}\n</output_schema>");
     expect(prompts[0]).toContain("<input>\n\"\"\n</input>");
     expect(prompts[0]).toContain("Return exactly one JSON value.");
   });
@@ -650,8 +650,8 @@ describe("agent invocation", () => {
 
     await describeSchema("go");
 
-    expect(prompts[0]).toContain("text: string /* Final answer text */;");
-    expect(prompts[0]).toContain("} /* Response payload */");
+    expect(prompts[0]).toContain("\"text\": {\n      \"type\": \"string\",\n      \"description\": \"Final answer text\"\n    }");
+    expect(prompts[0]).toContain("\"description\": \"Response payload\"");
   });
 
   it("renders subagent metadata for delegated task-solving prompts", async () => {

@@ -99,6 +99,7 @@ Use `agent({ name, ... })` as the only agent declaration form.
 ## Schemas
 
 Use `s.*` helpers for input and output schemas.
+These `s.*` declarations must stay JSON Schema-compatible because rig renders prompt schema blocks as JSON Schema.
 
 ```ts
 input: s.object({

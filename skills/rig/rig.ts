@@ -1070,42 +1070,7 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
 }
 
 function renderSchema(schema: Schema): string {
-  return renderSchemaNode(schema, 0);
-}
-
-function renderSchemaNode(schema: Schema, indent: number): string {
-  const pad = "  ".repeat(indent);
-  const describe = (text: string): string => (
-    schema.description ? `${text} /* ${schema.description.replaceAll("*/", "* /").replaceAll("\n", " ").trim()} */` : text
-  );
-  if ("schema" in schema) {
-    return describe(`${renderSchemaNode(schema.schema, indent)} | undefined`);
-  }
-  if ("enum" in schema) {
-    return describe(schema.enum.map((value: Json) => JSON.stringify(value)).join(" | "));
-  }
-  if ("items" in schema) {
-    return describe(`${renderSchemaNode(schema.items, indent)}[]`);
-  }
-  if ("additionalProperties" in schema) {
-    return describe(`{\n${pad}  [key: string]: ${renderSchemaNode(schema.additionalProperties, indent + 1)};\n${pad}}`);
-  }
-  if ("properties" in schema) {
-    const lines = ["{"];
-    for (const [key, value] of Object.entries(schema.properties) as [string, Schema][]) {
-      if ("schema" in value) {
-        lines.push(`${pad}  ${key}?: ${renderSchemaNode(value.schema, indent + 1)};`);
-      } else {
-        lines.push(`${pad}  ${key}: ${renderSchemaNode(value, indent + 1)};`);
-      }
-    }
-    lines.push(`${pad}}`);
-    return describe(lines.join("\n"));
-  }
-  if ("type" in schema) {
-    return describe(schema.type);
-  }
-  return describe("unknown");
+  return json(toJsonSchema(schema));
 }
 
 function inlinePromptIntents<T>(value: T): T {
