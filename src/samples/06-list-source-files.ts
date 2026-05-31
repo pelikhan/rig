@@ -18,9 +18,6 @@ const writer = agent({
     instructions: `
     Confirm whether the write intent succeeded.
   `,
-    permissions: {
-        write: "workspace",
-    },
 });
 await writer({
     write: p.write("README.md", "# Project\n\nGenerated README.\n", {

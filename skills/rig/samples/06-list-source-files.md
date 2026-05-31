@@ -13,9 +13,6 @@ const writer = agent({
     instructions: `
     Confirm whether the write intent succeeded.
   `,
-    permissions: {
-        write: "workspace",
-    },
 });
 
 export default writer;

@@ -1,4 +1,4 @@
-# 41 - Permissioned Agent
+# 41 - Parse Coverage
 
 ```rig
 import { agent, p, s } from "rig";

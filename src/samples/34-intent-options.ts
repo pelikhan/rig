@@ -13,7 +13,6 @@ const investigator = agent({
         likelyEntryPoints: s.array(s.string)
     }),
     instructions: `Investigate the project using only readonly evidence.`,
-    permissions: { shell: "readonly", write: "deny" },
 });
 await investigator({
     tree: p.bash("find . -maxdepth 3 -type f | sort"),

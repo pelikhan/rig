@@ -16,7 +16,6 @@ const fix = agent({
   model: "mini",
   output: s.object({ summary: s.string, changed: s.boolean }),
   instructions: "Apply the smallest safe fix for the root cause.",
-  permissions: { write: "workspace" },
 });
 // Agent role: run a RALF loop iterating diagnose-fix cycles until tests pass.
 const ralfLoop = agent({

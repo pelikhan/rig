@@ -11,7 +11,6 @@ const investigator = agent({
         likelyEntryPoints: s.array(s.string)
     }),
     instructions: `Investigate the project using only readonly evidence.`,
-    permissions: { shell: "readonly", write: "deny" },
 });
 
 export default investigator;

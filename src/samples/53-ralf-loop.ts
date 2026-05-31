@@ -31,7 +31,6 @@ const fix = agent({
     changed: s.boolean,
   }),
   instructions: "Apply the smallest safe fix to address the diagnosed root cause.",
-  permissions: { shell: "ask", write: "workspace" },
 });
 
 const MAX_ITERATIONS = 3;
