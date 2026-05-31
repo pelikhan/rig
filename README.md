@@ -27,7 +27,7 @@ import {
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative shell/file intents for prompt templates or inputs.
-- `middleware(context, next)` adds express-like turn middleware for steering and inline validation.
+- `middleware` accepts express-like `(context, next)` turn middleware for steering and inline validation.
 - `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
 
 You can hook into the underlying Copilot session for direct SDK access (for example, event subscriptions):
