@@ -130,6 +130,7 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 - `skills/rig/samples/36-subagent-delegation.md` — delegation between focused agents
 - `skills/rig/samples/47-prompt-intents.md` — prompt intents embedded directly in prompt templates
 - `skills/rig/samples/50-end-to-end-release-agent.md` — multi-step release planning workflow
+- `docs/rig-syntax-genaiscript-comparison.md` — comparison of rig syntax with 10 GitHub GenAIScript sample ports
 
 ## Agent behavior
 
