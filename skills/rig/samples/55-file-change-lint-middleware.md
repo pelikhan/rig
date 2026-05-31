@@ -5,7 +5,8 @@ import { agent, s, type AgentAddon } from "rig";
 import { $ } from "zx";
 
 const fingerprint = async () => {
-  try { return (await $`git status --porcelain`).stdout.trim(); } catch { return ""; }
+  const { exitCode, stdout } = await $`git status --porcelain`.nothrow();
+  return exitCode === 0 ? stdout.trim() : "";
 };
 const lintOnFileChange = (runLint: () => Promise<unknown>): AgentAddon => async (_context, next) => {
   const before = await fingerprint();

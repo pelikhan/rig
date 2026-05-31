@@ -3,12 +3,8 @@ import type { AgentAddon } from "rig";
 import { $ } from "zx";
 
 async function workspaceFingerprint(): Promise<string> {
-  try {
-    const { stdout } = await $`git status --porcelain`;
-    return stdout.trim();
-  } catch {
-    return "";
-  }
+  const { exitCode, stdout } = await $`git status --porcelain`.nothrow();
+  return exitCode === 0 ? stdout.trim() : "";
 }
 
 function lintOnFileChange(runLint: () => Promise<unknown>): AgentAddon {
