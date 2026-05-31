@@ -3,8 +3,7 @@
 ```rig
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { agent, s } from "rig";
-import type { AgentAddon } from "rig";
+import { agent, s, type AgentAddon } from "rig";
 
 const execFileAsync = promisify(execFile);
 const lintOnFileChange = (lintCommand: string): AgentAddon => async (_context, next) => {
