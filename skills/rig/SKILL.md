@@ -59,7 +59,7 @@ Use this checklist before finalizing generated code:
 5. Add a `// Agent role: ...` comment above each agent declaration.
 6. Set `model` explicitly to `"large"`, `"mini"`, or `"nano"`.
 7. Prefer `${p.read(...)}` / `${p.bash(...)}` inside `p\`\`` templates when the context source is already known; add input fields only for true caller-provided data.
-8. Put stable defaults in spec; put per-call overrides in call options.
+8. Put stable defaults in spec; register middleware in spec or with `agent.use(...)`.
 9. Add `agents` only when required by the scenario.
 10. Avoid `console.log(...)` in snippets.
 11. For inline markdown skill mode, export exactly one default root agent with no input and do not call it directly.
@@ -292,7 +292,7 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 - Use `s.enum(...)` when exact values matter.
 - Prefer `p.*` inside `p\`\`` templates; fall back to inputs only for real caller-provided data.
 - Prefer `p.read(...)` for existing files instead of shelling out through `cat`.
-- Put durable defaults in the agent spec and per-run overrides in call options.
+- Put durable defaults in the agent spec; register middleware in spec or with `agent.use(...)`.
 - Introduce `agents` only when the scenario needs them.
 
 ## Patterns to avoid

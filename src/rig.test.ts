@@ -230,50 +230,93 @@ describe("agent invocation", () => {
     });
   });
 
-  it("exposes the Copilot session through call hooks", async () => {
-    const onCopilotSession = vi.fn();
+  it("exposes the Copilot session through middleware", async () => {
+    const middleware = vi.fn(async (context, next) => {
+      await next();
+      expect(context.session).toMatchObject({
+        sendAndWait: expect.any(Function),
+        disconnect: expect.any(Function),
+      });
+    });
     mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
 
     const greet = agent({
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
-    });
-
-    await expect(greet({ text: "Hi" }, { onCopilotSession })).resolves.toEqual({ text: "hello world" });
-    expect(onCopilotSession).toHaveBeenCalledTimes(1);
-    expect(onCopilotSession.mock.calls[0]?.[0]).toMatchObject({
-      sendAndWait: expect.any(Function),
-      disconnect: expect.any(Function),
-    });
-  });
-
-  it("applies default Copilot session hooks from agent spec", async () => {
-    const onCopilotSession = vi.fn();
-    mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
-
-    const greet = agent({
-      name: "greeter",
-      input: s.object({ text: s.string }),
-      output: s.object({ text: s.string }),
-      onCopilotSession,
+      middleware,
     });
 
     await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
-    expect(onCopilotSession).toHaveBeenCalledTimes(1);
+    expect(middleware).toHaveBeenCalledTimes(1);
   });
 
-  it("disconnects the session when a Copilot session hook throws", async () => {
-    const onCopilotSession = vi.fn(() => {
+  it("applies default middleware from agent spec", async () => {
+    const middleware = vi.fn(async (_context, next) => {
+      await next();
+    });
+    mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
+
+    const greet = agent({
+      name: "greeter",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+      middleware,
+    });
+
+    await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
+    expect(middleware).toHaveBeenCalledTimes(1);
+  });
+
+  it("supports express-like middleware registration with use()", async () => {
+    const order: number[] = [];
+    const first = vi.fn(async (_context, next) => {
+      order.push(1);
+      await next();
+    });
+    const second = vi.fn(async (_context, next) => {
+      order.push(2);
+      await next();
+    });
+    mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
+
+    const greet = agent({
+      name: "greeter",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    expect(greet.use(first).use(second)).toBe(greet);
+    await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
+    expect(order).toEqual([1, 2]);
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it("validates middleware passed to use()", () => {
+    const greet = agent({
+      name: "greeter",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    expect(() => greet.use([null as unknown as any] as any)).toThrow(
+      "Agent middleware entries must be functions.",
+    );
+  });
+
+  it("disconnects the session when middleware throws", async () => {
+    const middleware = vi.fn(() => {
       throw new Error("hook failed");
     });
     const greet = agent({
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
+      middleware,
     });
 
-    await expect(greet({ text: "Hi" }, { onCopilotSession })).rejects.toThrow("hook failed");
+    await expect(greet({ text: "Hi" })).rejects.toThrow("hook failed");
     expect(mocks.disconnectSession).toHaveBeenCalledTimes(1);
   });
 
@@ -406,6 +449,74 @@ describe("agent invocation", () => {
     expect(prompts[0]).toContain("Options:");
     expect(prompts[0]).toContain("/tmp/workspace");
     expect(prompts[0]).toContain("before answering.");
+  });
+
+  it("supports middleware that steers retries near max turns", async () => {
+    const prompts: string[] = [];
+    let calls = 0;
+
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      calls += 1;
+      if (calls === 1) {
+        return "not json";
+      }
+      return prompt.includes("running out of turns")
+        ? JSON.stringify("recovered")
+        : "still not json";
+    });
+
+    const steerable = agent({
+      name: "steerable",
+      maxTurns: 2,
+      middleware: async (context, next) => {
+        await next();
+        if (context.nextPrompt && context.turn === context.maxTurns - 1) {
+          context.nextPrompt = `${context.nextPrompt}\nAdd a short correction because you are running out of turns.`;
+        }
+      },
+    });
+
+    await expect(steerable("go")).resolves.toBe("recovered");
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1]).toContain("running out of turns");
+  });
+
+  it("supports middleware that validates snippets inline", async () => {
+    let calls = 0;
+    mocks.setSendAndWaitImpl(async () => {
+      calls += 1;
+      return calls === 1
+        ? JSON.stringify({ code: "const x = 1;" })
+        : JSON.stringify({ code: "```ts\nconst x = 1;\n```" });
+    });
+
+    const snippetGuard = agent({
+      name: "snippet-guard",
+      maxTurns: 2,
+      output: s.object({ code: s.string }),
+      middleware: async (context, next) => {
+        await next();
+        if (!context.nextPrompt && context.output && typeof context.output === "object") {
+          const code = (context.output as { code?: unknown }).code;
+          if (typeof code === "string" && !code.includes("```")) {
+            context.completed = false;
+            context.output = undefined;
+            context.nextPrompt = "Return the same payload but wrap code in a fenced markdown block.";
+          }
+        }
+      },
+    });
+
+    await expect(snippetGuard("go")).resolves.toEqual({ code: "```ts\nconst x = 1;\n```" });
+  });
+
+  it("rejects non-function middleware entries", async () => {
+    mocks.setSendAndWaitImpl(async () => JSON.stringify("ok"));
+    const guarded = agent({ name: "guarded", middleware: [null as unknown as any] as any });
+    await expect(guarded("go")).rejects.toThrow(
+      "Agent middleware entries must be functions.",
+    );
   });
 
   it("renders schema descriptions for discovery", async () => {

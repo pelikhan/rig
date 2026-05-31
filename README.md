@@ -27,20 +27,8 @@ import {
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative shell/file intents for prompt templates or inputs.
+- `middleware` accepts express-like `(context, next)` turn middleware for steering, inline validation, and Copilot session access.
 - `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
-
-You can hook into the underlying Copilot session for direct SDK access (for example, event subscriptions):
-
-```ts
-const review = agent({
-  name: "review",
-  onCopilotSession(session) {
-    session.on?.((event) => {
-      // custom event handling
-    });
-  },
-});
-```
 
 ## Embedding in markdown
 
@@ -137,6 +125,56 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 - Retry loop reparses/revalidates responses until success or max turns
 
 Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
+
+## Middleware
+
+Each agent call runs a per-turn middleware chain:
+
+```ts
+const steerFinalTurn = async (context, next) => {
+  await next();
+  if (context.nextPrompt && context.turn === context.maxTurns - 1) {
+    context.nextPrompt = `${context.nextPrompt}\nYou are running out of turns. Return corrected JSON now.`;
+  }
+};
+
+const review = agent({
+  name: "review",
+  maxTurns: 3,
+  middleware: steerFinalTurn,
+});
+```
+
+`context` includes `prompt`, `response`, `turn`, `maxTurns`, `output`, `nextPrompt`, `error`, and `completed`.
+
+For direct SDK access, middleware also exposes `context.session`:
+
+```ts
+const onSessionEvent = async (context, next) => {
+  if (context.turn === 1) {
+    context.session.on?.((event) => {
+      // custom event handling
+    });
+  }
+  await next();
+};
+
+const review = agent({
+  name: "review",
+  middleware: onSessionEvent,
+});
+```
+
+You can also register middleware after creating the agent:
+
+```ts
+const timingMiddleware = async (context, next) => {
+  await next();
+};
+
+const review = agent({ name: "review" });
+review.use(timingMiddleware);
+```
 
 ## Copilot SDK runtime
 

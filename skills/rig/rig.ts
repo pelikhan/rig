@@ -151,7 +151,24 @@ function writeEvent(event: unknown): void {
 
 export type RepairHandler = false | "default" | ((error: AgentError) => string);
 export type CopilotSession = Awaited<ReturnType<CopilotClient["createSession"]>>;
-export type CopilotSessionHandler = (session: CopilotSession) => void | Promise<void>;
+export type AgentMiddlewareContext = {
+  spec: AgentSpec<any, any>;
+  session: CopilotSession;
+  input: unknown;
+  outputSchema: Schema;
+  turn: number;
+  maxTurns: number;
+  prompt: string;
+  response?: string;
+  completed: boolean;
+  output?: unknown;
+  nextPrompt?: string;
+  error?: unknown;
+};
+export type AgentMiddleware = (
+  context: AgentMiddlewareContext,
+  next: () => Promise<void>,
+) => void | Promise<void>;
 
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
   name: string;
@@ -162,7 +179,7 @@ export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema
   timeout?: number;
   maxTurns?: number;
   repair?: RepairHandler;
-  onCopilotSession?: CopilotSessionHandler;
+  middleware?: AgentMiddleware | AgentMiddleware[];
   agents?: Record<string, AgentFn<any, any>>;
 };
 
@@ -171,7 +188,6 @@ export type CallOptions = {
   timeout?: number;
   model?: string;
   maxTurns?: number;
-  onCopilotSession?: CopilotSessionHandler;
 };
 
 export type LaunchOptions = {
@@ -193,6 +209,7 @@ export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValu
   outputShape: Schema;
   spec: AgentSpec<any, any>;
   _namespace: string;
+  use: (middleware: AgentMiddleware | AgentMiddleware[]) => AgentFn<Input, Output>;
 };
 
 export type IntentOptions = {
@@ -577,24 +594,51 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
       const normalizedInput = normalizeInput(input, inputSchema);
       let prompt = renderPrompt(normalizedSpec, normalizedInput);
       let lastResponse = "";
-      const copilot = await createCopilotSession(runtime.model, runtime.onCopilotSession);
+      const copilot = await createCopilotSession(runtime.model);
       let failure: unknown;
 
       try {
         for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
           throwIfAborted(runtime.signal);
-          lastResponse = await sendCopilotPrompt(copilot.session, prompt, runtime.signal);
+          const context: AgentMiddlewareContext = {
+            spec: normalizedSpec,
+            session: copilot.session,
+            input: normalizedInput,
+            outputSchema,
+            turn,
+            maxTurns: runtime.maxTurns,
+            prompt,
+            completed: false,
+          };
 
-          const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
-          if (analysis.ok) {
-            return analysis.output;
+          await runAgentMiddlewares(runtime.middlewares, context, async () => {
+            lastResponse = await sendCopilotPrompt(copilot.session, context.prompt, runtime.signal);
+            context.response = lastResponse;
+            const analysis = analyzeResponse(lastResponse, outputSchema, normalizedSpec.name, turn);
+            if (analysis.ok) {
+              context.completed = true;
+              context.output = analysis.output;
+              return;
+            }
+            if (turn === runtime.maxTurns || runtime.repair === false) {
+              context.error = analysis.error;
+              return;
+            }
+            context.nextPrompt = repairPrompt(normalizedSpec, analysis.error);
+          });
+
+          if (context.error !== undefined) {
+            throw context.error;
           }
-
-          if (turn === runtime.maxTurns || runtime.repair === false) {
-            throw analysis.error;
+          if (context.completed) {
+            return context.output;
           }
-
-          prompt = repairPrompt(normalizedSpec, analysis.error);
+          if (context.nextPrompt === undefined) {
+            throw new Error(
+              `Agent ${normalizedSpec.name}: middleware must set context.output with context.completed=true or context.nextPrompt for turn ${turn}.`,
+            );
+          }
+          prompt = context.nextPrompt;
         }
       } catch (error) {
         failure = error;
@@ -619,6 +663,13 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   fn.outputShape = outputSchema;
   fn.spec = normalizedSpec;
   fn._namespace = normalizedSpec.name;
+  fn.use = (middleware) => {
+    normalizedSpec.middleware = [
+      ...normalizeMiddlewares(normalizedSpec.middleware),
+      ...normalizeMiddlewares(middleware),
+    ];
+    return fn;
+  };
   return fn;
 }
 
@@ -645,7 +696,7 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   if (specOrName.timeout !== undefined) spec.timeout = specOrName.timeout;
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
   if (specOrName.repair !== undefined) spec.repair = specOrName.repair;
-  if (specOrName.onCopilotSession !== undefined) spec.onCopilotSession = specOrName.onCopilotSession;
+  if (specOrName.middleware !== undefined) spec.middleware = specOrName.middleware;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
   return spec;
 }
@@ -1009,20 +1060,12 @@ async function withCopilotClient<T>(fn: () => Promise<T>): Promise<T> {
   });
 }
 
-async function createCopilotSession(model: string, onCopilotSession?: CopilotSessionHandler): Promise<CopilotSessionHandle> {
+async function createCopilotSession(model: string): Promise<CopilotSessionHandle> {
   const client = getCopilotClient();
   const session: CopilotSession = await client.createSession({ model, streaming: false });
   session.on?.((event: unknown) => {
     writeEvent(event);
   });
-  try {
-    await onCopilotSession?.(session);
-  } catch (error) {
-    try {
-      await session.disconnect?.();
-    } catch {}
-    throw asError(error);
-  }
 
   return {
     session,
@@ -1058,15 +1101,49 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
   maxTurns: number;
   signal: AbortSignal | undefined;
   repair: RepairHandler;
-  onCopilotSession: CopilotSessionHandler | undefined;
+  middlewares: AgentMiddleware[];
 } {
   return {
     model: options.model ?? spec.model ?? "gpt-4.1",
     maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
     signal: timeoutSignal(options.signal, options.timeout ?? spec.timeout),
     repair: spec.repair ?? "default",
-    onCopilotSession: options.onCopilotSession ?? spec.onCopilotSession,
+    middlewares: normalizeMiddlewares(spec.middleware),
   };
+}
+
+function normalizeMiddlewares(middlewares?: AgentMiddleware | AgentMiddleware[]): AgentMiddleware[] {
+  if (!middlewares) {
+    return [];
+  }
+  const items = Array.isArray(middlewares) ? [...middlewares] : [middlewares];
+  for (const middleware of items) {
+    if (typeof middleware !== "function") {
+      throw new Error("Agent middleware entries must be functions.");
+    }
+  }
+  return items;
+}
+
+async function runAgentMiddlewares(
+  middlewares: AgentMiddleware[],
+  context: AgentMiddlewareContext,
+  terminal: () => Promise<void>,
+): Promise<void> {
+  let index = -1;
+  const dispatch = async (current: number): Promise<void> => {
+    if (current <= index) {
+      throw new Error(`Agent ${context.spec.name} middleware at index ${current} called next() multiple times.`);
+    }
+    index = current;
+    const middleware = middlewares[current];
+    if (middleware === undefined) {
+      await terminal();
+      return;
+    }
+    await middleware(context, () => dispatch(current + 1));
+  };
+  await dispatch(0);
 }
 
 function isSchema(value: unknown): value is Schema {
