@@ -1,6 +1,6 @@
 import { agent, s } from "rig";
 import type { AgentAddon } from "rig";
-import { $, quote } from "zx";
+import { $ } from "zx";
 
 async function workspaceFingerprint(): Promise<string> {
   try {
@@ -11,19 +11,13 @@ async function workspaceFingerprint(): Promise<string> {
   }
 }
 
-async function runCommand(command: [string, ...string[]]): Promise<void> {
-  const [name, ...args] = command;
-  const escaped = [name, ...args].map((part) => quote(part)).join(" ");
-  await $`${escaped}`;
-}
-
-function lintOnFileChange(lintCommand: [string, ...string[]]): AgentAddon {
+function lintOnFileChange(runLint: () => Promise<unknown>): AgentAddon {
   return async (_context, next) => {
     const before = await workspaceFingerprint();
     await next();
     const after = await workspaceFingerprint();
     if (before !== after) {
-      await runCommand(lintCommand);
+      await runLint();
     }
   };
 }
@@ -37,7 +31,7 @@ const fileChangeMiddleware = agent({
     changed: s.boolean,
     summary: s.string,
   }),
-  addons: lintOnFileChange(["npm", "run", "typecheck"]),
+  addons: lintOnFileChange(() => $`npm run typecheck`),
 });
 
 await fileChangeMiddleware("Inspect the workspace and apply a small fix if needed.");

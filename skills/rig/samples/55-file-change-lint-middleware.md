@@ -2,18 +2,16 @@
 
 ```rig
 import { agent, s, type AgentAddon } from "rig";
-import { $, quote } from "zx";
+import { $ } from "zx";
 
 const fingerprint = async () => {
   try { return (await $`git status --porcelain`).stdout.trim(); } catch { return ""; }
 };
-const runCommand = async (command: [string, ...string[]]) =>
-  $`${command.map((part) => quote(part)).join(" ")}`;
-const lintOnFileChange = (lintCommand: [string, ...string[]]): AgentAddon => async (_context, next) => {
+const lintOnFileChange = (runLint: () => Promise<unknown>): AgentAddon => async (_context, next) => {
   const before = await fingerprint();
   await next();
   const after = await fingerprint();
-  if (before !== after) await runCommand(lintCommand);
+  if (before !== after) await runLint();
 };
 
 // Agent role: update files and run linting after file changes.
@@ -22,7 +20,7 @@ const fileChangeMiddleware = agent({
   model: "mini",
   instructions: "Update files when needed, then summarize the change.",
   output: s.object({ changed: s.boolean, summary: s.string }),
-  addons: lintOnFileChange(["npm", "run", "typecheck"]),
+  addons: lintOnFileChange(() => $`npm run typecheck`),
 });
 
 export default fileChangeMiddleware;
