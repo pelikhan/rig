@@ -39,7 +39,7 @@ vi.mock("@github/copilot-sdk", () => ({
 }));
 
 import { AgentError, agent, p, s } from "rig";
-import { repair, steering, timeout } from "rig/addons";
+import { oncePerSession, repair, steering, timeout } from "rig/addons";
 
 beforeEach(() => {
   mocks.createSession.mockClear();
@@ -245,7 +245,7 @@ describe("agent invocation", () => {
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
-      addon,
+      addons: addon,
     });
 
     await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
@@ -262,7 +262,7 @@ describe("agent invocation", () => {
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
-      addon,
+      addons: addon,
     });
 
     await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
@@ -314,7 +314,7 @@ describe("agent invocation", () => {
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
-      addon,
+      addons: addon,
     });
 
     await expect(greet({ text: "Hi" })).rejects.toThrow("hook failed");
@@ -345,7 +345,7 @@ describe("agent invocation", () => {
 
     const repairable = agent({
       name: "repairable",
-      addon: repair,
+      addons: repair,
       maxTurns: 2,
     });
 
@@ -367,7 +367,7 @@ describe("agent invocation", () => {
 
     const repairable = agent({
       name: "repairable",
-      addon: [
+      addons: [
         async (context, next) => {
           await next();
           if (context.nextPrompt) {
@@ -426,7 +426,7 @@ describe("agent invocation", () => {
       return "";
     });
 
-    const slow = agent({ name: "timeout-test", addon: timeout({ timeout: 50 }) });
+    const slow = agent({ name: "timeout-test", addons: timeout({ timeout: 50 }) });
     await expect(slow("go")).rejects.toThrow(/Timed out/);
   });
 
@@ -502,7 +502,7 @@ describe("agent invocation", () => {
     const steerable = agent({
       name: "steerable",
       maxTurns: 2,
-      addon: [
+      addons: [
         async (context, next) => {
           await next();
           if (context.nextPrompt && context.turn === context.maxTurns - 1) {
@@ -536,7 +536,7 @@ describe("agent invocation", () => {
     const steerable = agent({
       name: "steerable",
       maxTurns: 2,
-      addon: [steering(), repair],
+      addons: [steering(), repair],
     });
 
     await expect(steerable("go")).resolves.toBe("recovered");
@@ -557,7 +557,7 @@ describe("agent invocation", () => {
       name: "snippet-guard",
       maxTurns: 2,
       output: s.object({ code: s.string }),
-      addon: [
+      addons: [
         async (context, next) => {
           await next();
           if (!context.nextPrompt && context.output && typeof context.output === "object") {
@@ -578,9 +578,39 @@ describe("agent invocation", () => {
 
   it("rejects non-function addon entries", async () => {
     mocks.setSendAndWaitImpl(async () => JSON.stringify("ok"));
-    const guarded = agent({ name: "guarded", addon: [null as unknown as any] as any });
+    const guarded = agent({ name: "guarded", addons: [null as unknown as any] as any });
     await expect(guarded("go")).rejects.toThrow(
       "Agent addon entries must be functions.",
+    );
+  });
+
+  it("registers with the Copilot session once per call", async () => {
+    let turns = 0;
+    const register = vi.fn();
+    mocks.setSendAndWaitImpl(async () => {
+      turns += 1;
+      return turns === 1 ? "not json" : JSON.stringify("hello world");
+    });
+
+    const review = agent({
+      name: "review",
+      maxTurns: 2,
+      addons: [
+        oncePerSession(async (session, context) => {
+          register(session, context.turn);
+        }),
+        repair,
+      ],
+    });
+
+    await expect(review("go")).resolves.toBe("hello world");
+    expect(register).toHaveBeenCalledTimes(1);
+    expect(register).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sendAndWait: expect.any(Function),
+        disconnect: expect.any(Function),
+      }),
+      1,
     );
   });
 

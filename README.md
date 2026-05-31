@@ -22,15 +22,15 @@ import {
   p,
   s,
 } from "rig";
-import { addons, repair, steering } from "rig/addons";
+import { addons, oncePerSession, repair, steering, timeout } from "rig/addons";
 ```
 
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative shell/file intents for prompt templates or inputs.
-- `addon` accepts express-like `(context, next)` turn addons for steering, inline validation, and Copilot session access.
+- `addons` accepts express-like `(context, next)` turn addons for steering, inline validation, and Copilot session access.
 - `rig` starts with no default addons.
-- `rig/addons` provides optional addon helpers: `repair`, `steering`, and `addons.{repair,steering}`.
+- `rig/addons` provides optional addon helpers: `oncePerSession`, `repair`, `steering`, `timeout`, and `addons.{oncePerSession,repair,steering,timeout}`.
 - `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
 
 ## Embedding in markdown
@@ -143,7 +143,7 @@ const steerFinalTurn = async (context, next) => {
 const review = agent({
   name: "review",
   maxTurns: 3,
-  addon: steerFinalTurn,
+  addons: steerFinalTurn,
 });
 ```
 
@@ -155,29 +155,24 @@ For the common retry flow with last-turn steering or stable default timeouts, op
 const review = agent({
   name: "review",
   maxTurns: 3,
-  addon: [timeout({ timeout: 30_000 }), steering(), repair],
+  addons: [timeout({ timeout: 30_000 }), steering(), repair],
 });
 ```
 
-For direct SDK access, addons also expose `context.session`:
+For direct SDK access, use `oncePerSession(...)` to register with the session once:
 
 ```ts
-const onSessionEvent = async (context, next) => {
-  if (context.turn === 1) {
-    context.session.on?.((event) => {
-      // custom event handling
-    });
-  }
-  await next();
-};
-
 const review = agent({
   name: "review",
-  addon: onSessionEvent,
+  addons: oncePerSession((session) => {
+    session.on?.((event) => {
+      // custom event handling
+    });
+  }),
 });
 ```
 
-You can also register addons after creating the agent:
+Per-turn addons still receive `context.session` directly, and you can also register addons after creating the agent:
 
 ```ts
 const timingAddon = async (context, next) => {
