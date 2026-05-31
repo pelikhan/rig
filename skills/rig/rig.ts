@@ -635,7 +635,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
             return context.output;
           }
           if (context.nextPrompt === undefined) {
-            throw new Error(`Agent ${normalizedSpec.name} middleware finished turn ${turn} without returning output or nextPrompt.`);
+            throw new Error(`Agent ${normalizedSpec.name} middleware finished turn ${turn} without setting output or nextPrompt.`);
           }
           prompt = context.nextPrompt;
         }
