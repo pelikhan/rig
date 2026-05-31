@@ -8,12 +8,7 @@ const diagnose = agent({
     name: "diagnose",
     model: "mini",
     input: s.object({
-        test: s.object({
-            ok: s.boolean,
-            stdout: s.string,
-            stderr: s.string,
-            exitCode: s.number
-        })
+        test: s.string
     }),
     output: Diagnosis,
     instructions: `Diagnose the test failure.`,
@@ -45,7 +40,7 @@ const review = agent({
     }),
     instructions: `Review the patch against the diagnosis.`,
 });
-const d = await diagnose({ test: p.result("npm test") });
+const d = await diagnose({ test: p.bash("npm test") });
 await fix({ diagnosis: d });
 await review({ diff: p.bash("git diff -- ."), diagnosis: d });
 

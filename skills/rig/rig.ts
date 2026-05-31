@@ -220,7 +220,7 @@ export type PromptIntentOptions = {
 export type PromptIntent = {
   __rig: "prompt";
   id: string;
-  mode: "prompt.text" | "prompt.result" | "prompt.read" | "prompt.write";
+  mode: "prompt.text" | "prompt.read" | "prompt.write";
   command?: string;
   path?: string;
   contents?: string;
@@ -232,7 +232,6 @@ let nextPromptIntentId = 1;
 type PromptHelpers = {
   (strings: TemplateStringsArray, ...values: unknown[]): string;
   bash(command: string, options?: PromptIntentOptions): PromptIntent;
-  result(command: string, options?: PromptIntentOptions): PromptIntent;
   read(path: string, options?: PromptIntentOptions): PromptIntent;
   write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent;
 };
@@ -250,9 +249,6 @@ function renderPromptTemplate(strings: TemplateStringsArray, ...values: unknown[
 export const p: PromptHelpers = Object.assign(renderPromptTemplate, {
   bash(command: string, options?: PromptIntentOptions): PromptIntent {
     return createPromptIntent("prompt.text", withOptions({ command }, options));
-  },
-  result(command: string, options?: PromptIntentOptions): PromptIntent {
-    return createPromptIntent("prompt.result", withOptions({ command }, options));
   },
   read(path: string, options?: PromptIntentOptions): PromptIntent {
     return createPromptIntent("prompt.read", withOptions({ path }, options));
@@ -943,8 +939,6 @@ function renderPromptIntentInstruction(intent: PromptIntent): string {
   switch (intent.mode) {
     case "prompt.text":
       return `Run bash command and return stdout as text: ${intent.command}${promptExecutionContext()}${options}`;
-    case "prompt.result":
-      return `Run bash command and return a structured result (stdout, stderr, exitCode): ${intent.command}${promptExecutionContext()}${options}`;
     case "prompt.read":
       return `Read file and return its contents as text: ${JSON.stringify(requiredPath(intent))}${promptExecutionContext()}${options}`;
     case "prompt.write":

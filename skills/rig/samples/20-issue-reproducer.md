@@ -11,7 +11,7 @@ const fix = agent({ name: "fix", model: "mini", input: s.object({ diagnosis: Dia
 const issueReproducer = agent({
   name: "issueReproducer",
   model: "mini",
-  instructions: p`Reproduce the failing test from ${p.result("npm test")} and use the specialists when helpful.`,
+  instructions: p`Reproduce the failing test from ${p.bash("npm test")} and use the specialists when helpful.`,
   output: s.object({ diagnosis: Diagnosis, fixSummary: s.string, approved: s.boolean }),
   agents: { diagnose, fix },
 });

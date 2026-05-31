@@ -23,7 +23,7 @@ const ralfLoop = agent({
   model: "large",
   output: s.object({ iterations: s.number, fixed: s.boolean }),
   agents: { diagnose, fix },
-  instructions: p`Run ${p.result("npm test")} then loop: diagnose failures, fix, repeat up to 3 times.`,
+  instructions: p`Run ${p.bash("npm test")} then loop: diagnose failures, fix, repeat up to 3 times.`,
 });
 export default ralfLoop;
 ```

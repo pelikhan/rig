@@ -1,16 +1,10 @@
 import { agent, p, s } from "rig";
-const ShResult = s.object({
-    ok: s.boolean,
-    stdout: s.string,
-    stderr: s.string,
-    exitCode: s.number
-});
 // Agent role: diagnose the failing test result. Do not edit files.
 const diagnose = agent({
     name: "diagnose",
     model: "mini",
     input: s.object({
-        test: ShResult
+        test: s.string
     }),
     output: s.object({
         rootCause: s.string,
@@ -24,7 +18,7 @@ const diagnose = agent({
   `,
 });
 await diagnose({
-    test: p.result("npm test"),
+    test: p.bash("npm test"),
 });
 
 export default diagnose;

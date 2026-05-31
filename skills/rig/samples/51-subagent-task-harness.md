@@ -14,7 +14,7 @@ const typecheckRigProgram = agent({
   name: "typecheckRigProgram",
   model: "typecheck",
   output: s.object({ ok: s.boolean, diagnostics: s.string }),
-  instructions: p`Run ${p.result("npx tsc --noEmit --pretty false")} and summarize whether typecheck passed.`,
+  instructions: p`Run ${p.bash("npx tsc --noEmit --pretty false")} and summarize whether typecheck passed.`,
 });
 // Agent role: solve the task by delegating to subagents and returning markdown.
 const solveTask = agent({
