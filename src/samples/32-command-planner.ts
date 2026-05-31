@@ -3,9 +3,7 @@ import { agent, p, s } from "rig";
 const packageMap = agent({
     name: "packageMap",
     model: "mini",
-    input: s.object({
-        manifests: s.string
-    }),
+    input: s.string,
     output: s.object({
         packages: s.array(s.object({
             name: s.string,
@@ -20,8 +18,6 @@ const packageMap = agent({
     }),
     instructions: `Build a package map for a JavaScript monorepo.`,
 });
-await packageMap({
-    manifests: p.read("**/package.json"),
-});
+await packageMap(p.read("**/package.json"));
 
 export default packageMap;

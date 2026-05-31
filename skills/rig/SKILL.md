@@ -197,15 +197,15 @@ Expose subagents with `agents`:
 const summarizeDiff = agent({
   name: "summarizeDiff",
   model: "mini",
-  input: s.object({ diff: s.string }),
-  output: s.object({ summary: s.string }),
+  input: s.string,
+  output: s.string,
 });
 
 // Agent role: review the diff using the provided subagent when helpful.
 const reviewer = agent({
   name: "reviewer",
   model: "mini",
-  input: s.object({ diff: s.string }),
+  input: s.string,
   output: s.object({
     summary: s.string,
     issues: s.array(s.string),
@@ -235,8 +235,8 @@ Agents retry invalid output up to `maxTurns`.
 const summarize = agent({
   name: "summarize",
   model: "mini",
-  input: s.object({ diff: s.string }),
-  output: s.object({ summary: s.string }),
+  input: s.string,
+  output: s.string,
   maxTurns: 3,
   repair: "default",
 });
@@ -261,7 +261,7 @@ const root = agent({
   name: "review",
   model: "mini",
   instructions: "Summarize this repository in one sentence.",
-  output: s.object({ text: s.string }),
+  output: s.string,
 });
 export default root;
 RIG
@@ -290,7 +290,7 @@ cat <<'RIG' | node skills/rig/rig.ts --typecheck
 const root = agent({
   name: "review",
   model: "mini",
-  output: s.object({ text: s.string }),
+  output: s.string,
 });
 export default root;
 RIG

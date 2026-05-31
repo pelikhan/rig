@@ -6,7 +6,7 @@ import { agent, p, s } from "rig";
 const draftRigMarkdown = agent({
   name: "draftRigMarkdown",
   model: "mini",
-  input: s.object({ task: s.string }),
+  input: s.string,
   output: s.object({ markdown: s.string }),
   instructions: "Return exactly one markdown response with one ```rig fenced block.",
 });
