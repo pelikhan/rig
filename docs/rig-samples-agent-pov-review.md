@@ -20,7 +20,7 @@ This review critiques sample design, syntax, and intuitiveness across `src/sampl
    For an agent author, this makes "what is the runnable root?" ambiguous.
 
 2. **Sample style drifts from documented guidance**  
-   Docs recommend `p.read(...)` when reading files, but samples still frequently use `p.bash("cat ...")` (`23-schema-inference.ts`, `41-permissioned-agent.ts`, and others).  
+   Docs recommend `p.read(...)` when reading files, but samples still frequently use `p.bash("cat ...")` (`23-schema-inference.ts`, `41-parse-coverage.ts`, and others).  
    This weakens trust in the docs as the canonical source.
 
 3. **Verbose schema ceremony for simple tasks**  

@@ -14,7 +14,6 @@ const patcher = agent({
         summary: s.string
     }),
     instructions: `Return a complete replacement for the target file.`,
-    permissions: { write: "workspace" },
 });
 await patcher({
     diagnosis: "The parser accepts trailing prose after JSON.",

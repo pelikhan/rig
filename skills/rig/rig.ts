@@ -160,7 +160,6 @@ export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema
   timeout?: number;
   maxTurns?: number;
   repair?: RepairHandler;
-  permissions?: { shell?: "deny" | "readonly" | "ask" | "allow"; write?: "deny" | "workspace" | "allow" };
   agents?: Record<string, AgentFn<any, any>>;
 };
 
@@ -647,7 +646,6 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   if (specOrName.timeout !== undefined) spec.timeout = specOrName.timeout;
   if (specOrName.maxTurns !== undefined) spec.maxTurns = specOrName.maxTurns;
   if (specOrName.repair !== undefined) spec.repair = specOrName.repair;
-  if (specOrName.permissions !== undefined) spec.permissions = specOrName.permissions;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
   return spec;
 }
@@ -672,10 +670,6 @@ function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
     tag("output_schema", renderSchema(spec.output ?? defaultStringSchema)),
     tag("input", json(value)),
   ];
-
-  if (spec.permissions) {
-    sections.push(tag("permissions", json(spec.permissions)));
-  }
 
   if (spec.agents && Object.keys(spec.agents).length > 0) {
     sections.push(tag(
