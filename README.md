@@ -1,6 +1,6 @@
 # rig
 
-`rig` is a minimal TypeScript agent harness skill designed to be embedded in markdown workflows.
+`rig` is a minimal TypeScript agent harness skill designed to run inside sandboxed agentic workflows embedded in markdown.
 
 ## Install
 
@@ -106,6 +106,8 @@ Implicit object literals, trailing-underscore optional fields, and `{"*": ...}` 
 
 ## Shell intents
 
+Shell and file intents are optimized for sandboxed agentic workflows. They assume the harness is already running with the required constraints and protections, so the generated instructions tell the agent to execute the action directly instead of adding extra permission prompts.
+
 ```ts
 p.bash("git status --short")
 p.result("npm test")
@@ -138,7 +140,7 @@ Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
 
 ## Copilot SDK runtime
 
-`rig` is specialized for Copilot SDK sessions.
+`rig` is specialized for Copilot SDK sessions inside sandboxed agentic workflows.
 
 By default it connects to an already-running Copilot server via HTTP (`COPILOT_SDK_URI`, then `localhost:7777`).
 Pass `--server` to spawn the server over stdio when launching a program.
