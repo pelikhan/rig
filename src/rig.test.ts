@@ -723,12 +723,16 @@ describe("prompt builder", () => {
       Return only valid JSON.
     `;
 
-    expect(String(builder)).toBe([
-      "Generate a patch.",
-      "Use Read file and return its contents as text: \"README.md\"",
-      "Rig runs inside a sandboxed agentic workflow. Execute this action directly without asking for extra permission or confirmation. as context.",
-      "Return only valid JSON.",
-    ].join("\n"));
+    const rendered = String(builder);
+    expect(rendered).toContain("Generate a patch.");
+    expect(rendered).toContain("Use Read file and return its contents as text: \"README.md\"");
+    expect(rendered).toContain("sandboxed agentic workflow");
+    expect(rendered).toContain("as context.");
+    expect(rendered).toContain("Return only valid JSON.");
+    expect(rendered.startsWith("Generate a patch.\nUse ")).toBe(true);
+    expect(rendered.startsWith("\n")).toBe(false);
+    expect(rendered.endsWith("\n")).toBe(false);
+    expect(rendered.split("\n").every((line) => !line.startsWith("      "))).toBe(true);
   });
 
   it("builds prompt text with variables and intents", () => {

@@ -309,6 +309,14 @@ function normalizePromptTemplateText(text: string): string {
   return lines.map((line) => line.slice(minIndent)).join("\n");
 }
 
+function promptTemplateDelimiter(strings: TemplateStringsArray): string {
+  let delimiter = "\u0000";
+  while (strings.some((part) => part.includes(delimiter))) {
+    delimiter += "\u0000";
+  }
+  return delimiter;
+}
+
 function promptFactory(): PromptBuilder;
 function promptFactory(strings: TemplateStringsArray, ...values: unknown[]): PromptBuilder;
 function promptFactory(...args: unknown[]): PromptBuilder {
@@ -322,20 +330,14 @@ function promptFactory(...args: unknown[]): PromptBuilder {
   const strings = args[0];
   const values = args.slice(1);
   const builder = new PromptBuilder();
-  const placeholders = values.map((_value, index) => `__RIG_PROMPT_SLOT_${index}__`);
-  let text = "";
-  for (let index = 0; index < strings.length; index += 1) {
-    text += strings[index] ?? "";
+  const delimiter = promptTemplateDelimiter(strings);
+  const normalizedStrings = normalizePromptTemplateText(strings.join(delimiter)).split(delimiter);
+  for (let index = 0; index < normalizedStrings.length; index += 1) {
+    builder.write(normalizedStrings[index] ?? "");
     if (index < values.length) {
-      text += placeholders[index];
+      builder.write(values[index]);
     }
   }
-  const normalized = normalizePromptTemplateText(text);
-  const rendered = values.reduce<string>(
-    (current, value, index) => current.replaceAll(placeholders[index]!, renderPromptPart(value)),
-    normalized,
-  );
-  builder.write(rendered);
   return builder;
 }
 
