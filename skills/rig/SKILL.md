@@ -83,7 +83,7 @@ Declare a structured agent.
 | Field | Purpose |
 |-------|---------|
 | `name` | Agent name used in the prompt |
-| `instructions` | Prompt instructions |
+| `instructions` | Prompt instructions as a plain string or a ``p`...` `` prompt builder |
 | `input` | Input schema |
 | `output` | Output schema |
 | `model` | Default model name; examples should use `"large"`, `"mini"`, or `"nano"` |
@@ -153,6 +153,24 @@ const prompt = p`Review the repository status using ${p.bash("git status --short
 ```
 
 Only introduce `input` fields for data the caller truly supplies at runtime. Do not require inputs just to thread known file or shell context into the prompt.
+
+## `p` as a prompt builder for instructions
+
+``p`...` `` can also be used in `instructions` when you want to embed prompt intents or inline context directly in the agent instructions.
+
+```ts
+import { agent, p, s } from "rig";
+
+const reviewAgent = agent({
+  name: "review",
+  instructions: p`Review the repository using ${p.bash("git status --short")} and summarize changes.`,
+  output: s.object({ summary: s.string }),
+});
+```
+
+- ``p`...` `` accepts `${p.bash(...)}`, `${p.read(...)}`, and `${p.write(...)}` expressions.
+- Nested `PromptBuilder` values used as interpolations are inlined as plain text.
+- The rendered `PromptBuilder` replaces the instructions string when the agent prompt is assembled.
 
 ## Call-time options
 

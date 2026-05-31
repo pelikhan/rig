@@ -754,3 +754,48 @@ describe("prompt builder", () => {
     expect(p.region("json", "{\n  \"ok\": true\n}")).toContain("```json");
   });
 });
+
+describe("p template literal for instructions", () => {
+  it("returns a PromptBuilder from tagged template syntax", () => {
+    const builder = p`Review the diff.`;
+
+    expect(builder).toBeInstanceOf(PromptBuilder);
+    expect(String(builder)).toBe("Review the diff.");
+  });
+
+  it("inlines prompt intents as expressions", () => {
+    const builder = p`Review the repo using ${p.bash("git status --short")} before answering.`;
+
+    expect(builder).toBeInstanceOf(PromptBuilder);
+    expect(String(builder)).toContain("Review the repo using Run bash command and return stdout as text: git status --short");
+    expect(String(builder)).toContain("before answering.");
+  });
+
+  it("inlines nested PromptBuilder as an expression", () => {
+    const inner = p`World`;
+    const outer = p`Hello ${inner}`;
+
+    expect(String(outer)).toBe("Hello World");
+  });
+
+  it("can be used as instructions in an agent spec", async () => {
+    const prompts: string[] = [];
+
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      return { text: "ok" };
+    });
+
+    const reviewAgent = agent({
+      name: "review",
+      instructions: p`Use ${p.bash("git diff --stat")} to review changes.`,
+      output: s.object({ text: s.string }),
+    });
+
+    await reviewAgent("go");
+
+    expect(prompts[0]).toContain("Use Run bash command and return stdout as text: git diff --stat");
+    expect(prompts[0]).toContain("to review changes.");
+    expect(prompts[0]).toContain("Rig runs inside a sandboxed agentic workflow.");
+  });
+});
