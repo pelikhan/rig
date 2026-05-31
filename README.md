@@ -27,7 +27,7 @@ import { addons, oncePerSession, repair, steering, timeout } from "rig/addons";
 
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
-- `p.*` creates declarative shell/file intents for prompt templates or inputs.
+- `p.*` creates declarative prompt intents for prompt templates or inputs.
 - `addons` accepts express-like `(context, next)` turn addons for steering, inline validation, and Copilot session access.
 - `rig` starts with no default addons.
 - `rig/addons` provides optional addon helpers: `oncePerSession`, `repair`, `steering`, `timeout`, and `addons.{oncePerSession,repair,steering,timeout}`.
@@ -95,9 +95,9 @@ s.optional(shape, "description")
 Use declarative `s.*` helpers for every schema node.
 Implicit object literals, trailing-underscore optional fields, and `{"*": ...}` record sugar are not supported.
 
-## Shell intents
+## Prompt intents
 
-Shell and file intents are optimized for sandboxed agentic workflows. They assume the harness is already running with the required constraints and protections, so the generated instructions tell the agent to execute the action directly instead of adding extra permission prompts.
+Prompt intents for shell and file operations are optimized for sandboxed agentic workflows. They assume the harness is already running with the required constraints and protections, so the generated instructions tell the agent to execute the action directly instead of adding extra permission prompts.
 
 ```ts
 p.bash("git status --short")
@@ -117,7 +117,7 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 
 - `skills/rig/samples/20-issue-reproducer.md` — chained diagnose/fix flow
 - `skills/rig/samples/36-subagent-delegation.md` — delegation between focused agents
-- `skills/rig/samples/47-shell-intents.md` — shell/file intents embedded directly in prompt templates
+- `skills/rig/samples/47-prompt-intents.md` — prompt intents embedded directly in prompt templates
 - `skills/rig/samples/50-end-to-end-release-agent.md` — multi-step release planning workflow
 
 ## Agent behavior

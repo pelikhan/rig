@@ -430,7 +430,7 @@ describe("agent invocation", () => {
     await expect(slow("go")).rejects.toThrow(/Timed out/);
   });
 
-  it("inlines shell prompts and omits top-level prompt metadata", async () => {
+  it("inlines prompt intents and omits top-level prompt metadata", async () => {
     const prompts: string[] = [];
 
     mocks.setSendAndWaitImpl(async ({ prompt }) => {
@@ -460,7 +460,7 @@ describe("agent invocation", () => {
     expect(prompts[0]).toContain("/tmp/workspace");
   });
 
-  it("supports shell helpers inside instruction templates", async () => {
+  it("supports prompt helpers inside instruction templates", async () => {
     const prompts: string[] = [];
 
     mocks.setSendAndWaitImpl(async ({ prompt }) => {
@@ -671,26 +671,26 @@ describe("agent invocation", () => {
   });
 });
 
-describe("shell intents", () => {
-  it("exports shell helpers from p and hides internal helpers", async () => {
+describe("prompt intents", () => {
+  it("exports prompt helpers from p and hides internal helpers", async () => {
     const compat = await import("rig");
-    expect(compat.p.read("README.md").mode).toBe("sh.read");
-    expect(compat.p.bash("git status --short").mode).toBe("sh.text");
+    expect(compat.p.read("README.md").mode).toBe("prompt.read");
+    expect(compat.p.bash("git status --short").mode).toBe("prompt.text");
     expect(typeof compat.p).toBe("function");
     expect((compat as Record<string, unknown>)["sh"]).toBeUndefined();
     expect((compat as Record<string, unknown>)["validate"]).toBeUndefined();
     expect((compat as Record<string, unknown>)["collectIntents"]).toBeUndefined();
   });
 
-  it("creates shell intents via p helpers", () => {
+  it("creates prompt intents via p helpers", () => {
     const diff = p.bash("git diff");
     const result = p.result("npm test", { cwd: "/tmp/workspace" });
     const readme = p.read("README.md");
 
-    expect(diff.mode).toBe("sh.text");
-    expect(result.mode).toBe("sh.result");
+    expect(diff.mode).toBe("prompt.text");
+    expect(result.mode).toBe("prompt.result");
     expect(result.options).toEqual({ cwd: "/tmp/workspace" });
-    expect(readme.mode).toBe("sh.read");
+    expect(readme.mode).toBe("prompt.read");
   });
 
   it("strips AbortSignal from intent options", () => {
