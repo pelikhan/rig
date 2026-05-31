@@ -5,12 +5,7 @@ const diagnose = agent({
   name: "diagnose",
   model: "mini",
   input: s.object({
-    test: s.object({
-      ok: s.boolean,
-      stdout: s.string,
-      stderr: s.string,
-      exitCode: s.number,
-    }),
+    test: s.string,
   }),
   output: s.object({
     done: s.boolean,
@@ -35,7 +30,7 @@ const fix = agent({
 
 const MAX_ITERATIONS = 3;
 for (let i = 0; i < MAX_ITERATIONS; i++) {
-  const d = await diagnose({ test: p.result("npm test") });
+  const d = await diagnose({ test: p.bash("npm test") });
   if (d.done) break;
   await fix({ rootCause: d.rootCause });
 }

@@ -138,7 +138,7 @@ Rig assumes the surrounding workflow already provides the sandbox and protection
 
 ```ts
 p.bash("git diff -- .")
-p.result("npm test")
+p.bash("npm test")
 p.read("README.md")
 p.write("README.md", "# Hello\n")
 ```

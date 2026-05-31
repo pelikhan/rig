@@ -101,7 +101,7 @@ Prompt intents for shell and file operations are optimized for sandboxed agentic
 
 ```ts
 p.bash("git status --short")
-p.result("npm test")
+p.bash("npm test")
 p.read("README.md")
 p.write("README.md", "# Updated\n")
 
