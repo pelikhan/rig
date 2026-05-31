@@ -404,6 +404,25 @@ describe("agent invocation", () => {
     expect(mocks.createSession).toHaveBeenCalledWith({ model: "o3-mini", streaming: false });
   });
 
+  it("passes systemMessage to the session when specified", async () => {
+    mocks.setSendAndWaitImpl(async () => JSON.stringify("ok"));
+
+    const systemMessage = { content: "You are a helpful assistant." };
+    const call = agent({ name: "sys-msg-test", systemMessage });
+    await call("x");
+
+    expect(mocks.createSession).toHaveBeenCalledWith({ model: "gpt-4.1", streaming: false, systemMessage });
+  });
+
+  it("does not pass systemMessage when not specified", async () => {
+    mocks.setSendAndWaitImpl(async () => JSON.stringify("ok"));
+
+    const call = agent({ name: "no-sys-msg-test" });
+    await call("x");
+
+    expect(mocks.createSession).toHaveBeenCalledWith({ model: "gpt-4.1", streaming: false });
+  });
+
   it("supports timeout and abort signals", async () => {
     mocks.setSendAndWaitImpl(async ({ signal }) => {
       await new Promise((_, reject) => {
