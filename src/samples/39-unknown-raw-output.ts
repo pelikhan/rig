@@ -3,9 +3,7 @@ import { agent, s } from "rig";
 const reviewRecord = agent({
     name: "reviewRecord",
     model: "mini",
-    input: s.object({
-        finding: s.string
-    }),
+    input: s.string,
     output: s.object({
         kind: s.enum("review-finding"),
         finding: s.string,

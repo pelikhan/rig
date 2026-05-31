@@ -3,9 +3,7 @@ import { agent, p, s } from "rig";
 const ciDiagnosis = agent({
     name: "ciDiagnosis",
     model: "mini",
-    input: s.object({
-        log: s.string
-    }),
+    input: s.string,
     output: s.object({
         failure: s.string,
         likelyCause: s.string,
@@ -13,8 +11,6 @@ const ciDiagnosis = agent({
     }),
     instructions: `Diagnose the CI log. Prefer the first real failure over cascading errors.`,
 });
-await ciDiagnosis({
-    log: p.read("ci.log"),
-});
+await ciDiagnosis(p.read("ci.log"));
 
 export default ciDiagnosis;

@@ -3,9 +3,7 @@ import { agent, p, s } from "rig";
 const releaseNotes = agent({
     name: "releaseNotes",
     model: "mini",
-    input: s.object({
-        commits: s.string
-    }),
+    input: s.string,
     output: s.object({
         version: s.optional(s.string),
         highlights: s.array(s.string),
@@ -14,8 +12,6 @@ const releaseNotes = agent({
     }),
     instructions: `Write release notes from commits. Omit empty sections as empty arrays.`,
 });
-await releaseNotes({
-    commits: p.bash("git log --oneline --decorate -50"),
-});
+await releaseNotes(p.bash("git log --oneline --decorate -50"));
 
 export default releaseNotes;

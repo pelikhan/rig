@@ -3,9 +3,7 @@ import { agent, p, s } from "rig";
 const licenseCheck = agent({
     name: "licenseCheck",
     model: "mini",
-    input: s.object({
-        packages: s.string
-    }),
+    input: s.string,
     output: s.object({
         compliant: s.boolean,
         unknown: s.array(s.string),
@@ -17,8 +15,6 @@ const licenseCheck = agent({
     }),
     instructions: `Flag unknown or concerning dependency licenses.`,
 });
-await licenseCheck({
-    packages: p.bash("npm ls --json --all", { purpose: "collect dependency tree" }),
-});
+await licenseCheck(p.bash("npm ls --json --all", { purpose: "collect dependency tree" }));
 
 export default licenseCheck;

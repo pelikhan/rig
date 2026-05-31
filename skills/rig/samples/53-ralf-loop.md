@@ -14,7 +14,7 @@ const diagnose = agent({
 const fix = agent({
   name: "fix",
   model: "mini",
-  input: s.object({ rootCause: s.string }),
+  input: s.string,
   output: s.object({ summary: s.string, changed: s.boolean }),
   instructions: "Apply the smallest safe fix for the root cause.",
   permissions: { write: "workspace" },

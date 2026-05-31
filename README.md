@@ -38,7 +38,7 @@ Use `rig` code fences in markdown files to define runnable harness programs:
 const root = agent({
   name: "review",
   instructions: "Summarize this repository.",
-  output: s.object({ text: s.string }),
+  output: s.string,
 });
 export default root;
 ```
@@ -103,7 +103,7 @@ p.write("README.md", "# Updated\n")
 const reviewWorkspace = agent({
   name: "reviewWorkspace",
   instructions: p`Review ${p.read("README.md")} against ${p.bash("git status --short")}.`,
-  output: s.object({ summary: s.string }),
+  output: s.string,
 });
 ```
 
@@ -140,7 +140,7 @@ cat <<'RIG' | node skills/rig/rig.ts
 const root = agent({
   name: "review",
   instructions: "Summarize this repository.",
-  output: s.object({ text: s.string }),
+  output: s.string,
 });
 export default root;
 RIG

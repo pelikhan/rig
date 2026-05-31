@@ -3,9 +3,7 @@ import { agent, p, s } from "rig";
 const actionReview = agent({
     name: "actionReview",
     model: "mini",
-    input: s.object({
-        workflow: s.string
-    }),
+    input: s.string,
     output: s.object({
         summary: s.string,
         problems: s.array(s.string),
@@ -13,8 +11,6 @@ const actionReview = agent({
     }),
     instructions: `Review the workflow for reliability, caching, and least privilege.`,
 });
-await actionReview({
-    workflow: p.read(".github/workflows/*.{yml,yaml}"),
-});
+await actionReview(p.read(".github/workflows/*.{yml,yaml}"));
 
 export default actionReview;
