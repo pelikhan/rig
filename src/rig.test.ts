@@ -263,6 +263,20 @@ describe("agent invocation", () => {
     expect(onCopilotSession).toHaveBeenCalledTimes(1);
   });
 
+  it("disconnects the session when a Copilot session hook throws", async () => {
+    const onCopilotSession = vi.fn(() => {
+      throw new Error("hook failed");
+    });
+    const greet = agent({
+      name: "greeter",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    await expect(greet({ text: "Hi" }, { hooks: { onCopilotSession } })).rejects.toThrow("hook failed");
+    expect(mocks.disconnectSession).toHaveBeenCalledTimes(1);
+  });
+
   it("retries invalid JSON with the default repair prompt", async () => {
     const prompts: string[] = [];
     let calls = 0;

@@ -1015,11 +1015,18 @@ async function withCopilotClient<T>(fn: () => Promise<T>): Promise<T> {
 
 async function createCopilotSession(model: string, hooks?: AgentHooks): Promise<CopilotSessionHandle> {
   const client = getCopilotClient();
-  const session = await client.createSession({ model, streaming: false }) as CopilotSession;
-  await hooks?.onCopilotSession?.(session);
+  const session: CopilotSession = await client.createSession({ model, streaming: false });
   session.on?.((event: unknown) => {
     writeEvent(event);
   });
+  try {
+    await hooks?.onCopilotSession?.(session);
+  } catch (error) {
+    try {
+      await session.disconnect?.();
+    } catch {}
+    throw asError(error);
+  }
 
   return {
     session,
