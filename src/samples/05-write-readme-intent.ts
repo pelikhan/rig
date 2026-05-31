@@ -17,7 +17,7 @@ const readmeWriter = agent({
   `,
 });
 await readmeWriter({
-    packageJson: p.bash("cat package.json"),
+    packageJson: p.read("package.json"),
     files: p.bash("find . -maxdepth 2 -type f | sort"),
 });
 

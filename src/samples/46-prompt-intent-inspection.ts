@@ -14,7 +14,7 @@ const owners = agent({
     instructions: `Suggest owners for changed files.`,
 });
 await owners({
-    codeowners: p.bash("cat CODEOWNERS .github/CODEOWNERS 2>/dev/null || true"),
+    codeowners: p.read(".github/CODEOWNERS"),
     changedFiles: p.bash("git diff --name-only origin/main...HEAD"),
 });
 

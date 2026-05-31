@@ -16,7 +16,7 @@ const docsGap = agent({
 });
 await docsGap({
     source: p.bash("grep -R \"export \" -n src || true"),
-    docs: p.bash("cat README.md docs/*.md 2>/dev/null || true"),
+    docs: p.read("README.md"),
 });
 
 export default docsGap;

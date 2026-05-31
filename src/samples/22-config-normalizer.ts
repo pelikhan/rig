@@ -14,7 +14,7 @@ const ciDiagnosis = agent({
     instructions: `Diagnose the CI log. Prefer the first real failure over cascading errors.`,
 });
 await ciDiagnosis({
-    log: p.bash("cat ci.log", { purpose: "read CI log" }),
+    log: p.read("ci.log"),
 });
 
 export default ciDiagnosis;

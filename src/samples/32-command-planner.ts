@@ -21,7 +21,7 @@ const packageMap = agent({
     instructions: `Build a package map for a JavaScript monorepo.`,
 });
 await packageMap({
-    manifests: p.bash("find . -name package.json -maxdepth 4 -print -exec cat {} \\\;"),
+    manifests: p.read("package.json"),
 });
 
 export default packageMap;

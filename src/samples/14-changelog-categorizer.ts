@@ -16,7 +16,7 @@ const planner = agent({
 });
 await planner({
     diff: p.bash("git diff -- ."),
-    packageJson: p.bash("cat package.json"),
+    packageJson: p.read("package.json"),
 });
 
 export default planner;

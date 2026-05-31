@@ -14,7 +14,7 @@ const flaky = agent({
     instructions: `Analyze whether the test failure appears flaky.`,
 });
 await flaky({
-    history: p.bash("cat test-runs/*.log 2>/dev/null || true"),
+    history: p.read("test-runs/latest.log"),
 });
 
 export default flaky;

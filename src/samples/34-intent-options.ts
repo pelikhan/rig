@@ -17,7 +17,7 @@ const investigator = agent({
 });
 await investigator({
     tree: p.bash("find . -maxdepth 3 -type f | sort"),
-    packageJson: p.bash("cat package.json"),
+    packageJson: p.read("package.json"),
     tests: p.bash("find . -name '*test*' -o -name '*spec*'"),
 });
 

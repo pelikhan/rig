@@ -19,7 +19,7 @@ const patcher = agent({
 await patcher({
     diagnosis: "The parser accepts trailing prose after JSON.",
     file: "src/index.ts",
-    contents: p.bash("cat src/index.ts"),
+    contents: p.read("src/index.ts"),
 });
 
 export default patcher;

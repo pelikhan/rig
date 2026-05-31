@@ -40,4 +40,13 @@ const { draft } = await writer(request);
 const critique = await critic({ request, draft });
 await reviser({ request, draft, issues: critique.issues });
 
-export default reviser;
+// Agent role: orchestrate writer/critic/reviser as the runnable root for this loop.
+const claudeDesignLoop = agent({
+    name: "claudeDesignLoop",
+    model: "mini",
+    instructions: "Use the provided subagents to draft, critique, and revise one final response.",
+    output: s.object({ response: s.string }),
+    agents: { writer, critic, reviser },
+});
+
+export default claudeDesignLoop;
