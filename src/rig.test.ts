@@ -230,8 +230,14 @@ describe("agent invocation", () => {
     });
   });
 
-  it("exposes the Copilot session through call hooks", async () => {
-    const onCopilotSession = vi.fn();
+  it("exposes the Copilot session through call middleware", async () => {
+    const middleware = vi.fn(async (context, next) => {
+      await next();
+      expect(context.session).toMatchObject({
+        sendAndWait: expect.any(Function),
+        disconnect: expect.any(Function),
+      });
+    });
     mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
 
     const greet = agent({
@@ -240,31 +246,29 @@ describe("agent invocation", () => {
       output: s.object({ text: s.string }),
     });
 
-    await expect(greet({ text: "Hi" }, { onCopilotSession })).resolves.toEqual({ text: "hello world" });
-    expect(onCopilotSession).toHaveBeenCalledTimes(1);
-    expect(onCopilotSession.mock.calls[0]?.[0]).toMatchObject({
-      sendAndWait: expect.any(Function),
-      disconnect: expect.any(Function),
-    });
+    await expect(greet({ text: "Hi" }, { middleware })).resolves.toEqual({ text: "hello world" });
+    expect(middleware).toHaveBeenCalledTimes(1);
   });
 
-  it("applies default Copilot session hooks from agent spec", async () => {
-    const onCopilotSession = vi.fn();
+  it("applies default middleware from agent spec", async () => {
+    const middleware = vi.fn(async (_context, next) => {
+      await next();
+    });
     mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
 
     const greet = agent({
       name: "greeter",
       input: s.object({ text: s.string }),
       output: s.object({ text: s.string }),
-      onCopilotSession,
+      middleware,
     });
 
     await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
-    expect(onCopilotSession).toHaveBeenCalledTimes(1);
+    expect(middleware).toHaveBeenCalledTimes(1);
   });
 
-  it("disconnects the session when a Copilot session hook throws", async () => {
-    const onCopilotSession = vi.fn(() => {
+  it("disconnects the session when middleware throws", async () => {
+    const middleware = vi.fn(() => {
       throw new Error("hook failed");
     });
     const greet = agent({
@@ -273,7 +277,7 @@ describe("agent invocation", () => {
       output: s.object({ text: s.string }),
     });
 
-    await expect(greet({ text: "Hi" }, { onCopilotSession })).rejects.toThrow("hook failed");
+    await expect(greet({ text: "Hi" }, { middleware })).rejects.toThrow("hook failed");
     expect(mocks.disconnectSession).toHaveBeenCalledTimes(1);
   });
 

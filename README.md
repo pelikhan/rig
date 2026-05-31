@@ -27,21 +27,8 @@ import {
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative shell/file intents for prompt templates or inputs.
-- `middleware` accepts express-like `(context, next)` turn middleware for steering and inline validation.
+- `middleware` accepts express-like `(context, next)` turn middleware for steering, inline validation, and Copilot session access.
 - `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
-
-You can hook into the underlying Copilot session for direct SDK access (for example, event subscriptions):
-
-```ts
-const review = agent({
-  name: "review",
-  onCopilotSession(session) {
-    session.on?.((event) => {
-      // custom event handling
-    });
-  },
-});
-```
 
 ## Embedding in markdown
 
@@ -157,6 +144,20 @@ const review = agent({
 ```
 
 `context` includes `prompt`, `response`, `turn`, `maxTurns`, `output`, `nextPrompt`, `error`, and `completed`.
+
+For direct SDK access, middleware also exposes `context.session`:
+
+```ts
+const review = agent({
+  name: "review",
+  middleware: async (context, next) => {
+    context.session.on?.((event) => {
+      // custom event handling
+    });
+    await next();
+  },
+});
+```
 
 You can also pass `middleware` in call options to attach request-specific logic:
 
