@@ -267,6 +267,43 @@ describe("agent invocation", () => {
     expect(middleware).toHaveBeenCalledTimes(1);
   });
 
+  it("supports express-like middleware registration with use()", async () => {
+    const order: number[] = [];
+    const first = vi.fn(async (_context, next) => {
+      order.push(1);
+      await next();
+    });
+    const second = vi.fn(async (_context, next) => {
+      order.push(2);
+      await next();
+    });
+    mocks.setSendAndWaitImpl(async () => ({ text: "hello world" }));
+
+    const greet = agent({
+      name: "greeter",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    expect(greet.use(first).use(second)).toBe(greet);
+    await expect(greet({ text: "Hi" })).resolves.toEqual({ text: "hello world" });
+    expect(order).toEqual([1, 2]);
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it("validates middleware passed to use()", () => {
+    const greet = agent({
+      name: "greeter",
+      input: s.object({ text: s.string }),
+      output: s.object({ text: s.string }),
+    });
+
+    expect(() => greet.use([null as unknown as any] as any)).toThrow(
+      "Agent middleware entries must be functions.",
+    );
+  });
+
   it("disconnects the session when middleware throws", async () => {
     const middleware = vi.fn(() => {
       throw new Error("hook failed");

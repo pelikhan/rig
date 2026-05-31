@@ -210,6 +210,7 @@ export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValu
   outputShape: Schema;
   spec: AgentSpec<any, any>;
   _namespace: string;
+  use: (middleware: AgentMiddleware | AgentMiddleware[]) => AgentFn<Input, Output>;
 };
 
 export type IntentOptions = {
@@ -663,6 +664,13 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   fn.outputShape = outputSchema;
   fn.spec = normalizedSpec;
   fn._namespace = normalizedSpec.name;
+  fn.use = (middleware) => {
+    normalizedSpec.middleware = [
+      ...normalizeMiddlewares(normalizedSpec.middleware),
+      ...normalizeMiddlewares(middleware),
+    ];
+    return fn;
+  };
   return fn;
 }
 

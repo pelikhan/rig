@@ -159,6 +159,15 @@ const review = agent({
 });
 ```
 
+You can also register middleware after creating the agent:
+
+```ts
+const review = agent({ name: "review" });
+review.use(async (context, next) => {
+  await next();
+});
+```
+
 You can also pass `middleware` in call options to attach request-specific logic:
 
 ```ts
