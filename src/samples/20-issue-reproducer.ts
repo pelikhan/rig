@@ -30,7 +30,6 @@ const fix = agent({
         summary: s.string
     }),
     instructions: `Make the smallest safe patch using engine capabilities.`,
-    permissions: { shell: "ask", write: "workspace" },
 });
 // Agent role: review the patch against the diagnosis.
 const review = agent({

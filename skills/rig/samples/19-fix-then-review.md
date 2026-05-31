@@ -12,7 +12,6 @@ const patcher = agent({
         summary: s.string
     }),
     instructions: `Return a complete replacement for the target file.`,
-    permissions: { write: "workspace" },
 });
 
 export default patcher;

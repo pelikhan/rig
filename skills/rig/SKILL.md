@@ -60,7 +60,7 @@ Use this checklist before finalizing generated code:
 6. Set `model` explicitly to `"large"`, `"mini"`, or `"nano"`.
 7. Prefer `${p.read(...)}` / `${p.bash(...)}` inside `p\`\`` templates when the context source is already known; add input fields only for true caller-provided data.
 8. Put stable defaults in spec; put per-call overrides in call options.
-9. Add `permissions`/`agents` only when required by the scenario.
+9. Add `agents` only when required by the scenario.
 10. Avoid `console.log(...)` in snippets.
 11. For inline markdown skill mode, export exactly one default root agent with no input and do not call it directly.
 
@@ -71,7 +71,7 @@ Use this order to reduce syntax drift:
 1. Core agent shape: `agent({ name, instructions, input, output })`.
 2. Explicit typed schemas with `s.object(...)` and `s.*`.
 3. Shell/file context with `p\`\`` and `${p.*}` before adding extra input plumbing.
-4. Advanced spec fields (`permissions`, `agents`) when scenario needs them.
+4. Advanced spec fields (`agents`) when scenario needs them.
 5. Invocation overrides (`model`, `timeout`, `maxTurns`, `signal`) at call time.
 
 ## `agent(spec)`
@@ -90,7 +90,6 @@ Declare a structured agent.
 | `timeout` | Default timeout in milliseconds |
 | `maxTurns` | Retry budget for invalid JSON or invalid output |
 | `repair` | `false`, `"default"`, or `(error) => string` |
-| `permissions` | Optional shell/write permission hints |
 | `agents` | Optional named subagents exposed to the harness |
 
 Use `agent({ name, ... })` as the only agent declaration form.
@@ -171,22 +170,6 @@ const result = await myAgent(input, {
 ```
 
 Use call-time options for per-run changes. Use spec fields for stable defaults.
-
-## Permissions
-
-Use `permissions` to describe shell and write expectations for the harness:
-
-```ts
-permissions: {
-  shell: "readonly",
-  write: "deny",
-}
-```
-
-Valid values:
-
-- `shell`: `"deny" | "readonly" | "ask" | "allow"`
-- `write`: `"deny" | "workspace" | "allow"`
 
 ## Subagents
 
@@ -309,7 +292,7 @@ Use `--server` at launch time when you want the harness to start the Copilot ser
 - Prefer `p.*` inside `p\`\`` templates; fall back to inputs only for real caller-provided data.
 - Prefer `p.read(...)` for existing files instead of shelling out through `cat`.
 - Put durable defaults in the agent spec and per-run overrides in call options.
-- Introduce `permissions` and `agents` only when the scenario needs them.
+- Introduce `agents` only when the scenario needs them.
 
 ## Patterns to avoid
 
