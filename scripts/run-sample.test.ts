@@ -48,19 +48,33 @@ function generateOutput(prompt: string): unknown {
   const schema = match[1].trim();
   try {
     return parseJsonSchema(JSON.parse(schema));
-  } catch {
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
     // Backward compatibility with historical schema text format.
   }
   return parseTypeText(schema);
 }
 
-function parseJsonSchema(schema: any): unknown {
-  if (!schema || typeof schema !== "object") return "stub";
-  if (Array.isArray(schema.enum) && schema.enum.length > 0) return schema.enum[0];
-  if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) return parseJsonSchema(schema.oneOf[0]);
-  if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) return parseJsonSchema(schema.anyOf[0]);
+const ADDITIONAL_PROPERTIES_STUB_KEY_PREFIX = "example";
 
-  switch (schema.type) {
+function nextAdditionalPropertiesStubKey(result: Record<string, unknown>): string {
+  let key = ADDITIONAL_PROPERTIES_STUB_KEY_PREFIX;
+  let suffix = 2;
+  while (result[key] !== undefined) {
+    key = `${ADDITIONAL_PROPERTIES_STUB_KEY_PREFIX}${suffix}`;
+    suffix += 1;
+  }
+  return key;
+}
+
+function parseJsonSchema(schema: unknown): unknown {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return "stub";
+  const node = schema as Record<string, unknown>;
+  if (Array.isArray(node["enum"]) && node["enum"].length > 0) return node["enum"][0];
+  if (Array.isArray(node["oneOf"]) && node["oneOf"].length > 0) return parseJsonSchema(node["oneOf"][0]);
+  if (Array.isArray(node["anyOf"]) && node["anyOf"].length > 0) return parseJsonSchema(node["anyOf"][0]);
+
+  switch (node["type"]) {
     case "string":
       return "stub";
     case "number":
@@ -71,25 +85,28 @@ function parseJsonSchema(schema: any): unknown {
     case "array":
       return [];
     case "object": {
-      const properties = schema.properties && typeof schema.properties === "object" ? schema.properties : {};
+      const properties = node["properties"] && typeof node["properties"] === "object" && !Array.isArray(node["properties"])
+        ? node["properties"] as Record<string, unknown>
+        : {};
       const result: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(properties)) {
         result[key] = parseJsonSchema(value);
       }
-      if (schema.additionalProperties && Object.keys(result).length === 0) {
-        result["example"] = parseJsonSchema(schema.additionalProperties);
+      if (node["additionalProperties"]) {
+        const fallbackKey = nextAdditionalPropertiesStubKey(result);
+        result[fallbackKey] = parseJsonSchema(node["additionalProperties"]);
       }
       return result;
     }
     default:
-      if (schema.properties && typeof schema.properties === "object") {
+      if (node["properties"] && typeof node["properties"] === "object" && !Array.isArray(node["properties"])) {
         const result: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(schema.properties)) {
+        for (const [key, value] of Object.entries(node["properties"] as Record<string, unknown>)) {
           result[key] = parseJsonSchema(value);
         }
         return result;
       }
-      return null;
+      return "stub";
   }
 }
 
