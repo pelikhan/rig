@@ -709,10 +709,11 @@ describe("prompt builder", () => {
   });
 
   it("returns a prompt builder from tagged template syntax", () => {
-    const builder = p`Repository: ${p.var("repo", "rig")}`;
+    const builder = p`Repository: ${p.var("repo", "rig")}\nStatus: ${p.bash("git status --short")}`;
 
     expect(builder).toBeInstanceOf(PromptBuilder);
     expect(String(builder)).toContain("Repository: rig");
+    expect(String(builder)).toContain("Run bash command and return stdout as text: git status --short");
   });
 
   it("builds prompt text with variables and intents", () => {
