@@ -1226,7 +1226,7 @@ async function withCopilotClient<T>(fn: () => Promise<T>): Promise<T> {
 
 async function createCopilotSession(model: string, systemMessage?: SystemMessageConfig): Promise<CopilotSessionHandle> {
   const client = getCopilotClient();
-  const config = systemMessage !== undefined ? { model, streaming: false, systemMessage } : { model, streaming: false };
+  const config = { model, streaming: false, ...(systemMessage !== undefined && { systemMessage }) };
   const session: CopilotSession = await client.createSession(config);
   session.on?.((event: unknown) => {
     writeEvent(event);
