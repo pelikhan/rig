@@ -257,11 +257,7 @@ function renderPromptTemplate(strings: TemplateStringsArray, ...values: unknown[
 }
 
 function isTemplateStringsArray(value: unknown): value is TemplateStringsArray {
-  return (
-    Array.isArray(value)
-    && Object.hasOwn(value, "raw")
-    && Array.isArray((value as { raw?: unknown }).raw)
-  );
+  return Array.isArray(value) && "raw" in value && Array.isArray((value as { raw?: unknown }).raw);
 }
 
 function isPromptVariable(value: unknown): value is PromptVariable {
@@ -305,7 +301,7 @@ function promptFactory(...args: unknown[]): PromptBuilder | string {
   }
   if (!isTemplateStringsArray(args[0])) {
     const receivedType = args[0] === null ? "null" : typeof args[0];
-    throw new TypeError(`p() expects no arguments or template literal usage (received ${args.length} arg(s), first arg type: ${receivedType})`);
+    throw new TypeError(`p() expects no arguments or tagged template usage like p\`...\` (received ${args.length} arg(s), first arg type: ${receivedType})`);
   }
   const strings = args[0];
   const values = args.slice(1);
