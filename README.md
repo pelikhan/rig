@@ -27,6 +27,7 @@ import {
 - `agent(spec)` creates a typed agent function.
 - `s.*` defines input/output schemas. Omit `input`/`output` when free-form strings are enough.
 - `p.*` creates declarative shell/file intents for prompt templates or inputs.
+- `middleware(context, next)` adds express-like turn middleware for steering and inline validation.
 - `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
 
 You can hook into the underlying Copilot session for direct SDK access (for example, event subscriptions):
@@ -136,7 +137,43 @@ Use these samples to quickly gauge how well `rig` supports increasingly agentic 
 - Default repair mode: `"default"`
 - Retry loop reparses/revalidates responses until success or max turns
 
-Per call, you can override `model`, `timeout`, `maxTurns`, and `signal`.
+Per call, you can override `model`, `timeout`, `maxTurns`, `signal`, and `middleware`.
+
+## Middleware
+
+Each agent call runs a per-turn middleware chain:
+
+```ts
+const review = agent({
+  name: "review",
+  maxTurns: 3,
+  middleware: async (context, next) => {
+    await next();
+    if (context.nextPrompt && context.turn === context.maxTurns - 1) {
+      context.nextPrompt = `${context.nextPrompt}\nYou are running out of turns. Return corrected JSON now.`;
+    }
+  },
+});
+```
+
+`context` includes `prompt`, `response`, `turn`, `maxTurns`, `output`, `nextPrompt`, `error`, and `completed`.
+
+You can also pass `middleware` in call options to attach request-specific logic:
+
+```ts
+await review("task", {
+  middleware: async (context, next) => {
+    await next();
+    if (!context.nextPrompt && context.output && typeof context.output === "object") {
+      const code = (context.output as { code?: unknown }).code;
+      if (typeof code === "string" && !code.includes("```")) {
+        context.completed = false;
+        context.nextPrompt = "Wrap code snippets in fenced markdown blocks.";
+      }
+    }
+  },
+});
+```
 
 ## Copilot SDK runtime
 

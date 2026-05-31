@@ -408,6 +408,66 @@ describe("agent invocation", () => {
     expect(prompts[0]).toContain("before answering.");
   });
 
+  it("supports middleware that steers retries near max turns", async () => {
+    const prompts: string[] = [];
+    let calls = 0;
+
+    mocks.setSendAndWaitImpl(async ({ prompt }) => {
+      prompts.push(prompt);
+      calls += 1;
+      if (calls === 1) {
+        return "not json";
+      }
+      return prompt.includes("running out of turns")
+        ? JSON.stringify("recovered")
+        : "still not json";
+    });
+
+    const steerable = agent({
+      name: "steerable",
+      maxTurns: 2,
+      middleware: async (context, next) => {
+        await next();
+        if (context.nextPrompt && context.turn === context.maxTurns - 1) {
+          context.nextPrompt = `${context.nextPrompt}\nAdd a short correction because you are running out of turns.`;
+        }
+      },
+    });
+
+    await expect(steerable("go")).resolves.toBe("recovered");
+    expect(prompts).toHaveLength(2);
+    expect(prompts[1]).toContain("running out of turns");
+  });
+
+  it("supports middleware that validates snippets inline", async () => {
+    let calls = 0;
+    mocks.setSendAndWaitImpl(async () => {
+      calls += 1;
+      return calls === 1
+        ? JSON.stringify({ code: "const x = 1;" })
+        : JSON.stringify({ code: "```ts\nconst x = 1;\n```" });
+    });
+
+    const snippetGuard = agent({
+      name: "snippet-guard",
+      maxTurns: 2,
+      output: s.object({ code: s.string }),
+      middleware: async (context, next) => {
+        await next();
+        if (!context.nextPrompt && context.output && typeof context.output === "object") {
+          const code = (context.output as { code?: unknown }).code;
+          if (typeof code === "string" && !code.includes("```")) {
+            context.completed = false;
+            context.output = undefined;
+            context.nextPrompt = "Return the same payload but wrap code in a fenced markdown block.";
+          }
+        }
+      },
+    });
+
+    await expect(snippetGuard("go")).resolves.toEqual({ code: "```ts\nconst x = 1;\n```" });
+  });
+
   it("renders schema descriptions for discovery", async () => {
     const prompts: string[] = [];
 
