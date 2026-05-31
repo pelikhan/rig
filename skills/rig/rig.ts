@@ -1111,13 +1111,16 @@ const builtinRepairMiddleware: AgentMiddleware = async (context, next) => {
   if (context.completed || context.error !== undefined || context.nextPrompt !== undefined) {
     return;
   }
-  const analysis = analyzeResponse(context.response ?? "", context.outputSchema, context.spec.name, context.turn);
+  if (context.response === undefined) {
+    return;
+  }
+  const analysis = analyzeResponse(context.response, context.outputSchema, context.spec.name, context.turn);
   if (analysis.ok) {
     context.completed = true;
     context.output = analysis.output;
     return;
   }
-  if (context.turn === context.maxTurns) {
+  if (context.turn >= context.maxTurns) {
     context.error = analysis.error;
     return;
   }
