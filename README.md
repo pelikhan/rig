@@ -168,6 +168,7 @@ await review("task", {
       const code = (context.output as { code?: unknown }).code;
       if (typeof code === "string" && !code.includes("```")) {
         context.completed = false;
+        context.output = undefined;
         context.nextPrompt = "Wrap code snippets in fenced markdown blocks.";
       }
     }

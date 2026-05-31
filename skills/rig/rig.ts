@@ -1133,7 +1133,7 @@ async function runAgentMiddlewares(
   let index = -1;
   const dispatch = async (current: number): Promise<void> => {
     if (current <= index) {
-      throw new Error("Agent middleware called next() multiple times.");
+      throw new Error(`Agent ${context.spec.name} middleware called next() multiple times.`);
     }
     index = current;
     const middleware = middlewares[current];
