@@ -29,6 +29,19 @@ import {
 - `p.*` creates declarative shell/file intents for prompt templates or inputs.
 - `p\`...\`` inlines intent renderings into instruction text; prefer `${p.read(...)}` / `${p.bash(...)}` there when the context source is already known.
 
+You can hook into the underlying Copilot session for direct SDK access (for example, event subscriptions):
+
+```ts
+const review = agent({
+  name: "review",
+  onCopilotSession(session) {
+    session.on?.((event) => {
+      // custom event handling
+    });
+  },
+});
+```
+
 ## Embedding in markdown
 
 Use `rig` code fences in markdown files to define runnable harness programs:
