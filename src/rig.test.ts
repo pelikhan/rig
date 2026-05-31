@@ -331,6 +331,8 @@ describe("agent invocation", () => {
     expect(prompts[0]).not.toContain('<agent name="inspect">');
     expect(prompts[0]).toContain("Run bash command and return stdout as text: git status --short");
     expect(prompts[0]).toContain("Run bash command and return a structured result (stdout, stderr, exitCode): git diff --stat");
+    expect(prompts[0]).toContain("Rig runs inside a sandboxed agentic workflow.");
+    expect(prompts[0]).toContain("without asking for extra permission or confirmation.");
     expect(prompts[0]).toContain("Options:");
     expect(prompts[0]).toContain("/tmp/workspace");
   });
@@ -352,6 +354,8 @@ describe("agent invocation", () => {
     await inspect("go");
 
     expect(prompts[0]).toContain("Review the repo using Run bash command and return stdout as text: git status --short");
+    expect(prompts[0]).toContain("Rig runs inside a sandboxed agentic workflow.");
+    expect(prompts[0]).toContain("without asking for extra permission or confirmation.");
     expect(prompts[0]).toContain("Options:");
     expect(prompts[0]).toContain("/tmp/workspace");
     expect(prompts[0]).toContain("before answering.");
