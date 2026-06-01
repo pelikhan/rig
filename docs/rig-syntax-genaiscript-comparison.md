@@ -10,7 +10,7 @@ The set mixes Microsoft-owned and community repositories that use GenAIScript's 
 | `script({ ... })` | `agent({ ... })` | `rig` puts name, model, instructions, schemas, and subagents in one declaration. |
 | `$` template prompt | `instructions: p\`...\`` or a plain string | Both are readable; `rig` keeps prompt text inside the agent spec. |
 | `def("NAME", value)` | `${p.read(...)}`, `${p.bash(...)}`, or inline prompt text | `rig` favors explicit prompt intents over mutable prompt variables. |
-| `defSchema(...)` with JSON Schema | inline `output: { type, properties, items, required }` JSON Schema | `rig` now stays close to JSON Schema source material while remaining declarative in the agent spec. |
+| `defSchema(...)` with JSON Schema | `s.object(...)`, `s.array(...)`, `s.enum(...)`, `s.optional(...)` | `rig` uses one explicit JSON Schema-compatible declaration style across samples and runtime. |
 | `defAgent(...)` | `agents: { helper }` | `rig` subagents are declared as normal agents and attached structurally. |
 | `workspace.*`, `github.*`, `env.vars.*` | prompt intents plus caller-provided input | `rig` exposes less ambient runtime state and pushes more context into the prompt contract. |
 | top-level `await` workflow code | one declarative agent spec | `rig` is smaller and easier to generate, but less imperative for long scripted workflows. |
@@ -30,6 +30,23 @@ The set mixes Microsoft-owned and community repositories that use GenAIScript's 
 | slide deck generator | [`slides.genai.js`](https://raw.githubusercontent.com/darbotlabs/genaid/46c02f2e23082cb9c244483c9f36dd39212101b2/packages/sample/genaid/slides.genai.js) | [`skills/rig/samples/63-genaiscript-slide-deck-port.md`](../skills/rig/samples/63-genaiscript-slide-deck-port.md) |
 | code review persona | [`review-code.genai.js`](https://raw.githubusercontent.com/sinedied/grumpydev-mcp/7310acbda1b82a41e2f6b31bd064f612f169d6fc/genaisrc/review-code.genai.js) | [`skills/rig/samples/64-genaiscript-grumpy-review-port.md`](../skills/rig/samples/64-genaiscript-grumpy-review-port.md) |
 
+## JSON schema syntax review of the ports
+
+All 10 ports are now reviewed against the current rig schema style (explicit `s.*` declarations that serialize to JSON Schema):
+
+1. **55 glossary**: uses `s.object` with nested `s.array(s.object(...))` for strict term/definition pairs.
+2. **56 refactor batch**: both root and helper agents use explicit object schemas for deterministic subagent handoff.
+3. **57 issue review**: output shape is explicit (`summary` + `questions`) and consistent with prompt constraints.
+4. **58 travel plan**: helper-agent and root-agent outputs are all explicitly typed with `s.object` + `s.array`.
+5. **59 city info**: uses `s.array(s.object(...))` to enforce strongly typed tabular extraction.
+6. **60 schema cities**: mirrors 59 and keeps the generated records schema-first.
+7. **61 list files**: simple but explicit array-of-strings contract for stable tooling consumption.
+8. **62 TODO**: nested object-array schema keeps file/plan entries constrained and machine-readable.
+9. **63 slide deck**: deep nested schema (`slides[].title/bullets[]`) is explicit and unambiguous.
+10. **64 grumpy review**: fixed shape (`findings[]`, `verdict`) keeps persona output structured.
+
+The reviewed set no longer relies on deprecated shorthand forms; it consistently uses canonical `s.*` schema declarations.
+
 ## What GenAIScript makes easy
 
 1. Very fast top-level scripting with ambient helpers such as `workspace`, `github`, and `env`.
@@ -41,7 +58,7 @@ The set mixes Microsoft-owned and community repositories that use GenAIScript's 
 
 1. One canonical declaration shape: `agent({ name, model, instructions, output, agents })`.
 2. Smaller syntax surface for generated code: `agent`, `s`, and `p` cover most examples.
-3. Ports can now preserve JSON Schema structure directly, reducing translation drift from GenAIScript examples.
+3. Stronger schema readability for common cases because `s.object(...)` and `s.enum(...)` stay compact.
 4. Cleaner separation between prompt contract and host-side side effects.
 5. Better sample consistency because subagents use the same syntax as root agents.
 
@@ -50,7 +67,7 @@ The set mixes Microsoft-owned and community repositories that use GenAIScript's 
 1. File discovery is awkward compared with `workspace.findFiles(...)`; ports fall back to shell commands inside `p.bash(...)`.
 2. There is no first-class equivalent to ambient `env.vars` sample parameters in inline markdown examples, so some ports must inline example values.
 3. `rig` lacks a direct artifact-oriented pattern like GenAIScript's read/process/write script flow, which makes output-file generation examples less natural.
-4. Nested JSON Schema blocks in markdown samples are more verbose than the old `s.*` shorthand.
+4. Raw JSON Schema copy/paste from external examples still needs translation into `s.*` helpers.
 5. Long imperative workflows are harder to express directly because `rig` intentionally centers one agent spec over step-by-step runtime code.
 
 ## GenAIScript weaknesses exposed by the comparison
@@ -66,4 +83,4 @@ The set mixes Microsoft-owned and community repositories that use GenAIScript's 
 2. Add a lightweight sample metadata helper for common patterns such as file-backed context, canned inputs, and generated artifact descriptions.
 3. Document a canonical "generate artifact" pattern that combines `p.read(...)`, strict output schemas, and `p.write(...)` instructions.
 4. Add one official multi-agent orchestration sample that mirrors GenAIScript's `defAgent(...)` style more directly.
-5. Add one short style guide showing when to keep schemas inline versus when to extract reusable schema constants.
+5. Document JSON Schema to `s.*` translation rules for users porting prompts from GenAIScript or similar tools.
