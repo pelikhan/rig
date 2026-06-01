@@ -19,6 +19,7 @@ gh skills clone pelikhan/rig
 ```ts
 import {
   agent,
+  defineTool,
   p,
   s,
 } from "rig";
@@ -30,6 +31,7 @@ import { addons, oncePerSession, repair, steering, timeout } from "rig/addons";
 - `p.*` creates declarative prompt intents for prompt templates or inputs.
 - `p()` and ``p`...` `` create a prompt builder with `var`, `write`, and `region` primitives for assembling prompts.
 - ``p`...` `` also works in `instructions` to embed prompt intents directly: `` instructions: p`Review ${p.bash("git status")}` ``.
+- `defineTool(name, config)` matches the Copilot SDK helper and accepts rig `s.*` schemas for `parameters`.
 - `addons` accepts express-like `(context, next)` turn addons for steering, inline validation, and Copilot session access.
 - `rig` starts with no default addons.
 - `rig/addons` provides optional addon helpers: `oncePerSession`, `repair`, `steering`, `timeout`, and `addons.{oncePerSession,repair,steering,timeout}`.
@@ -119,6 +121,28 @@ b.write("Start by checking ", b.bash("git status --short"), ".\n");
 b.region("ts", "type Summary = { text: string };");
 const prompt = b.toString();
 ```
+
+## Tools
+
+Register custom tools directly on an agent using the same shape as `@github/copilot-sdk`:
+
+```ts
+const lookupIssue = defineTool("lookup_issue", {
+  description: "Look up an issue by id.",
+  parameters: s.object({
+    issue: s.string,
+  }),
+  handler: async ({ issue }) => `Issue ${issue}`,
+});
+
+const triage = agent({
+  name: "triage",
+  instructions: "Use lookup_issue before answering.",
+  tools: [lookupIssue],
+});
+```
+
+You can also place plain tool objects in `tools`; rig will convert `s.*` parameter schemas into JSON Schema before creating the Copilot session.
 
 ## Evaluating agentic performance
 

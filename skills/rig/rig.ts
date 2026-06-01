@@ -4,8 +4,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
-import type { CopilotClientOptions, SystemMessageConfig } from "@github/copilot-sdk";
+import { CopilotClient, RuntimeConnection, defineTool as sdkDefineTool } from "@github/copilot-sdk";
+import type {
+  CopilotClientOptions,
+  SystemMessageConfig,
+  Tool as CopilotTool,
+  ToolHandler,
+  ZodSchema,
+} from "@github/copilot-sdk";
 
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type ValidationResult = { ok: true } | { ok: false; error: string };
@@ -254,6 +260,23 @@ export type AgentAddon = (
   context: AgentAddonContext,
   next: () => Promise<void>,
 ) => void | Promise<void>;
+export type Tool<TArgs = unknown> = CopilotTool<TArgs>;
+export type ToolParameters<TArgs = unknown> = Schema | ZodSchema<TArgs> | Record<string, unknown>;
+export type ToolConfig<TArgs = unknown> = {
+  description?: string;
+  parameters?: ToolParameters<TArgs>;
+  handler?: ToolHandler<TArgs>;
+  overridesBuiltInTool?: boolean;
+  skipPermission?: boolean;
+};
+
+export function defineTool<T = unknown>(name: string, config: ToolConfig<T>): Tool<T> {
+  return sdkDefineTool(name, {
+    ...config,
+    parameters: normalizeToolParameters(config.parameters),
+  });
+}
+
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
   name: string;
   instructions?: string | PromptBuilder;
@@ -264,6 +287,7 @@ export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema
   addons?: AgentAddon | AgentAddon[];
   agents?: Record<string, AgentFn<any, any>>;
   systemMessage?: SystemMessageConfig;
+  tools?: Tool<any>[];
 };
 
 export type CallOptions = {
@@ -837,7 +861,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
       const normalizedInput = normalizeInput(input, inputSchema);
       let prompt = renderPrompt(normalizedSpec, normalizedInput);
       let lastResponse = "";
-      const copilot = await createCopilotSession(runtime.model, runtime.systemMessage);
+      const copilot = await createCopilotSession(runtime.model, runtime.systemMessage, runtime.tools);
       let failure: unknown;
 
       try {
@@ -938,7 +962,27 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   if (specOrName.addons !== undefined) spec.addons = specOrName.addons;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
   if (specOrName.systemMessage !== undefined) spec.systemMessage = specOrName.systemMessage;
+  if (specOrName.tools !== undefined) spec.tools = normalizeTools(specOrName.tools, specOrName.name);
   return spec;
+}
+
+function normalizeToolParameters<T>(parameters: ToolParameters<T> | undefined): ToolParameters<T> | undefined {
+  return parameters !== undefined && isSchema(parameters) ? toJsonSchema(parameters) : parameters;
+}
+
+function normalizeTools(tools: Tool<any>[], agentName: string): Tool<any>[] {
+  return tools.map((tool, index) => {
+    if (!tool || typeof tool !== "object") {
+      throw new Error(`Invalid tool for agent "${agentName}" at tools[${index}]. Expected a tool definition object.`);
+    }
+    if (typeof tool.name !== "string" || tool.name.length === 0) {
+      throw new Error(`Invalid tool for agent "${agentName}" at tools[${index}]. Expected a non-empty tool name.`);
+    }
+    return {
+      ...tool,
+      parameters: normalizeToolParameters(tool.parameters),
+    };
+  });
 }
 
 function normalizeInput(input: unknown, schema: Schema): unknown {
@@ -1266,9 +1310,18 @@ async function withCopilotClient<T>(fn: () => Promise<T>): Promise<T> {
   });
 }
 
-async function createCopilotSession(model: string, systemMessage?: SystemMessageConfig): Promise<CopilotSessionHandle> {
+async function createCopilotSession(
+  model: string,
+  systemMessage?: SystemMessageConfig,
+  tools?: Tool<any>[],
+): Promise<CopilotSessionHandle> {
   const client = getCopilotClient();
-  const config = { model, streaming: false, ...(systemMessage !== undefined && { systemMessage }) };
+  const config = {
+    model,
+    streaming: false,
+    ...(systemMessage !== undefined && { systemMessage }),
+    ...(tools !== undefined && { tools }),
+  };
   const session: CopilotSession = await client.createSession(config);
   session.on?.((event: unknown) => {
     writeEvent(event);
@@ -1309,6 +1362,7 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
   signal: AbortSignal | undefined;
   addons: AgentAddon[];
   systemMessage: SystemMessageConfig | undefined;
+  tools: Tool<any>[] | undefined;
 } {
   return {
     model: options.model ?? spec.model ?? "gpt-4.1",
@@ -1316,6 +1370,7 @@ function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
     signal: timeoutSignal(options.signal, options.timeout),
     addons: normalizeAddons(spec.addons),
     systemMessage: spec.systemMessage,
+    tools: spec.tools,
   };
 }
 
