@@ -1,4 +1,3 @@
-import { AsyncLocalStorage } from "node:async_hooks";
 import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -521,7 +520,6 @@ export class AgentError extends Error {
 }
 
 let currentCopilotOptions: CopilotEngineOptions | undefined;
-const currentCopilotClient = new AsyncLocalStorage<CopilotClient>();
 type CopilotSessionHandle = {
   session: CopilotSession;
   close(): Promise<void>;
@@ -831,71 +829,70 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const inputSchema = normalizedSpec.input ?? defaultStringSchema;
   const outputSchema = normalizedSpec.output ?? defaultStringSchema;
 
-  const fn = (async (input: unknown, options: CallOptions = {}) =>
-    withCopilotClient(async () => {
-      const runtime = resolveCallRuntime(normalizedSpec, options);
-      const normalizedInput = normalizeInput(input, inputSchema);
-      let prompt = renderPrompt(normalizedSpec, normalizedInput);
-      let lastResponse = "";
-      const copilot = await createCopilotSession(runtime.model, runtime.systemMessage);
-      let failure: unknown;
+  const fn = (async (input: unknown, options: CallOptions = {}) => {
+    const runtime = resolveCallRuntime(normalizedSpec, options);
+    const normalizedInput = normalizeInput(input, inputSchema);
+    let prompt = renderPrompt(normalizedSpec, normalizedInput);
+    let lastResponse = "";
+    const copilot = await createCopilotSession(runtime.model, runtime.systemMessage);
+    let failure: unknown;
 
-      try {
-        for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
-          throwIfAborted(runtime.signal);
-          const context: AgentAddonContext = {
-            spec: normalizedSpec,
-            session: copilot.session,
-            input: normalizedInput,
-            outputSchema,
-            signal: runtime.signal,
-            turn,
-            maxTurns: runtime.maxTurns,
-            prompt,
-            completed: false,
-          };
+    try {
+      for (let turn = 1; turn <= runtime.maxTurns; turn += 1) {
+        throwIfAborted(runtime.signal);
+        const context: AgentAddonContext = {
+          spec: normalizedSpec,
+          session: copilot.session,
+          input: normalizedInput,
+          outputSchema,
+          signal: runtime.signal,
+          turn,
+          maxTurns: runtime.maxTurns,
+          prompt,
+          completed: false,
+        };
 
-          await runAgentAddons(runtime.addons, context, async () => {
-            lastResponse = await sendCopilotPrompt(copilot.session, context.prompt, context.signal);
-            context.response = lastResponse;
-          });
+        await runAgentAddons(runtime.addons, context, async () => {
+          lastResponse = await sendCopilotPrompt(copilot.session, context.prompt, context.signal);
+          context.response = lastResponse;
+        });
 
-          if (context.error !== undefined) {
-            throw context.error;
-          }
-          if (context.completed) {
-            return context.output;
-          }
-          if (context.nextPrompt !== undefined) {
-            prompt = context.nextPrompt;
-            continue;
-          }
-          if (context.response !== undefined) {
-            const analysis = analyzeResponse(context.response, context.outputSchema, context.spec.name, context.turn);
-            if (analysis.ok) {
-              return analysis.output;
-            }
-            throw analysis.error;
-          }
-          throw new Error(
-            `Agent ${normalizedSpec.name}: addons must set context.output with context.completed=true or context.nextPrompt for turn ${turn}.`,
-          );
+        if (context.error !== undefined) {
+          throw context.error;
         }
-      } catch (error) {
-        failure = error;
-        throw error;
-      } finally {
-        try {
-          await copilot.close();
-        } catch (cleanupError) {
-          if (failure === undefined) {
-            throw cleanupError;
+        if (context.completed) {
+          return context.output;
+        }
+        if (context.nextPrompt !== undefined) {
+          prompt = context.nextPrompt;
+          continue;
+        }
+        if (context.response !== undefined) {
+          const analysis = analyzeResponse(context.response, context.outputSchema, context.spec.name, context.turn);
+          if (analysis.ok) {
+            return analysis.output;
           }
+          throw analysis.error;
+        }
+        throw new Error(
+          `Agent ${normalizedSpec.name}: addons must set context.output with context.completed=true or context.nextPrompt for turn ${turn}.`,
+        );
+      }
+    } catch (error) {
+      failure = error;
+      throw error;
+    } finally {
+      try {
+        await copilot.close();
+      } catch (cleanupError) {
+        if (failure === undefined) {
+          throw cleanupError;
         }
       }
+    }
 
-      throw new Error(`Agent ${normalizedSpec.name} failed after ${runtime.maxTurns} turns. Last response:\n${lastResponse}`);
-    })) as AgentFn<any, any>;
+    throw new Error(`Agent ${normalizedSpec.name} failed after ${runtime.maxTurns} turns. Last response:\n${lastResponse}`);
+  }) as AgentFn<any, any>;
 
   fn.agentName = normalizedSpec.name;
   fn.inputSchema = inputSchema;
@@ -1208,10 +1205,6 @@ function configureCopilot(options: CopilotEngineOptions): void {
   currentCopilotOptions = options;
 }
 
-function getCopilotClient(): CopilotClient {
-  return currentCopilotClient.getStore() ?? copilotEngine(currentCopilotOptions);
-}
-
 function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
@@ -1240,36 +1233,20 @@ async function stopCopilotClient(client: CopilotClient): Promise<void> {
   throwCleanupErrors(errors, "Failed to stop Copilot client");
 }
 
-async function withCopilotClient<T>(fn: () => Promise<T>): Promise<T> {
-  if (currentCopilotClient.getStore()) {
-    return fn();
-  }
-
-  const client = getCopilotClient();
-  let failure: unknown;
-
-  return await currentCopilotClient.run(client, async () => {
-    try {
-      return await fn();
-    } catch (error) {
-      failure = error;
-      throw error;
-    } finally {
-      try {
-        await stopCopilotClient(client);
-      } catch (cleanupError) {
-        if (failure === undefined) {
-          throw cleanupError;
-        }
-      }
-    }
-  });
-}
-
 async function createCopilotSession(model: string, systemMessage?: SystemMessageConfig): Promise<CopilotSessionHandle> {
-  const client = getCopilotClient();
+  const client = copilotEngine(currentCopilotOptions);
   const config = { model, streaming: false, ...(systemMessage !== undefined && { systemMessage }) };
-  const session: CopilotSession = await client.createSession(config);
+  let session: CopilotSession;
+  try {
+    session = await client.createSession(config);
+  } catch (error) {
+    try {
+      await stopCopilotClient(client);
+    } catch (cleanupError) {
+      throw new AggregateError([asError(error), asError(cleanupError)], "Failed to create Copilot session");
+    }
+    throw error;
+  }
   session.on?.((event: unknown) => {
     writeEvent(event);
   });
@@ -1277,14 +1254,23 @@ async function createCopilotSession(model: string, systemMessage?: SystemMessage
   return {
     session,
     async close() {
-      if (!session.disconnect) {
-        return;
+      const errors: Error[] = [];
+
+      if (session.disconnect) {
+        try {
+          await session.disconnect();
+        } catch (error) {
+          errors.push(asError(error));
+        }
       }
+
       try {
-        await session.disconnect();
+        await stopCopilotClient(client);
       } catch (error) {
-        throw asError(error);
+        errors.push(asError(error));
       }
+
+      throwCleanupErrors(errors, "Failed to close Copilot session");
     },
   };
 }
