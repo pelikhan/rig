@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
   }));
   const forUri = vi.fn(() => ({ kind: "uri", url: "localhost:7777" }));
   const forStdio = vi.fn(() => ({ kind: "stdio" }));
+  const sdkDefineTool = vi.fn((name: string, config: Record<string, unknown>) => ({ name, ...config }));
   const copilotClientCtor = vi.fn();
   const CopilotClient = function (this: unknown, options: unknown) {
     copilotClientCtor(options);
@@ -30,21 +31,23 @@ const mocks = vi.hoisted(() => {
   const setOnImpl = (impl?: (handler: (event: unknown) => void) => void) => {
     onImpl = impl;
   };
-  return { createSession, disconnectSession, stopClient, forUri, forStdio, copilotClientCtor, CopilotClient, setSendAndWaitImpl, setOnImpl };
+  return { createSession, disconnectSession, stopClient, forUri, forStdio, sdkDefineTool, copilotClientCtor, CopilotClient, setSendAndWaitImpl, setOnImpl };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
   CopilotClient: mocks.CopilotClient,
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
+  defineTool: mocks.sdkDefineTool,
 }));
 
-import { AgentError, PromptBuilder, agent, p, s, toJsonSchema } from "rig";
+import { AgentError, PromptBuilder, agent, defineTool, p, s, toJsonSchema } from "rig";
 import { oncePerSession, repair, steering, timeout } from "rig/addons";
 
 beforeEach(() => {
   mocks.createSession.mockClear();
   mocks.forUri.mockClear();
   mocks.forStdio.mockClear();
+  mocks.sdkDefineTool.mockClear();
   mocks.copilotClientCtor.mockClear();
   mocks.disconnectSession.mockClear();
   mocks.stopClient.mockClear();
@@ -427,6 +430,66 @@ describe("agent invocation", () => {
     await call("x");
 
     expect(mocks.createSession).toHaveBeenCalledWith({ model: "gpt-4.1", streaming: false });
+  });
+
+  it("defines tools with rig schemas using the Copilot SDK helper shape", () => {
+    const handler = vi.fn(async ({ issue }: { issue: string }) => `Issue ${issue}`);
+    const lookupIssue = defineTool("lookup_issue", {
+      description: "Look up an issue by id.",
+      parameters: s.object({ issue: s.string }),
+      handler,
+    });
+
+    expect(mocks.sdkDefineTool).toHaveBeenCalledWith("lookup_issue", {
+      description: "Look up an issue by id.",
+      parameters: toJsonSchema(s.object({ issue: s.string })),
+      handler,
+      skipPermission: true,
+    });
+    expect(lookupIssue).toMatchObject({
+      name: "lookup_issue",
+      description: "Look up an issue by id.",
+      parameters: toJsonSchema(s.object({ issue: s.string })),
+      handler,
+      skipPermission: true,
+    });
+  });
+
+  it("preserves explicit tool permission overrides", () => {
+    defineTool("lookup_issue", {
+      skipPermission: false,
+    });
+
+    expect(mocks.sdkDefineTool).toHaveBeenCalledWith("lookup_issue", {
+      skipPermission: false,
+    });
+  });
+
+  it("passes tools to the session and normalizes rig schemas", async () => {
+    mocks.setSendAndWaitImpl(async () => JSON.stringify("ok"));
+
+    const call = agent({
+      name: "tool-test",
+      tools: [{
+        name: "lookup_issue",
+        description: "Look up an issue by id.",
+        parameters: s.object({ issue: s.string }),
+        handler: async ({ issue }: { issue: string }) => `Issue ${issue}`,
+      }],
+    });
+    await call("x");
+
+    expect(mocks.createSession).toHaveBeenCalledWith({
+      model: "gpt-4.1",
+      streaming: false,
+      tools: [expect.objectContaining({
+        name: "lookup_issue",
+        description: "Look up an issue by id.",
+        parameters: toJsonSchema(s.object({ issue: s.string })),
+        handler: expect.any(Function),
+        skipPermission: true,
+      })],
+    });
   });
 
   it("supports timeout and abort signals", async () => {
