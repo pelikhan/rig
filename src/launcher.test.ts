@@ -6,6 +6,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
 const mocks = vi.hoisted(() => {
+  const approveAll = vi.fn();
   let sendAndWaitImpl: () => unknown | Promise<unknown> = async () => JSON.stringify("done");
   const disconnectSession = vi.fn(async () => {});
   const stopClient = vi.fn(async () => []);
@@ -26,10 +27,11 @@ const mocks = vi.hoisted(() => {
   const setSendAndWaitImpl = (impl: () => unknown | Promise<unknown>) => {
     sendAndWaitImpl = impl;
   };
-  return { createSession, disconnectSession, stopClient, forUri, forStdio, copilotClientCtor, CopilotClient, setSendAndWaitImpl };
+  return { approveAll, createSession, disconnectSession, stopClient, forUri, forStdio, copilotClientCtor, CopilotClient, setSendAndWaitImpl };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
+  approveAll: mocks.approveAll,
   CopilotClient: mocks.CopilotClient,
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
 }));
