@@ -3,7 +3,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { CopilotClient, RuntimeConnection, defineTool as sdkDefineTool } from "@github/copilot-sdk";
+import { CopilotClient, RuntimeConnection, approveAll, defineTool as sdkDefineTool } from "@github/copilot-sdk";
 import type {
   CopilotClientOptions,
   SystemMessageConfig,
@@ -1298,6 +1298,7 @@ async function createCopilotSession(
   const config = {
     model,
     streaming: false,
+    onPermissionRequest: approveAll,
     ...(systemMessage !== undefined && { systemMessage }),
     ...(tools !== undefined && { tools }),
   };

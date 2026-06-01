@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => {
   let sendAndWaitImpl: (request: { prompt: string; signal?: AbortSignal }) => unknown | Promise<unknown> = async () => JSON.stringify("default");
   let onImpl: ((handler: (event: unknown) => void) => void) | undefined;
+  const approveAll = vi.fn();
   const disconnectSession = vi.fn(async () => {});
   const stopClient = vi.fn(async () => []);
 
@@ -31,10 +32,23 @@ const mocks = vi.hoisted(() => {
   const setOnImpl = (impl?: (handler: (event: unknown) => void) => void) => {
     onImpl = impl;
   };
-  return { createSession, disconnectSession, stopClient, forUri, forStdio, sdkDefineTool, copilotClientCtor, CopilotClient, setSendAndWaitImpl, setOnImpl };
+  return {
+    approveAll,
+    createSession,
+    disconnectSession,
+    stopClient,
+    forUri,
+    forStdio,
+    sdkDefineTool,
+    copilotClientCtor,
+    CopilotClient,
+    setSendAndWaitImpl,
+    setOnImpl,
+  };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
+  approveAll: mocks.approveAll,
   CopilotClient: mocks.CopilotClient,
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
   defineTool: mocks.sdkDefineTool,
@@ -45,6 +59,7 @@ import { oncePerSession, repair, steering, timeout } from "rig/addons";
 
 beforeEach(() => {
   mocks.createSession.mockClear();
+  mocks.approveAll.mockClear();
   mocks.forUri.mockClear();
   mocks.forStdio.mockClear();
   mocks.sdkDefineTool.mockClear();
@@ -217,8 +232,8 @@ describe("agent invocation", () => {
     expect(mocks.copilotClientCtor).toHaveBeenCalledTimes(2);
     expect(mocks.createSession).toHaveBeenCalledTimes(2);
     expect(mocks.createSession.mock.calls).toEqual([
-      [{ model: "gpt-4.1", streaming: false }],
-      [{ model: "o3-mini", streaming: false }],
+      [{ model: "gpt-4.1", streaming: false, onPermissionRequest: mocks.approveAll }],
+      [{ model: "o3-mini", streaming: false, onPermissionRequest: mocks.approveAll }],
     ]);
     expect(mocks.disconnectSession).toHaveBeenCalledTimes(2);
     expect(mocks.stopClient).toHaveBeenCalledTimes(2);
@@ -418,7 +433,7 @@ describe("agent invocation", () => {
     const call = agent({ name: "model-test", model: "gpt-4.1" });
     await call("x", { model: "o3-mini" });
 
-    expect(mocks.createSession).toHaveBeenCalledWith({ model: "o3-mini", streaming: false });
+    expect(mocks.createSession).toHaveBeenCalledWith({ model: "o3-mini", streaming: false, onPermissionRequest: mocks.approveAll });
   });
 
   it("passes systemMessage to the session when specified", async () => {
@@ -428,7 +443,12 @@ describe("agent invocation", () => {
     const call = agent({ name: "sys-msg-test", systemMessage });
     await call("x");
 
-    expect(mocks.createSession).toHaveBeenCalledWith({ model: "gpt-4.1", streaming: false, systemMessage });
+    expect(mocks.createSession).toHaveBeenCalledWith({
+      model: "gpt-4.1",
+      streaming: false,
+      onPermissionRequest: mocks.approveAll,
+      systemMessage,
+    });
   });
 
   it("does not pass systemMessage when not specified", async () => {
@@ -437,7 +457,7 @@ describe("agent invocation", () => {
     const call = agent({ name: "no-sys-msg-test" });
     await call("x");
 
-    expect(mocks.createSession).toHaveBeenCalledWith({ model: "gpt-4.1", streaming: false });
+    expect(mocks.createSession).toHaveBeenCalledWith({ model: "gpt-4.1", streaming: false, onPermissionRequest: mocks.approveAll });
   });
 
   it("defines tools with rig schemas using the Copilot SDK helper shape", () => {
@@ -489,6 +509,7 @@ describe("agent invocation", () => {
 
     expect(mocks.createSession).toHaveBeenCalledWith({
       model: "gpt-4.1",
+      onPermissionRequest: mocks.approveAll,
       streaming: false,
       tools: [expect.objectContaining({
         name: "lookup_issue",
