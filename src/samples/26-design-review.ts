@@ -1,7 +1,6 @@
 import { agent, s } from "rig";
 // Agent role: write a concise migration guide.
 const migration = agent({
-    name: "migrationGuide",
     model: "mini",
     input: s.object({
         fromVersion: s.string,

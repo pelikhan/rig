@@ -31,7 +31,6 @@ import { agent, p, s } from "rig";
 
 // Agent role: review the diff and return only the declared output.
 const reviewDiff = agent({
-  name: "reviewDiff",
   model: "mini",
   instructions: "Review the diff and return only the declared output.",
   output: s.object({
@@ -166,7 +165,6 @@ Only introduce `input` fields for data the caller truly supplies at runtime. Do 
 import { agent, p, s } from "rig";
 
 const reviewAgent = agent({
-  name: "review",
   instructions: p`Review the repository using ${p.bash("git status --short")} and summarize changes.`,
   output: s.object({ summary: s.string }),
 });
@@ -200,13 +198,11 @@ Expose subagents with `agents`:
 ```ts
 // Agent role: extract the most important changes from the diff.
 const summarizeDiff = agent({
-  name: "summarizeDiff",
   model: "mini",
 });
 
 // Agent role: review the diff using the provided subagent when helpful.
 const reviewer = agent({
-  name: "reviewer",
   model: "mini",
   output: s.object({
     summary: s.string,
@@ -237,7 +233,6 @@ import { repair } from "rig/addons";
 
 // Agent role: repair invalid output and return a stable summary.
 const summarize = agent({
-  name: "summarize",
   model: "mini",
   maxTurns: 3,
   addons: repair,

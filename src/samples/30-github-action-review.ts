@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: draft a GitHub bug report from the failure details.
 const bugReport = agent({
-    name: "bugReport",
     model: "mini",
     input: s.object({
         failure: s.string,

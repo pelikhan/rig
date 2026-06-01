@@ -196,6 +196,7 @@ function serializeSchema(schema: Schema): JsonSchemaObject {
 }
 
 const defaultStringSchema = s.string;
+const defaultName = "agent";
 
 export type CopilotEngineOptions = Omit<CopilotClientOptions, "connection"> & {
   connection?: CopilotClientOptions["connection"];
@@ -241,7 +242,7 @@ function writeEvent(event: unknown): void {
 
 export type CopilotSession = Awaited<ReturnType<CopilotClient["createSession"]>>;
 export type AgentAddonContext = {
-  spec: AgentSpec<any, any>;
+  spec: NormalizedAgentSpec<any, any>;
   session: CopilotSession;
   input: unknown;
   outputSchema: Schema;
@@ -277,7 +278,7 @@ export function defineTool<T = unknown>(name: string, config: ToolConfig<T>): To
 }
 
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
-  name: string;
+  name?: string;
   instructions?: string | PromptBuilder;
   input?: Input;
   output?: Output;
@@ -288,6 +289,8 @@ export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema
   systemMessage?: SystemMessageConfig;
   tools?: Tool<any>[];
 };
+/** Internal normalized variant with a guaranteed resolved name. */
+type NormalizedAgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = AgentSpec<Input, Output> & { name: string };
 
 export type CallOptions = {
   signal?: AbortSignal;
@@ -313,7 +316,7 @@ export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValu
   outputSchema: Schema;
   inputShape: Schema;
   outputShape: Schema;
-  spec: AgentSpec<any, any>;
+  spec: NormalizedAgentSpec<any, any>;
   _namespace: string;
   use: (addons: AgentAddon | AgentAddon[]) => AgentFn<Input, Output>;
 };
@@ -941,17 +944,18 @@ function validate(value: unknown, schema: Schema): ValidationResult {
   return validateSchema(value, schema, "$", false);
 }
 
-function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
-  const spec: AgentSpec<any, any> = {
-    name: specOrName.name,
+function normalizeSpec(specOrName: AgentSpec<any, any>): NormalizedAgentSpec<any, any> {
+  const agentName = specOrName.name ?? defaultName;
+  const spec: NormalizedAgentSpec<any, any> = {
+    name: agentName,
   };
   if (specOrName.instructions !== undefined) spec.instructions = specOrName.instructions;
   if (specOrName.input !== undefined) {
-    assertValidSchema(specOrName.input, specOrName.name, "input");
+    assertValidSchema(specOrName.input, agentName, "input");
     spec.input = specOrName.input;
   }
   if (specOrName.output !== undefined) {
-    assertValidSchema(specOrName.output, specOrName.name, "output");
+    assertValidSchema(specOrName.output, agentName, "output");
     spec.output = specOrName.output;
   }
   if (specOrName.model !== undefined) spec.model = specOrName.model;
@@ -959,7 +963,7 @@ function normalizeSpec(specOrName: AgentSpec<any, any>): AgentSpec<any, any> {
   if (specOrName.addons !== undefined) spec.addons = specOrName.addons;
   if (specOrName.agents !== undefined) spec.agents = specOrName.agents;
   if (specOrName.systemMessage !== undefined) spec.systemMessage = specOrName.systemMessage;
-  if (specOrName.tools !== undefined) spec.tools = normalizeTools(specOrName.tools, specOrName.name);
+  if (specOrName.tools !== undefined) spec.tools = normalizeTools(specOrName.tools, agentName);
   return spec;
 }
 
@@ -1002,7 +1006,7 @@ function normalizeInput(input: unknown, schema: Schema): unknown {
   return input ?? null;
 }
 
-function renderPrompt(spec: AgentSpec<any, any>, input: unknown): string {
+function renderPrompt(spec: NormalizedAgentSpec<any, any>, input: unknown): string {
   const value = inlinePromptIntents(input);
   const instructions = renderInstructions(spec.instructions);
   const sections = [
@@ -1044,8 +1048,9 @@ function renderInstructions(instructions?: AgentSpec<any, any>["instructions"]):
 }
 
 export function defaultRepairPrompt(spec: AgentSpec<any, any>, error: AgentError): string {
+  const agentName = spec.name ?? defaultName;
   return [
-    `<repair agent="${escapeAttribute(spec.name)}" turn="${error.turn}">`,
+    `<repair agent="${escapeAttribute(agentName)}" turn="${error.turn}">`,
     tag("instructions", "Your previous response was invalid. Return only corrected JSON."),
     tag("error", error.message),
     tag("output_schema", error.schemaText),
@@ -1349,7 +1354,7 @@ async function sendCopilotPrompt(session: CopilotSession, prompt: string, signal
   return value?.data?.content ?? value?.data?.text ?? value?.text ?? value?.content ?? JSON.stringify(response);
 }
 
-function resolveCallRuntime(spec: AgentSpec<any, any>, options: CallOptions): {
+function resolveCallRuntime(spec: NormalizedAgentSpec<any, any>, options: CallOptions): {
   model: string;
   maxTurns: number;
   signal: AbortSignal | undefined;

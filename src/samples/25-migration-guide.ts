@@ -1,7 +1,6 @@
 import { agent, s } from "rig";
 // Agent role: rewrite the error to be actionable and precise.
 const improve = agent({
-    name: "improveError",
     model: "mini",
     input: s.object({
         message: s.string,

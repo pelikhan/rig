@@ -20,7 +20,6 @@ function lintOnFileChange(runLint: () => Promise<unknown>): AgentAddon {
 
 // Agent role: apply workspace changes and trigger linting when files changed.
 const fileChangeMiddleware = agent({
-  name: "fileChangeMiddleware",
   model: "mini",
   instructions: "Update files when needed, then summarize the change.",
   output: s.object({

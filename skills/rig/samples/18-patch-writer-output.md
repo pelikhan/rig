@@ -4,7 +4,6 @@
 import { agent, p, s } from "rig";
 // Agent role: plan a minimal, low-risk refactor. Do not edit files.
 const refactorPlan = agent({
-    name: "refactorPlan",
     model: "mini",
     output: s.object({
         steps: s.array(s.string),

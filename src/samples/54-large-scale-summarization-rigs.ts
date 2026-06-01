@@ -6,7 +6,6 @@ const NANO = "nano";
 
 // Agent role: summarize a bounded evidence shard using a small, low-cost model.
 const summarizeShard = agent({
-  name: "summarizeShard",
   model: MINI,
   input: s.object({
     scenario: s.string,
@@ -23,7 +22,6 @@ const summarizeShard = agent({
 
 // Agent role: combine shard summaries into one final scenario summary.
 const reduceScenario = agent({
-  name: "reduceScenario",
   model: LARGE,
   input: s.object({
     scenario: s.string,
@@ -44,7 +42,6 @@ const reduceScenario = agent({
 
 // Agent role: generate deterministic search patterns before any model-heavy summarization.
 const planDeterministicSearch = agent({
-  name: "planDeterministicSearch",
   model: NANO,
   input: s.object({
     query: s.string,
@@ -58,7 +55,6 @@ const planDeterministicSearch = agent({
 
 // Agent role: orchestrate large-scale summarization scenarios with map/reduce and parallel fan-out.
 const summarizeAtScale = agent({
-  name: "summarizeAtScale",
   model: LARGE,
   input: s.object({
     text: s.string,

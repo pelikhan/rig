@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: review the workflow for reliability, caching, and least privilege.
 const actionReview = agent({
-    name: "actionReview",
     model: "mini",
     output: s.object({
         summary: s.string,

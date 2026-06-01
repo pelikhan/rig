@@ -4,7 +4,6 @@
 import { agent, s } from "rig";
 // Agent role: summarize the diff.
 const summarizeDiff = agent({
-    name: "summarizeDiff",
     model: "mini",
     output: s.object({
         summary: s.string,
@@ -14,7 +13,6 @@ const summarizeDiff = agent({
 });
 // Agent role: review the diff. You may use the provided subagent conceptually.
 const reviewer = agent({
-    name: "reviewer",
     model: "mini",
     output: s.object({
         summary: s.string,

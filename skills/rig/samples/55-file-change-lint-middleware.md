@@ -17,7 +17,6 @@ const lintOnFileChange = (runLint: () => Promise<unknown>): AgentAddon => async 
 
 // Agent role: update files and run linting after file changes.
 const fileChangeMiddleware = agent({
-  name: "fileChangeMiddleware",
   model: "mini",
   instructions: "Update files when needed, then summarize the change.",
   output: s.object({ changed: s.boolean, summary: s.string }),

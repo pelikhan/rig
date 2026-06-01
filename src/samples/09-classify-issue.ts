@@ -3,7 +3,6 @@ import { agent, s } from "rig";
 // Agent role: classify the issue.
 
 const classifyIssue = agent({
-  name: "classifyIssue",
   model: "mini",
   instructions: "Classify the issue.",
   input: s.object({

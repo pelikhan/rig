@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 // Agent role: review the repository diff and return a structured summary.
 
 const reviewDiff = agent({
-  name: "reviewDiff",
   model: "mini",
   instructions: "Review the repository diff and return a structured summary.",
   input: s.object({

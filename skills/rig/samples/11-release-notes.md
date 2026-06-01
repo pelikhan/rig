@@ -4,7 +4,6 @@
 import { agent, p, s } from "rig";
 // Agent role: triage the pull request and recommend reviewers.
 const triage = agent({
-    name: "triage",
     model: "mini",
     output: s.object({
         area: s.enum("runtime", "docs", "tests", "ci", "unknown"),

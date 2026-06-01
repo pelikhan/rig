@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: build a package map for a JavaScript monorepo.
 const packageMap = agent({
-    name: "packageMap",
     model: "mini",
     output: s.object({
         packages: s.array(s.object({

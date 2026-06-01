@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: triage the pull request and recommend reviewers.
 const triage = agent({
-    name: "triage",
     model: "mini",
     input: s.object({
         diff: s.string,

@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: infer a practical runtime-visible schema from the samples.
 const inferShape = agent({
-    name: "inferShape",
     model: "mini",
     output: s.object({
         fields: s.array(s.object({

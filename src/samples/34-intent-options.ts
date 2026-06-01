@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: investigate the project using only readonly evidence.
 const investigator = agent({
-    name: "investigator",
     model: "mini",
     input: s.object({
         tree: s.string,

@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: create a focused validation plan for the current changes.
 const planner = agent({
-    name: "testPlanner",
     model: "mini",
     input: s.object({
         diff: s.string,

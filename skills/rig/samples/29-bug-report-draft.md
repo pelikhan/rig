@@ -4,7 +4,6 @@
 import { agent, p, s } from "rig";
 // Agent role: flag unknown or concerning dependency licenses.
 const licenseCheck = agent({
-    name: "licenseCheck",
     model: "mini",
     output: s.object({
         compliant: s.boolean,

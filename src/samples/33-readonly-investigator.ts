@@ -1,7 +1,6 @@
 import { agent, s } from "rig";
 // Agent role: plan shell commands for the goal. Prefer readonly commands.
 const commandPlanner = agent({
-    name: "commandPlanner",
     model: "mini",
     output: s.object({
         commands: s.array(s.object({

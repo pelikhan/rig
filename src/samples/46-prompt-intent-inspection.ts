@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: suggest owners for changed files.
 const owners = agent({
-    name: "owners",
     model: "mini",
     input: s.object({
         codeowners: s.string,
