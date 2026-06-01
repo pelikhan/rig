@@ -91,6 +91,7 @@ s.optional(shape, "description")
 ```
 
 Use declarative `s.*` helpers for every schema node.
+`s.*` values serialize directly as JSON Schema, so no separate conversion step is needed.
 Rig renders these declarations as JSON Schema in prompt schema blocks.
 Implicit object literals, trailing-underscore optional fields, and `{"*": ...}` record sugar are not supported.
 

@@ -820,6 +820,18 @@ describe("p template literal for instructions", () => {
 });
 
 describe("toJsonSchema", () => {
+  it("serializes s.* helpers as native JSON Schema without conversion", () => {
+    expect(JSON.parse(JSON.stringify(s.string))).toEqual({ type: "string" });
+    expect(JSON.parse(JSON.stringify(s.object({
+      name: s.string,
+      age: s.optional(s.number),
+    })))).toEqual({
+      type: "object",
+      properties: { name: { type: "string" }, age: { type: "number" } },
+      required: ["name"],
+    });
+  });
+
   it("converts primitive schemas", () => {
     expect(toJsonSchema(s.string)).toEqual({ type: "string" });
     expect(toJsonSchema(s.number)).toEqual({ type: "number" });

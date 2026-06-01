@@ -22,7 +22,10 @@ export type ObjectSchema<Fields extends Record<string, Schema> = Record<string, 
 };
 export type RecordSchema<Value extends Schema = Schema> = { type: "object"; additionalProperties: Value; description?: string };
 export type EnumSchema<Values extends readonly Json[] = readonly Json[]> = { enum: Values; description?: string };
-export type OptionalSchema<Inner extends Schema = Schema> = { schema: Inner; description?: string };
+const OPTIONAL_SYMBOL: unique symbol = Symbol("rig.optional");
+type OptionalMarker = { readonly [OPTIONAL_SYMBOL]: true };
+type UnwrapOptional<T> = Omit<T, typeof OPTIONAL_SYMBOL>;
+export type OptionalSchema<Inner extends Schema = Schema> = Inner & OptionalMarker;
 
 export type Schema =
   | StringSchema
@@ -41,7 +44,30 @@ const SCHEMA_SYMBOL: unique symbol = Symbol("rig.schema");
 
 function markAsSchema<T extends object>(obj: T): T {
   Object.defineProperty(obj, SCHEMA_SYMBOL, { value: true, enumerable: false, writable: false, configurable: false });
+  Object.defineProperty(obj, "toJSON", {
+    value: () => serializeSchema(obj as unknown as Schema),
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
   return obj;
+}
+
+function cloneSchema<Inner extends Schema>(schema: Inner, description?: string): Inner {
+  const cloned = { ...(schema as Record<PropertyKey, unknown>) } as Inner;
+  if (description !== undefined) {
+    Object.assign(cloned as object, { description });
+  }
+  return markAsSchema(cloned as unknown as object) as Inner;
+}
+
+function markAsOptional<Inner extends Schema>(schema: Inner): OptionalSchema<Inner> {
+  Object.defineProperty(schema, OPTIONAL_SYMBOL, { value: true, enumerable: false, writable: false, configurable: false });
+  return schema as OptionalSchema<Inner>;
+}
+
+function isOptionalSchema(schema: Schema): schema is OptionalSchema<Schema> {
+  return OPTIONAL_SYMBOL in schema;
 }
 
 function createTypedPrimitiveSchema<T extends StringSchema | NumberSchema | BooleanSchema>(type: T["type"]): SchemaHelperFactory<T> {
@@ -90,15 +116,15 @@ export type AgentInputValue<T> =
   T | PromptIntent | PromptBuilder;
 
 export type InferSchema<T> =
+  T extends OptionalMarker ? InferSchema<UnwrapOptional<T>> | undefined :
   T extends { type: "string" } ? string :
   T extends { type: "number" } ? number :
   T extends { type: "boolean" } ? boolean :
   T extends { enum: infer Values extends readonly unknown[] } ? Values[number] :
-  T extends { schema: infer Inner } ? InferSchema<Inner> | undefined :
   T extends { type: "array"; items: infer Item } ? InferSchema<Item>[] :
   T extends { type: "object"; properties: infer Fields extends Record<string, unknown> } ? Simplify<
-    & { [K in keyof Fields as Fields[K] extends { schema: unknown } ? never : K]: InferSchema<Fields[K]> }
-    & { [K in keyof Fields as Fields[K] extends { schema: unknown } ? K : never]?: Fields[K] extends { schema: infer Inner } ? InferSchema<Inner> : never }
+    & { [K in keyof Fields as Fields[K] extends OptionalMarker ? never : K]: InferSchema<Fields[K]> }
+    & { [K in keyof Fields as Fields[K] extends OptionalMarker ? K : never]?: InferSchema<UnwrapOptional<Fields[K]>> }
   > :
   T extends { type: "object"; additionalProperties: infer Value } ? Record<string, InferSchema<Value>> :
   unknown;
@@ -119,7 +145,7 @@ export const s = {
   },
   enum: createEnumSchema,
   optional<Inner extends Schema>(schema: Inner, description?: string): OptionalSchema<Inner> {
-    return description === undefined ? markAsSchema({ schema }) : markAsSchema({ schema, description });
+    return markAsOptional(cloneSchema(schema, description));
   },
   toJsonSchema,
 };
@@ -127,29 +153,28 @@ export const s = {
 export type JsonSchemaObject = { [key: string]: unknown };
 
 export function toJsonSchema(schema: Schema): JsonSchemaObject {
+  return serializeSchema(schema);
+}
+
+function serializeSchema(schema: Schema): JsonSchemaObject {
   const { description } = schema;
   const withDescription = (obj: JsonSchemaObject): JsonSchemaObject =>
     description === undefined ? obj : { ...obj, description };
-  if ("schema" in schema) {
-    return toJsonSchema({ ...schema.schema, description: description ?? schema.schema.description } as Schema);
-  }
   if ("enum" in schema) {
     return withDescription({ enum: schema.enum });
   }
   if ("items" in schema) {
-    return withDescription({ type: "array", items: toJsonSchema(schema.items) });
+    return withDescription({ type: "array", items: serializeSchema(schema.items) });
   }
   if ("additionalProperties" in schema) {
-    return withDescription({ type: "object", additionalProperties: toJsonSchema(schema.additionalProperties) });
+    return withDescription({ type: "object", additionalProperties: serializeSchema(schema.additionalProperties) });
   }
   if ("properties" in schema) {
     const properties: Record<string, JsonSchemaObject> = {};
     const required: string[] = [];
     for (const [key, field] of Object.entries(schema.properties) as [string, Schema][]) {
-      if ("schema" in field) {
-        properties[key] = toJsonSchema(field.schema);
-      } else {
-        properties[key] = toJsonSchema(field);
+      properties[key] = serializeSchema(field);
+      if (!isOptionalSchema(field)) {
         required.push(key);
       }
     }
@@ -1008,12 +1033,8 @@ function parseJson(text: string): { ok: true; value: unknown } | { ok: false; er
 }
 
 function validateSchema(value: unknown, schema: Schema, path: string, optional: boolean): ValidationResult {
-  if (optional && value === undefined) {
+  if ((optional || isOptionalSchema(schema)) && value === undefined) {
     return { ok: true };
-  }
-
-  if ("schema" in schema) {
-    return validateSchema(value, schema.schema, path, true);
   }
   if ("enum" in schema) {
     return schema.enum.some((item: Json) => deepEqual(item, value))
@@ -1070,7 +1091,7 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
 }
 
 function renderSchema(schema: Schema): string {
-  return json(toJsonSchema(schema));
+  return json(schema);
 }
 
 function inlinePromptIntents<T>(value: T): T {
@@ -1346,10 +1367,6 @@ function assertValidSchema(schema: Schema, agentName: string, slot: "input" | "o
   }
   if ("additionalProperties" in schema) {
     assertValidSchema(schema.additionalProperties, agentName, slot, `${path}.*`);
-    return;
-  }
-  if ("schema" in schema) {
-    assertValidSchema(schema.schema, agentName, slot, path);
     return;
   }
   if ("properties" in schema) {
