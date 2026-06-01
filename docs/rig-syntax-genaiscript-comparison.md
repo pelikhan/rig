@@ -10,7 +10,7 @@ The set mixes Microsoft-owned and community repositories that use GenAIScript's 
 | `script({ ... })` | `agent({ ... })` | `rig` puts name, model, instructions, schemas, and subagents in one declaration. |
 | `$` template prompt | `instructions: p\`...\`` or a plain string | Both are readable; `rig` keeps prompt text inside the agent spec. |
 | `def("NAME", value)` | `${p.read(...)}`, `${p.bash(...)}`, or inline prompt text | `rig` favors explicit prompt intents over mutable prompt variables. |
-| `defSchema(...)` with JSON Schema | `s.object(...)`, `s.array(...)`, `s.enum(...)` | `rig` is terser for common shapes, but less aligned with raw JSON Schema copy/paste. |
+| `defSchema(...)` with JSON Schema | inline `output: { type, properties, items, required }` JSON Schema | `rig` now stays close to JSON Schema source material while remaining declarative in the agent spec. |
 | `defAgent(...)` | `agents: { helper }` | `rig` subagents are declared as normal agents and attached structurally. |
 | `workspace.*`, `github.*`, `env.vars.*` | prompt intents plus caller-provided input | `rig` exposes less ambient runtime state and pushes more context into the prompt contract. |
 | top-level `await` workflow code | one declarative agent spec | `rig` is smaller and easier to generate, but less imperative for long scripted workflows. |
@@ -41,7 +41,7 @@ The set mixes Microsoft-owned and community repositories that use GenAIScript's 
 
 1. One canonical declaration shape: `agent({ name, model, instructions, output, agents })`.
 2. Smaller syntax surface for generated code: `agent`, `s`, and `p` cover most examples.
-3. Stronger schema readability for common cases because `s.object(...)` and `s.enum(...)` stay compact.
+3. Ports can now preserve JSON Schema structure directly, reducing translation drift from GenAIScript examples.
 4. Cleaner separation between prompt contract and host-side side effects.
 5. Better sample consistency because subagents use the same syntax as root agents.
 
@@ -50,7 +50,7 @@ The set mixes Microsoft-owned and community repositories that use GenAIScript's 
 1. File discovery is awkward compared with `workspace.findFiles(...)`; ports fall back to shell commands inside `p.bash(...)`.
 2. There is no first-class equivalent to ambient `env.vars` sample parameters in inline markdown examples, so some ports must inline example values.
 3. `rig` lacks a direct artifact-oriented pattern like GenAIScript's read/process/write script flow, which makes output-file generation examples less natural.
-4. Raw JSON Schema copy/paste from external examples needs manual translation into `s.*` helpers.
+4. Nested JSON Schema blocks in markdown samples are more verbose than the old `s.*` shorthand.
 5. Long imperative workflows are harder to express directly because `rig` intentionally centers one agent spec over step-by-step runtime code.
 
 ## GenAIScript weaknesses exposed by the comparison
@@ -66,4 +66,4 @@ The set mixes Microsoft-owned and community repositories that use GenAIScript's 
 2. Add a lightweight sample metadata helper for common patterns such as file-backed context, canned inputs, and generated artifact descriptions.
 3. Document a canonical "generate artifact" pattern that combines `p.read(...)`, strict output schemas, and `p.write(...)` instructions.
 4. Add one official multi-agent orchestration sample that mirrors GenAIScript's `defAgent(...)` style more directly.
-5. Document JSON Schema to `s.*` translation rules for users porting prompts from GenAIScript or similar tools.
+5. Add one short style guide showing when to keep schemas inline versus when to extract reusable schema constants.
