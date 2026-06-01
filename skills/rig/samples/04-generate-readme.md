@@ -10,7 +10,6 @@ const ShResult = s.object({
 });
 // Agent role: diagnose the failing test result. Do not edit files.
 const diagnose = agent({
-    name: "diagnose",
     model: "mini",
     output: s.object({
         rootCause: s.string,

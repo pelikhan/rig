@@ -4,7 +4,6 @@
 import { agent, p, s } from "rig";
 // Agent role: extract any JSON object from input.text into raw.
 const extractJson = agent({
-    name: "extractJson",
     model: "mini",
     output: s.object({
         raw: s.unknown,

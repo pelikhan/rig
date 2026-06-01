@@ -3,12 +3,11 @@
 ```rig
 import { agent, p, s } from "rig";
 // Agent role: summarize one evidence shard cheaply with a small model.
-const summarizeShard = agent({ name: "summarizeShard", model: "mini", input: s.object({ scenario: s.string, shardLabel: s.string, evidence: s.string }), output: s.object({ shardLabel: s.string, summary: s.string, facts: s.array(s.string) }), instructions: "Summarize only high-signal facts." });
+const summarizeShard = agent({ model: "mini", input: s.object({ scenario: s.string, shardLabel: s.string, evidence: s.string }), output: s.object({ shardLabel: s.string, summary: s.string, facts: s.array(s.string) }), instructions: "Summarize only high-signal facts." });
 // Agent role: merge shard summaries into one concise final summary.
-const reduceScenario = agent({ name: "reduceScenario", model: "large", input: s.object({ scenario: s.string, shardSummaries: s.array(s.object({ shardLabel: s.string, summary: s.string, facts: s.array(s.string) })) }), output: s.object({ scenario: s.string, summary: s.string, savings: s.string }), instructions: "Deduplicate facts and keep the final summary short." });
+const reduceScenario = agent({ model: "large", input: s.object({ scenario: s.string, shardSummaries: s.array(s.object({ shardLabel: s.string, summary: s.string, facts: s.array(s.string) })) }), output: s.object({ scenario: s.string, summary: s.string, savings: s.string }), instructions: "Deduplicate facts and keep the final summary short." });
 // Agent role: orchestrate deterministic search + parallel shard summarization for nine large-scale scenarios.
 const summarizeAtScale = agent({
-  name: "summarizeAtScale",
   model: "large",
   output: s.object({ scenarios: s.array(s.object({ id: s.string, summary: s.string })), costNotes: s.array(s.string) }),
   agents: { summarizeShard, reduceScenario },

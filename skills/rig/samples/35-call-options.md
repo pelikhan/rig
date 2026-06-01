@@ -4,7 +4,6 @@
 import { agent, p, s } from "rig";
 // Agent role: parse environment outputs.
 const envReader = agent({
-    name: "envReader",
     model: "mini",
     output: s.object({
         nodeMajor: s.number,

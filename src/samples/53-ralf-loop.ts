@@ -2,7 +2,6 @@ import { agent, p, s } from "rig";
 
 // Agent role: diagnose the root cause of test failures and decide if all tests pass.
 const diagnose = agent({
-  name: "diagnose",
   model: "mini",
   input: s.object({
     test: s.string,
@@ -16,7 +15,6 @@ const diagnose = agent({
 
 // Agent role: apply the smallest safe fix to address the diagnosed root cause.
 const fix = agent({
-  name: "fix",
   model: "mini",
   input: s.object({
     rootCause: s.string,
@@ -37,7 +35,6 @@ for (let i = 0; i < MAX_ITERATIONS; i++) {
 
 // Agent role: orchestrate diagnose/fix iterations as the runnable root for this loop.
 const ralfLoop = agent({
-  name: "ralfLoop",
   model: "mini",
   instructions: "Use the provided subagents to iterate diagnose/fix until done.",
   output: s.object({

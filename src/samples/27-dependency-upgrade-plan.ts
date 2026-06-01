@@ -1,7 +1,6 @@
 import { agent, s } from "rig";
 // Agent role: review the design proposal for simplicity and maintainability.
 const designReview = agent({
-    name: "designReview",
     model: "mini",
     output: s.object({
         decision: s.enum("approve", "revise", "reject"),

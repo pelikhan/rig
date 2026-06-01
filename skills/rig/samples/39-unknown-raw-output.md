@@ -4,7 +4,6 @@
 import { agent, s } from "rig";
 // Agent role: convert the finding into a typed review record.
 const reviewRecord = agent({
-    name: "reviewRecord",
     model: "mini",
     output: s.object({
         kind: s.enum("review-finding"),

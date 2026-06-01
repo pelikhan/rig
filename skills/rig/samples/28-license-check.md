@@ -4,7 +4,6 @@
 import { agent, p, s } from "rig";
 // Agent role: plan safe dependency upgrades.
 const upgradePlan = agent({
-    name: "upgradePlan",
     model: "mini",
     output: s.object({
         upgrades: s.array(s.object({

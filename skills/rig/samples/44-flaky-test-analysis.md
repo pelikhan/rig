@@ -4,7 +4,6 @@
 import { agent, p, s } from "rig";
 // Agent role: decide whether snapshot updates are legitimate.
 const snapshotReview = agent({
-    name: "snapshotReview",
     model: "mini",
     output: s.object({
         safeToUpdate: s.boolean,

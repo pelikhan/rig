@@ -5,7 +5,6 @@ const Diagnosis = s.object({
 });
 // Agent role: diagnose the test failure.
 const diagnose = agent({
-    name: "diagnose",
     model: "mini",
     input: s.object({
         test: s.string
@@ -15,7 +14,6 @@ const diagnose = agent({
 });
 // Agent role: make the smallest safe patch using engine capabilities.
 const fix = agent({
-    name: "fix",
     model: "mini",
     input: s.object({
         diagnosis: Diagnosis
@@ -28,7 +26,6 @@ const fix = agent({
 });
 // Agent role: review the patch against the diagnosis.
 const review = agent({
-    name: "review",
     model: "mini",
     input: s.object({
         diff: s.string,
@@ -46,7 +43,6 @@ await review({ diff: p.bash("git diff -- ."), diagnosis: d });
 
 // Agent role: orchestrate diagnose/fix/review as the runnable root for this workflow.
 const issueReproducer = agent({
-    name: "issueReproducer",
     model: "mini",
     instructions: "Use the provided subagents to diagnose, patch, and review a failing test case.",
     output: s.object({

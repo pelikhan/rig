@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: compare public API declarations and identify breaking changes.
 const apiDiff = agent({
-    name: "apiDiff",
     model: "mini",
     input: s.object({
         before: s.string,

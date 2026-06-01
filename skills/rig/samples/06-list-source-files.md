@@ -4,7 +4,6 @@
 import { agent, p, s } from "rig";
 // Agent role: confirm whether the write intent succeeded.
 const writer = agent({
-    name: "writer",
     model: "mini",
     output: s.object({
         written: s.boolean,

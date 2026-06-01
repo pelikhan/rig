@@ -4,7 +4,6 @@
 import { agent, s } from "rig";
 // Agent role: extract event metadata. Use undefined when deletedAt is absent.
 const parseEvent = agent({
-    name: "parseEvent",
     model: "mini",
     output: s.object({
         title: s.string,

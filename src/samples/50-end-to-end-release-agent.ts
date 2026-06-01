@@ -3,7 +3,6 @@ import { agent, p, s } from "rig";
 // Agent role: summarize the release candidate changes from the diff and recent commits.
 
 const analyzeChanges = agent({
-  name: "analyzeChanges",
   model: "mini",
   instructions: "Summarize the release candidate changes from the diff and recent commits.",
   input: s.object({
@@ -19,7 +18,6 @@ const analyzeChanges = agent({
 // Agent role: choose the safest semantic version bump for the summarized changes.
 
 const chooseVersion = agent({
-  name: "chooseVersion",
   model: "mini",
   instructions: "Choose the safest semantic version bump for the summarized changes.",
   input: s.object({
@@ -35,7 +33,6 @@ const chooseVersion = agent({
 // Agent role: draft the release title, checklist, and risks for the chosen version bump.
 
 const draftRelease = agent({
-  name: "draftRelease",
   model: "mini",
   instructions: "Draft the release title, checklist, and risks for the chosen version bump.",
   input: s.object({
@@ -65,7 +62,6 @@ await draftRelease({
 
 // Agent role: orchestrate release analysis, versioning, and release draft planning.
 const releaseCoordinator = agent({
-  name: "releaseCoordinator",
   model: "mini",
   instructions: "Use the provided subagents to produce a complete release draft from repo signals.",
   output: s.object({

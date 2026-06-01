@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: decide whether snapshot updates are legitimate.
 const snapshotReview = agent({
-    name: "snapshotReview",
     model: "mini",
     input: s.object({
         testResult: s.string,

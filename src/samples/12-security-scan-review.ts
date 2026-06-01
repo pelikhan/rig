@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: write release notes from commits. Omit empty sections as empty arrays.
 const releaseNotes = agent({
-    name: "releaseNotes",
     model: "mini",
     output: s.object({
         version: s.optional(s.string),

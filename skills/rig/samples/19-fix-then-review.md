@@ -4,7 +4,6 @@
 import { agent, p, s } from "rig";
 // Agent role: return a complete replacement for the target file.
 const patcher = agent({
-    name: "patcher",
     model: "mini",
     output: s.object({
         path: s.string,

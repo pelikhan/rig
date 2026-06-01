@@ -4,7 +4,6 @@
 import { agent, s } from "rig";
 // Agent role: extract a clear reproduction from the issue.
 const reproducer = agent({
-    name: "reproducer",
     model: "mini",
     output: s.object({
         steps: s.array(s.string),

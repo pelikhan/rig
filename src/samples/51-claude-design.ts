@@ -2,7 +2,6 @@ import { agent, s } from "rig";
 
 // Agent role: write an initial response to the user request.
 const writer = agent({
-    name: "writer",
     model: "mini",
     output: s.object({ draft: s.string }),
     instructions: "Write a helpful, clear response to the request.",
@@ -10,7 +9,6 @@ const writer = agent({
 
 // Agent role: critique the draft against helpfulness, harmlessness, and honesty principles.
 const critic = agent({
-    name: "critic",
     model: "mini",
     input: s.object({ request: s.string, draft: s.string }),
     output: s.object({
@@ -23,7 +21,6 @@ const critic = agent({
 
 // Agent role: revise the draft to address all issues identified by the critic.
 const reviser = agent({
-    name: "reviser",
     model: "mini",
     input: s.object({
         request: s.string,
@@ -41,7 +38,6 @@ await reviser({ request, draft, issues: critique.issues });
 
 // Agent role: orchestrate writer/critic/reviser as the runnable root for this loop.
 const claudeDesignLoop = agent({
-    name: "claudeDesignLoop",
     model: "mini",
     instructions: "Use the provided subagents to draft, critique, and revise one final response.",
     output: s.object({ response: s.string }),

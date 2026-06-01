@@ -4,7 +4,6 @@
 import { agent, p, s } from "rig";
 // Agent role: diagnose the CI log. Prefer the first real failure over cascading errors.
 const ciDiagnosis = agent({
-    name: "ciDiagnosis",
     model: "mini",
     output: s.object({
         failure: s.string,

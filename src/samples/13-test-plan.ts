@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: review dependency security posture from the provided outputs.
 const securityReview = agent({
-    name: "securityReview",
     model: "mini",
     input: s.object({
         dependencies: s.string,

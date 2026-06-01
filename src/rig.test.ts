@@ -111,6 +111,14 @@ describe("agent", () => {
     expect(result.findings[0]?.line).toBeUndefined();
   });
 
+  it("defaults omitted agent names", async () => {
+    mocks.setSendAndWaitImpl(async () => JSON.stringify("ok"));
+    const unnamed = agent({});
+
+    expect(unnamed.agentName).toBe("agent");
+    await expect(unnamed("hello")).resolves.toBe("ok");
+  });
+
   it("rejects implicit schema syntax at runtime", () => {
     expect(() => agent({
       name: "implicit-top-level",

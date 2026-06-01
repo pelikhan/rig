@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: find documentation gaps against the source API.
 const docsGap = agent({
-    name: "docsGap",
     model: "mini",
     input: s.object({
         source: s.string,

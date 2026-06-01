@@ -6,7 +6,6 @@ import { agent, s } from "rig";
 // Agent role: summarize the diff.
 
 const summarize = agent({
-  name: "summarize",
   model: "mini",
   instructions: "Summarize the diff.",
   output: s.object({

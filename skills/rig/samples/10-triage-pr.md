@@ -4,7 +4,6 @@
 import { agent, s } from "rig";
 // Agent role: classify the GitHub issue and suggest labels.
 const classifyIssue = agent({
-    name: "classifyIssue",
     model: "mini",
     output: s.object({
         kind: s.enum("bug", "feature", "question", "chore"),

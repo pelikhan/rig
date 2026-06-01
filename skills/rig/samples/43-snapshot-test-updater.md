@@ -4,7 +4,6 @@
 import { agent, s } from "rig";
 // Agent role: repair input.text into a JSON-compatible value.
 const repair = agent({
-    name: "jsonRepair",
     model: "mini",
     output: s.object({
         repaired: s.unknown,

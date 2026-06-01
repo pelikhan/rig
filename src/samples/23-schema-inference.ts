@@ -1,7 +1,6 @@
 import { agent, p, s } from "rig";
 // Agent role: normalize the config into a JSON-compatible object.
 const normalize = agent({
-    name: "normalizeConfig",
     model: "mini",
     output: s.object({
         normalized: s.unknown,

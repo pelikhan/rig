@@ -60,7 +60,6 @@ import { agent, p, s } from "rig";
 
 // Agent role: extract package scripts and summarize what they do.
 const extractScripts = agent({
-  name: "extractScripts",
   model: "nano",
   instructions: p`Read ${p.read("package.json")} and summarize the package scripts. Use ${p.bash("find src -name '*.ts' -type f | sort")} only to call out source files that look relevant.`,
   output: s.object({
@@ -108,7 +107,6 @@ p.read("README.md")
 p.write("README.md", "# Updated\n")
 
 const reviewWorkspace = agent({
-  name: "reviewWorkspace",
   instructions: p`Review ${p.read("README.md")} against ${p.bash("git status --short")}.`,
 });
 ```
@@ -136,7 +134,6 @@ const lookupIssue = defineTool("lookup_issue", {
 });
 
 const triage = agent({
-  name: "triage",
   instructions: "Use lookup_issue before answering.",
   tools: [lookupIssue],
 });
@@ -175,7 +172,6 @@ const steerFinalTurn = async (context, next) => {
 };
 
 const review = agent({
-  name: "review",
   maxTurns: 3,
   addons: steerFinalTurn,
 });
@@ -187,7 +183,6 @@ For the common retry flow with last-turn steering or stable default timeouts, op
 
 ```ts
 const review = agent({
-  name: "review",
   maxTurns: 3,
   addons: [timeout({ timeout: 30_000 }), steering(), repair],
 });
@@ -197,7 +192,6 @@ For direct SDK access, use `oncePerSession(...)` to register with the session on
 
 ```ts
 const review = agent({
-  name: "review",
   addons: oncePerSession((session) => {
     session.on?.((event) => {
       // custom event handling
@@ -213,7 +207,7 @@ const timingAddon = async (context, next) => {
   await next();
 };
 
-const review = agent({ name: "review" });
+const review = agent({});
 review.use(timingAddon);
 ```
 
