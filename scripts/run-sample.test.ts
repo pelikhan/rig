@@ -16,6 +16,7 @@ import { runLauncherCli } from "rig";
 const execFileAsync = promisify(execFile);
 
 const mocks = vi.hoisted(() => {
+  const approveAll = vi.fn();
   let sendAndWaitImpl: (request: { prompt: string }) => unknown | Promise<unknown> = async () => ({ text: "stub response" });
   const disconnectSession = vi.fn(async () => {});
   const stopClient = vi.fn(async () => []);
@@ -34,10 +35,11 @@ const mocks = vi.hoisted(() => {
   const setSendAndWaitImpl = (impl: (request: { prompt: string }) => unknown | Promise<unknown>) => {
     sendAndWaitImpl = impl;
   };
-  return { createSession, disconnectSession, stopClient, forUri, forStdio, CopilotClient, setSendAndWaitImpl };
+  return { approveAll, createSession, disconnectSession, stopClient, forUri, forStdio, CopilotClient, setSendAndWaitImpl };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
+  approveAll: mocks.approveAll,
   CopilotClient: mocks.CopilotClient,
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
 }));

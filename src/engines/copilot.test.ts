@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
+  const approveAll = vi.fn();
   const createSession = vi.fn();
   const forUri = vi.fn(() => ({ kind: "uri", url: "localhost:7777" }));
   const forStdio = vi.fn(() => ({ kind: "stdio" }));
@@ -9,10 +10,11 @@ const mocks = vi.hoisted(() => {
     copilotClientCtor(options);
     return { createSession };
   };
-  return { createSession, forUri, forStdio, copilotClientCtor, CopilotClient };
+  return { approveAll, createSession, forUri, forStdio, copilotClientCtor, CopilotClient };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
+  approveAll: mocks.approveAll,
   CopilotClient: mocks.CopilotClient,
   RuntimeConnection: { forUri: mocks.forUri, forStdio: mocks.forStdio },
 }));

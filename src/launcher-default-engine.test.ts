@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
+  const approveAll = vi.fn();
   const createSession = vi.fn();
   const stopClient = vi.fn(async () => []);
   const copilotClientCtor = vi.fn();
@@ -12,10 +13,11 @@ const mocks = vi.hoisted(() => {
     copilotClientCtor(options);
     return { createSession, stop: stopClient };
   };
-  return { createSession, stopClient, copilotClientCtor, defaultForUri, forUri, CopilotClient };
+  return { approveAll, createSession, stopClient, copilotClientCtor, defaultForUri, forUri, CopilotClient };
 });
 
 vi.mock("@github/copilot-sdk", () => ({
+  approveAll: mocks.approveAll,
   CopilotClient: mocks.CopilotClient,
   RuntimeConnection: { forUri: mocks.forUri, forStdio: vi.fn() },
 }));
