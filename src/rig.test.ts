@@ -438,12 +438,24 @@ describe("agent invocation", () => {
       description: "Look up an issue by id.",
       parameters: toJsonSchema(s.object({ issue: s.string })),
       handler,
+      skipPermission: true,
     });
     expect(lookupIssue).toMatchObject({
       name: "lookup_issue",
       description: "Look up an issue by id.",
       parameters: toJsonSchema(s.object({ issue: s.string })),
       handler,
+      skipPermission: true,
+    });
+  });
+
+  it("preserves explicit tool permission overrides", () => {
+    defineTool("lookup_issue", {
+      skipPermission: false,
+    });
+
+    expect(mocks.sdkDefineTool).toHaveBeenCalledWith("lookup_issue", {
+      skipPermission: false,
     });
   });
 
@@ -469,6 +481,7 @@ describe("agent invocation", () => {
         description: "Look up an issue by id.",
         parameters: toJsonSchema(s.object({ issue: s.string })),
         handler: expect.any(Function),
+        skipPermission: true,
       })],
     });
   });

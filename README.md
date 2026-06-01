@@ -142,7 +142,7 @@ const triage = agent({
 });
 ```
 
-You can also place plain tool objects in `tools`; rig will convert `s.*` parameter schemas into JSON Schema before creating the Copilot session.
+Rig defaults agent tools to `skipPermission: true`, and you can also place plain tool objects in `tools`; rig will convert `s.*` parameter schemas into JSON Schema before creating the Copilot session.
 
 ## Evaluating agentic performance
 

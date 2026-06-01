@@ -272,7 +272,7 @@ export type ToolConfig<TArgs = unknown> = {
 
 export function defineTool<T = unknown>(name: string, config: ToolConfig<T>): Tool<T> {
   return sdkDefineTool(name, {
-    ...config,
+    ...normalizeToolConfig(config),
     parameters: normalizeToolParameters(config.parameters),
   });
 }
@@ -970,6 +970,13 @@ function normalizeToolParameters<T>(parameters: ToolParameters<T> | undefined): 
   return parameters !== undefined && isSchema(parameters) ? toJsonSchema(parameters) : parameters;
 }
 
+function normalizeToolConfig<T extends { skipPermission?: boolean }>(tool: T): T & { skipPermission: boolean } {
+  return {
+    ...tool,
+    skipPermission: tool.skipPermission ?? true,
+  };
+}
+
 function normalizeTools(tools: Tool<any>[], agentName: string): Tool<any>[] {
   return tools.map((tool, index) => {
     if (!tool || typeof tool !== "object") {
@@ -979,7 +986,7 @@ function normalizeTools(tools: Tool<any>[], agentName: string): Tool<any>[] {
       throw new Error(`Invalid tool for agent "${agentName}" at tools[${index}]. Expected a non-empty tool name.`);
     }
     return {
-      ...tool,
+      ...normalizeToolConfig(tool),
       parameters: normalizeToolParameters(tool.parameters),
     };
   });
