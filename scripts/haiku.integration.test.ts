@@ -12,7 +12,7 @@ const complexSamplePath = resolve(repoRoot, "src/samples/57-complex-integration-
 const launcherPath = resolve(repoRoot, "skills/rig/rig.ts");
 const INTEGRATION_TIMEOUT_MS = 120_000;
 
-async function runSample(samplePath: string, input: string): Promise<string> {
+async function runIntegrationSample(samplePath: string, input: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
@@ -60,7 +60,7 @@ describe("rig runtime integration", () => {
   itWithToken(
     "runs a single-agent haiku sample with the real runtime",
     async () => {
-      const stdout = await runSample(haikuSamplePath, "autumn rain on city windows");
+      const stdout = await runIntegrationSample(haikuSamplePath, "autumn rain on city windows");
       const result = JSON.parse(stdout) as { haiku: string };
       expect(typeof result.haiku).toBe("string");
       const lines = result.haiku
@@ -75,7 +75,7 @@ describe("rig runtime integration", () => {
   itWithToken(
     "runs a single-agent sonnet sample with the real runtime",
     async () => {
-      const stdout = await runSample(sonnetSamplePath, "midnight train through fog");
+      const stdout = await runIntegrationSample(sonnetSamplePath, "midnight train through fog");
       const result = JSON.parse(stdout) as { haiku: string };
       expect(typeof result.haiku).toBe("string");
       const lines = result.haiku
@@ -90,7 +90,7 @@ describe("rig runtime integration", () => {
   itWithToken(
     "runs a complex sonnet sample with tools, addons, intents, and subagent wiring",
     async () => {
-      const stdout = await runSample(
+      const stdout = await runIntegrationSample(
         complexSamplePath,
         JSON.stringify({
           topic: "ship a stable release process",
