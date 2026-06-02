@@ -208,10 +208,15 @@ function resolveDefaultCopilotUri(): string {
   return process.env["COPILOT_SDK_URI"] ?? "localhost:7777";
 }
 
+function resolveDefaultGitHubToken(): string | undefined {
+  return process.env["COPILOT_GITHUB_TOKEN"];
+}
+
 export function copilotEngine(options: CopilotEngineOptions = {}): CopilotClient {
   const { server, connection, ...clientOptions } = options;
   return new CopilotClient({
     ...clientOptions,
+    gitHubToken: clientOptions.gitHubToken ?? resolveDefaultGitHubToken(),
     connection: connection ?? (server ? RuntimeConnection.forStdio() : RuntimeConnection.forUri(resolveDefaultCopilotUri())),
   });
 }

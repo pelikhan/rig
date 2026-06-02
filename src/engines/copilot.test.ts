@@ -29,6 +29,7 @@ beforeEach(() => {
   mocks.forStdio.mockImplementation(() => ({ kind: "stdio" }));
   mocks.copilotClientCtor.mockClear();
   delete process.env["COPILOT_SDK_URI"];
+  delete process.env["COPILOT_GITHUB_TOKEN"];
   vi.restoreAllMocks();
 });
 
@@ -50,6 +51,17 @@ it("uses COPILOT_SDK_URI when set", async () => {
   expect(mocks.copilotClientCtor).toHaveBeenCalledWith({ connection: { kind: "uri", url: "http://127.0.0.1:4141" } });
 });
 
+it("uses COPILOT_GITHUB_TOKEN when set", async () => {
+  process.env["COPILOT_GITHUB_TOKEN"] = "env-token";
+
+  copilotEngine().createSession({ model: "gpt-5", streaming: false } as any);
+
+  expect(mocks.copilotClientCtor).toHaveBeenCalledWith({
+    gitHubToken: "env-token",
+    connection: { kind: "uri", url: "localhost:7777" },
+  });
+});
+
 it("preserves explicit client options", async () => {
   const connection = { kind: "uri", url: "127.0.0.1:8765" } as const;
 
@@ -59,6 +71,17 @@ it("preserves explicit client options", async () => {
   expect(mocks.copilotClientCtor).toHaveBeenCalledWith({
     connection,
     workingDirectory: "/tmp/rig",
+  });
+});
+
+it("preserves explicit gitHubToken over COPILOT_GITHUB_TOKEN", async () => {
+  process.env["COPILOT_GITHUB_TOKEN"] = "env-token";
+
+  copilotEngine({ gitHubToken: "explicit-token" }).createSession({ model: "gpt-5", streaming: false } as any);
+
+  expect(mocks.copilotClientCtor).toHaveBeenCalledWith({
+    gitHubToken: "explicit-token",
+    connection: { kind: "uri", url: "localhost:7777" },
   });
 });
 
