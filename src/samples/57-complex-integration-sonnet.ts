@@ -1,7 +1,7 @@
 import { agent, s } from "rig";
 
 const complexIntegration = agent({
-  name: "complex-integration-sonnet",
+  name: "simple-integration-haiku",
   model: "claude-haiku-4.5",
   maxTurns: 2,
   input: s.object({
@@ -18,13 +18,12 @@ const complexIntegration = agent({
     })),
     contextDigest: s.object({
       repository: s.string,
-      usedFeatures: s.array(s.string),
     }),
   }),
   instructions: `
     Build a compact execution brief for the provided topic and audience.
     Keep the response concise and practical.
-    Mention only the features used directly in this sample.
+    Return only fields requested in the output schema.
   `,
 });
 

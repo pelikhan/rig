@@ -104,7 +104,6 @@ describe("rig runtime integration", () => {
         nextActions: Array<{ owner: string; action: string }>;
         contextDigest: {
           repository: string;
-          usedFeatures: string[];
         };
       };
 
@@ -117,8 +116,6 @@ describe("rig runtime integration", () => {
       expect(result.nextActions.length).toBeGreaterThan(0);
       expect(typeof result.contextDigest.repository).toBe("string");
       expect(result.contextDigest.repository.length).toBeGreaterThan(0);
-      expect(Array.isArray(result.contextDigest.usedFeatures)).toBe(true);
-      expect(result.contextDigest.usedFeatures.length).toBeGreaterThan(0);
     },
     INTEGRATION_TIMEOUT_MS,
   );
