@@ -2,6 +2,7 @@ import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { promisify } from "node:util";
 import { CopilotClient, RuntimeConnection, approveAll, defineTool as sdkDefineTool } from "@github/copilot-sdk";
 import type {
@@ -547,10 +548,14 @@ export class AgentError extends Error {
 }
 
 let currentCopilotOptions: CopilotEngineOptions | undefined;
+type CopilotRunContext = {
+  client: CopilotClient;
+};
 type CopilotSessionHandle = {
   session: CopilotSession;
   close(): Promise<void>;
 };
+const copilotRunStorage = new AsyncLocalStorage<CopilotRunContext>();
 
 /**
  * Mounts an engine and executes a rig program file.
@@ -856,7 +861,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
   const inputSchema = normalizedSpec.input ?? defaultStringSchema;
   const outputSchema = normalizedSpec.output ?? defaultStringSchema;
 
-  const fn = (async (input: unknown, options: CallOptions = {}) => {
+  const invoke = async (input: unknown, options: CallOptions = {}) => {
     const runtime = resolveCallRuntime(normalizedSpec, options);
     const normalizedInput = normalizeInput(input, inputSchema);
     let prompt = renderPrompt(normalizedSpec, normalizedInput);
@@ -919,6 +924,32 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
     }
 
     throw new Error(`Agent ${normalizedSpec.name} failed after ${runtime.maxTurns} turns. Last response:\n${lastResponse}`);
+  };
+
+  const fn = (async (input: unknown, options: CallOptions = {}) => {
+    const existingContext = copilotRunStorage.getStore();
+    if (existingContext) {
+      return invoke(input, options);
+    }
+
+    const client = copilotEngine(currentCopilotOptions);
+    return copilotRunStorage.run({ client }, async () => {
+      let failure: unknown;
+      try {
+        return await invoke(input, options);
+      } catch (error) {
+        failure = error;
+        throw error;
+      } finally {
+        try {
+          await stopCopilotClient(client);
+        } catch (cleanupError) {
+          if (failure === undefined) {
+            throw cleanupError;
+          }
+        }
+      }
+    });
   }) as AgentFn<any, any>;
 
   fn.agentName = normalizedSpec.name;
@@ -1294,7 +1325,11 @@ async function createCopilotSession(
   systemMessage?: SystemMessageConfig,
   tools?: Tool<any>[],
 ): Promise<CopilotSessionHandle> {
-  const client = copilotEngine(currentCopilotOptions);
+  const runContext = copilotRunStorage.getStore();
+  const client = runContext?.client;
+  if (!client) {
+    throw new Error("No Copilot client found in execution context. Invoke agents through the exported agent function.");
+  }
   const config = {
     model,
     streaming: false,
@@ -1302,17 +1337,7 @@ async function createCopilotSession(
     ...(systemMessage !== undefined && { systemMessage }),
     ...(tools !== undefined && { tools }),
   };
-  let session: CopilotSession;
-  try {
-    session = await client.createSession(config);
-  } catch (error) {
-    try {
-      await stopCopilotClient(client);
-    } catch (cleanupError) {
-      throw new AggregateError([asError(error), asError(cleanupError)], "Failed to create Copilot session");
-    }
-    throw error;
-  }
+  const session = await client.createSession(config);
   session.on?.((event: unknown) => {
     writeEvent(event);
   });
@@ -1328,12 +1353,6 @@ async function createCopilotSession(
         } catch (error) {
           errors.push(asError(error));
         }
-      }
-
-      try {
-        await stopCopilotClient(client);
-      } catch (error) {
-        errors.push(asError(error));
       }
 
       throwCleanupErrors(errors, "Failed to close Copilot session");
