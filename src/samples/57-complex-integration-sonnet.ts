@@ -1,7 +1,7 @@
 import { agent, s } from "rig";
 
 const complexIntegration = agent({
-  name: "simple-integration-haiku",
+  name: "integration-haiku",
   model: "claude-haiku-4.5",
   maxTurns: 2,
   input: s.object({

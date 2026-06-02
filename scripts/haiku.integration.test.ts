@@ -88,7 +88,7 @@ describe("rig runtime integration", () => {
   );
 
   itWithToken(
-    "runs a compact haiku sample without tools or subagents",
+    "runs a simplified integration sample without tools or subagents",
     async () => {
       const stdout = await runIntegrationSample(
         complexSamplePath,
