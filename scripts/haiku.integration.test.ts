@@ -55,14 +55,18 @@ async function runHaikuSample(prompt: string): Promise<string> {
 }
 
 describe("rig runtime integration", () => {
-  itWithToken("runs a single-agent haiku sample with the real runtime", async () => {
-    const stdout = await runHaikuSample("autumn rain on city windows");
-    const result = JSON.parse(stdout) as { haiku: string };
-    expect(typeof result.haiku).toBe("string");
-    const lines = result.haiku
-      .split(/\r?\n/g)
-      .map((line) => line.trim())
-      .filter(Boolean);
-    expect(lines).toHaveLength(3);
-  });
+  itWithToken(
+    "runs a single-agent haiku sample with the real runtime",
+    async () => {
+      const stdout = await runHaikuSample("autumn rain on city windows");
+      const result = JSON.parse(stdout) as { haiku: string };
+      expect(typeof result.haiku).toBe("string");
+      const lines = result.haiku
+        .split(/\r?\n/g)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      expect(lines).toHaveLength(3);
+    },
+    INTEGRATION_TIMEOUT_MS,
+  );
 });
