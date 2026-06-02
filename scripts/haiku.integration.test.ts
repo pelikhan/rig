@@ -7,13 +7,14 @@ const token = process.env["COPILOT_GITHUB_TOKEN"];
 const itWithToken = token ? it : it.skip;
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const samplePath = resolve(repoRoot, "src/samples/01-single-agent-haiku.ts");
+const launcherPath = resolve(repoRoot, "skills/rig/rig.ts");
 const INTEGRATION_TIMEOUT_MS = 120_000;
 
 async function runHaikuSample(prompt: string): Promise<string> {
   return await new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      ["skills/rig/rig.ts", samplePath, "--server"],
+      [launcherPath, samplePath, "--server"],
       {
         cwd: repoRoot,
         env: { ...process.env, COPILOT_GITHUB_TOKEN: token },
@@ -53,7 +54,7 @@ async function runHaikuSample(prompt: string): Promise<string> {
   });
 }
 
-describe("integration launcher runtime", () => {
+describe("rig runtime integration", () => {
   itWithToken("runs a single-agent haiku sample with the real runtime", async () => {
     const stdout = await runHaikuSample("autumn rain on city windows");
     const result = JSON.parse(stdout) as { haiku: string };
