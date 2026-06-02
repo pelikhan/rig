@@ -209,7 +209,7 @@ function resolveDefaultCopilotUri(): string {
 }
 
 function resolveDefaultGitHubToken(): string | undefined {
-  return process.env["COPILOT_GITHUB_TOKEN"];
+  return process.env["COPILOT_SDK_AUTH_TOKEN"];
 }
 
 export function copilotEngine(options: CopilotEngineOptions = {}): CopilotClient {

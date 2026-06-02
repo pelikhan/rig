@@ -29,7 +29,7 @@ beforeEach(() => {
   mocks.forStdio.mockImplementation(() => ({ kind: "stdio" }));
   mocks.copilotClientCtor.mockClear();
   delete process.env["COPILOT_SDK_URI"];
-  delete process.env["COPILOT_GITHUB_TOKEN"];
+  delete process.env["COPILOT_SDK_AUTH_TOKEN"];
   vi.restoreAllMocks();
 });
 
@@ -51,8 +51,8 @@ it("uses COPILOT_SDK_URI when set", async () => {
   expect(mocks.copilotClientCtor).toHaveBeenCalledWith({ connection: { kind: "uri", url: "http://127.0.0.1:4141" } });
 });
 
-it("uses COPILOT_GITHUB_TOKEN when set", async () => {
-  process.env["COPILOT_GITHUB_TOKEN"] = "env-token";
+it("uses COPILOT_SDK_AUTH_TOKEN when set", async () => {
+  process.env["COPILOT_SDK_AUTH_TOKEN"] = "env-token";
 
   copilotEngine().createSession({ model: "gpt-5", streaming: false } as any);
 
@@ -74,8 +74,8 @@ it("preserves explicit client options", async () => {
   });
 });
 
-it("preserves explicit gitHubToken over COPILOT_GITHUB_TOKEN", async () => {
-  process.env["COPILOT_GITHUB_TOKEN"] = "env-token";
+it("preserves explicit gitHubToken over COPILOT_SDK_AUTH_TOKEN", async () => {
+  process.env["COPILOT_SDK_AUTH_TOKEN"] = "env-token";
 
   copilotEngine({ gitHubToken: "explicit-token" }).createSession({ model: "gpt-5", streaming: false } as any);
 
