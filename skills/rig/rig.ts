@@ -1328,7 +1328,7 @@ async function createCopilotSession(
   const runContext = copilotRunStorage.getStore();
   const client = runContext?.client;
   if (!client) {
-    throw new Error("Copilot run context is not initialized.");
+    throw new Error("No Copilot client found in execution context. Invoke agents through the exported agent function.");
   }
   const config = {
     model,
