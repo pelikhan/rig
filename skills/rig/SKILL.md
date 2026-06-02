@@ -52,7 +52,7 @@ export default reviewDiff;
 Use this checklist before finalizing generated code:
 
 1. Use a single `import { ... } from "rig"` statement.
-2. Use `agent({ ... })` with explicit `name`; keep `instructions` and `output` explicit, and include `input` when the scenario needs it.
+2. Use `agent({ ... })`; include `name` when it helps differentiate agents, keep `instructions` and `output` explicit, and include `input` when the scenario needs it.
 3. Define input/output with `s.object(...)` and explicit `s.*` helpers.
 4. Keep output schema strict (enums/literals for constrained values).
 5. Add a `// Agent role: ...` comment above each agent declaration.
@@ -93,7 +93,17 @@ Declare a structured agent.
 | `addons` | Per-turn addons for steering, validation, and retry customization |
 | `agents` | Optional named subagents exposed to the harness |
 
-Use `agent({ name, ... })` as the only agent declaration form.
+Use `agent({ name, ... })` as the only agent declaration form. `name` is optional; when omitted rig normalizes it to `"agent"`.
+
+## Agent behavior defaults
+
+| Setting | Default |
+|---------|---------|
+| Model | `gpt-4.1` |
+| Max turns | `4` |
+| Addons | none |
+
+Override per call with `model`, `maxTurns`, `timeout`, and `signal`. Put stable defaults in the agent spec; use call-time options for per-run changes.
 
 ## Schemas
 
@@ -113,14 +123,20 @@ Use explicit schemas in docs and generated samples.
 
 ```ts
 s.string
+s.string("description")
 s.number
 s.boolean
 s.unknown
 s.array(item)
+s.array(item, "description")
 s.object(fields)
+s.object(fields, "description")
 s.record(value)
+s.record(value, "description")
 s.enum(...values)
+s.enum(values, "description")
 s.optional(shape)
+s.optional(shape, "description")
 ```
 
 Common examples:
@@ -129,6 +145,29 @@ Common examples:
 s.enum("bug", "feature", "question")
 s.optional(s.number)
 s.record(s.string)
+```
+
+## Tools
+
+Register custom tools with `defineTool` using the same shape as `@github/copilot-sdk`. Use `s.*` schemas for `parameters`. Rig defaults tools to `skipPermission: true`.
+
+```ts
+import { agent, defineTool, s } from "rig";
+
+const lookupIssue = defineTool("lookup_issue", {
+  description: "Look up an issue by id.",
+  parameters: s.object({
+    issue: s.string,
+  }),
+  handler: async ({ issue }) => `Issue ${issue}`,
+});
+
+// Agent role: triage an issue using the lookup tool.
+const triage = agent({
+  model: "mini",
+  instructions: "Use lookup_issue before answering.",
+  tools: [lookupIssue],
+});
 ```
 
 ## Prompt helpers
@@ -242,6 +281,8 @@ const summarize = agent({
 Use addons to steer retry prompts when needed (for example `steering()` from `rig/addons`).
 Use `oncePerSession()` from `rig/addons` when you need to register with the Copilot session once per call instead of checking `context.turn === 1`.
 
+The addon `context` object contains: `prompt`, `response`, `turn`, `maxTurns`, `signal`, `output`, `nextPrompt`, `error`, `completed`, and `session` (direct Copilot SDK session access).
+
 ## Running programs
 
 Treat fenced `rig` code blocks in markdown as runnable rig programs.
@@ -285,6 +326,11 @@ Program-file mode also supports `--typecheck`:
 ```bash
 echo "Review this diff" | node skills/rig/rig.ts src/program.ts --typecheck
 ```
+
+For program-file mode stdin coercion:
+- if root input schema is `string`, stdin is passed as raw text
+- if root input schema is an object containing `text`, stdin is passed as `{ text: "<stdin>" }`
+- otherwise stdin must be valid JSON for the declared input schema
 
 ## Copilot SDK runtime
 
