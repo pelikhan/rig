@@ -214,9 +214,10 @@ function resolveDefaultGitHubToken(): string | undefined {
 
 export function copilotEngine(options: CopilotEngineOptions = {}): CopilotClient {
   const { server, connection, ...clientOptions } = options;
+  const gitHubToken = clientOptions.gitHubToken ?? resolveDefaultGitHubToken();
   return new CopilotClient({
     ...clientOptions,
-    gitHubToken: clientOptions.gitHubToken ?? resolveDefaultGitHubToken(),
+    ...(gitHubToken === undefined ? {} : { gitHubToken }),
     connection: connection ?? (server ? RuntimeConnection.forStdio() : RuntimeConnection.forUri(resolveDefaultCopilotUri())),
   });
 }
