@@ -24,11 +24,11 @@ jobs:
         run: npm test
 
       - name: Integration test
-        if: ${{ secrets.COPILOT_GITHUB_TOKEN != '' }}
+        if: secrets.COPILOT_GITHUB_TOKEN != ''
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
         run: npm run test:integration
 
       - name: Integration test skipped (no token)
-        if: ${{ secrets.COPILOT_GITHUB_TOKEN == '' }}
+        if: secrets.COPILOT_GITHUB_TOKEN == ''
         run: echo "Skipping integration tests: COPILOT_GITHUB_TOKEN is not available."

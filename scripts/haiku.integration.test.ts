@@ -7,9 +7,10 @@ const token = process.env["COPILOT_GITHUB_TOKEN"];
 const itWithToken = token ? it : it.skip;
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const samplePath = resolve(repoRoot, "src/samples/01-single-agent-haiku.ts");
+const INTEGRATION_TIMEOUT_MS = 120_000;
 
 async function runHaikuSample(prompt: string): Promise<string> {
-  return await new Promise((resolveOutput, rejectOutput) => {
+  return await new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
       ["skills/rig/rig.ts", samplePath, "--server"],
@@ -23,8 +24,8 @@ async function runHaikuSample(prompt: string): Promise<string> {
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
-      rejectOutput(new Error("Timed out waiting for haiku integration run."));
-    }, 120000);
+      reject(new Error("Timed out waiting for haiku integration run."));
+    }, INTEGRATION_TIMEOUT_MS);
 
     child.stdout.on("data", (chunk) => {
       stdout += chunk.toString();
@@ -36,16 +37,16 @@ async function runHaikuSample(prompt: string): Promise<string> {
 
     child.on("error", (error) => {
       clearTimeout(timer);
-      rejectOutput(error);
+      reject(error);
     });
 
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) {
-        rejectOutput(new Error(`Haiku integration run failed with exit code ${code}.\n${stderr}`));
+        reject(new Error(`Haiku integration run failed with exit code ${code}.\n${stderr}`));
         return;
       }
-      resolveOutput(stdout);
+      resolve(stdout);
     });
 
     child.stdin.end(prompt);
