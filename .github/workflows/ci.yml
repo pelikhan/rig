@@ -26,9 +26,9 @@ jobs:
         run: npm test
 
       - name: Integration test
-        if: env.COPILOT_GITHUB_TOKEN != ''
+        if: env.COPILOT_GITHUB_TOKEN
         run: npm run test:integration
 
       - name: Integration test skipped (no token)
-        if: env.COPILOT_GITHUB_TOKEN == ''
+        if: ${{ !env.COPILOT_GITHUB_TOKEN }}
         run: echo "Skipping integration tests: COPILOT_GITHUB_TOKEN is not available."

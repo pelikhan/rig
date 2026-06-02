@@ -11,7 +11,7 @@ const launcherPath = resolve(repoRoot, "skills/rig/rig.ts");
 const INTEGRATION_TIMEOUT_MS = 120_000;
 
 async function runHaikuSample(prompt: string): Promise<string> {
-  return await new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
       [launcherPath, samplePath, "--server"],
