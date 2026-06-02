@@ -1,6 +1,6 @@
 import { agent, s } from "rig";
 
-const complexIntegration = agent({
+const integrationAgent = agent({
   name: "integration-haiku",
   model: "claude-haiku-4.5",
   maxTurns: 2,
@@ -27,4 +27,4 @@ const complexIntegration = agent({
   `,
 });
 
-export default complexIntegration;
+export default integrationAgent;
