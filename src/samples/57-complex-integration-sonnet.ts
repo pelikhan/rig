@@ -1,7 +1,7 @@
 import { agent, defineTool, p, s } from "rig";
 import { oncePerSession, steering, timeout } from "rig/addons";
 
-const summarizeText = defineTool("summarize_text", {
+const summarizeText = defineTool<{ text: string }>("summarize_text", {
   description: "Create a concise summary from text.",
   parameters: s.object({
     text: s.string,
