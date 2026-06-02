@@ -2,6 +2,8 @@ name: CI
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
   build-test:
     runs-on: ubuntu-latest
@@ -39,11 +41,11 @@ jobs:
         run: npm ci
 
       - name: Integration test
-        if: ${{ secrets.COPILOT_GITHUB_TOKEN != '' }}
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-        run: npm run test:integration
-
-      - name: Integration test skipped (no token)
-        if: ${{ secrets.COPILOT_GITHUB_TOKEN == '' }}
-        run: echo "Skipping integration tests: COPILOT_GITHUB_TOKEN is not available."
+        run: |
+          if [ -z "${COPILOT_GITHUB_TOKEN:-}" ]; then
+            echo "Skipping integration tests: COPILOT_GITHUB_TOKEN is not available."
+          else
+            npm run test:integration
+          fi
