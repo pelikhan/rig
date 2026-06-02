@@ -8,7 +8,7 @@ const itWithToken = token ? it : it.skip;
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const haikuSamplePath = resolve(repoRoot, "src/samples/01-single-agent-haiku.ts");
 const sonnetSamplePath = resolve(repoRoot, "src/samples/56-single-agent-sonnet.ts");
-const complexSamplePath = resolve(repoRoot, "src/samples/57-complex-integration-sonnet.ts");
+const integrationSamplePath = resolve(repoRoot, "src/samples/57-simple-integration-haiku.ts");
 const launcherPath = resolve(repoRoot, "skills/rig/rig.ts");
 const INTEGRATION_TIMEOUT_MS = 120_000;
 
@@ -91,7 +91,7 @@ describe("rig runtime integration", () => {
     "runs a simplified integration sample without tools or subagents",
     async () => {
       const stdout = await runIntegrationSample(
-        complexSamplePath,
+        integrationSamplePath,
         JSON.stringify({
           topic: "ship a stable release process",
           audience: "maintainers",
