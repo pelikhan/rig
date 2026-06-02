@@ -444,7 +444,7 @@ describe("agent invocation", () => {
     await call("x");
 
     expect(mocks.createSession).toHaveBeenCalledWith({
-      model: "gpt-4.1",
+      model: "gpt-5.3-codex",
       streaming: false,
       onPermissionRequest: mocks.approveAll,
       systemMessage,
@@ -457,7 +457,7 @@ describe("agent invocation", () => {
     const call = agent({ name: "no-sys-msg-test" });
     await call("x");
 
-    expect(mocks.createSession).toHaveBeenCalledWith({ model: "gpt-4.1", streaming: false, onPermissionRequest: mocks.approveAll });
+    expect(mocks.createSession).toHaveBeenCalledWith({ model: "gpt-5.3-codex", streaming: false, onPermissionRequest: mocks.approveAll });
   });
 
   it("defines tools with rig schemas using the Copilot SDK helper shape", () => {
@@ -508,7 +508,7 @@ describe("agent invocation", () => {
     await call("x");
 
     expect(mocks.createSession).toHaveBeenCalledWith({
-      model: "gpt-4.1",
+      model: "gpt-5.3-codex",
       onPermissionRequest: mocks.approveAll,
       streaming: false,
       tools: [expect.objectContaining({

@@ -99,7 +99,7 @@ Use `agent({ name, ... })` as the only agent declaration form. `name` is optiona
 
 | Setting | Default |
 |---------|---------|
-| Model | `gpt-4.1` |
+| Model | `gpt-5.3-codex` |
 | Max turns | `4` |
 | Addons | none |
 

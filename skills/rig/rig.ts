@@ -1383,7 +1383,7 @@ function resolveCallRuntime(spec: NormalizedAgentSpec<any, any>, options: CallOp
   tools: Tool<any>[] | undefined;
 } {
   return {
-    model: options.model ?? spec.model ?? "gpt-4.1",
+    model: options.model ?? spec.model ?? "gpt-5.3-codex",
     maxTurns: options.maxTurns ?? spec.maxTurns ?? 4,
     signal: timeoutSignal(options.signal, options.timeout),
     addons: normalizeAddons(spec.addons),
