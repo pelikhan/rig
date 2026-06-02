@@ -5,6 +5,8 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    env:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,11 +26,9 @@ jobs:
         run: npm test
 
       - name: Integration test
-        if: secrets.COPILOT_GITHUB_TOKEN != ''
-        env:
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+        if: env.COPILOT_GITHUB_TOKEN != ''
         run: npm run test:integration
 
       - name: Integration test skipped (no token)
-        if: secrets.COPILOT_GITHUB_TOKEN == ''
+        if: env.COPILOT_GITHUB_TOKEN == ''
         run: echo "Skipping integration tests: COPILOT_GITHUB_TOKEN is not available."
