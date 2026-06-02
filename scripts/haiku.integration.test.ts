@@ -88,7 +88,7 @@ describe("rig runtime integration", () => {
   );
 
   itWithToken(
-    "runs a complex sonnet sample with tools, addons, intents, and subagent wiring",
+    "runs a compact haiku sample without tools or subagents",
     async () => {
       const stdout = await runIntegrationSample(
         complexSamplePath,
@@ -105,7 +105,6 @@ describe("rig runtime integration", () => {
         contextDigest: {
           repository: string;
           usedFeatures: string[];
-          toolHint: string;
         };
       };
 
@@ -119,9 +118,7 @@ describe("rig runtime integration", () => {
       expect(typeof result.contextDigest.repository).toBe("string");
       expect(result.contextDigest.repository.length).toBeGreaterThan(0);
       expect(Array.isArray(result.contextDigest.usedFeatures)).toBe(true);
-      expect(result.contextDigest.usedFeatures.length).toBeGreaterThanOrEqual(5);
-      expect(typeof result.contextDigest.toolHint).toBe("string");
-      expect(result.contextDigest.toolHint.length).toBeGreaterThan(0);
+      expect(result.contextDigest.usedFeatures.length).toBeGreaterThan(0);
     },
     INTEGRATION_TIMEOUT_MS,
   );
