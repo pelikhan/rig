@@ -206,7 +206,7 @@ describe("agent invocation", () => {
     expect(mocks.stopClient).toHaveBeenCalledTimes(1);
   });
 
-  it("uses a fresh client per nested agent invocation so each model gets its own connection", async () => {
+  it("reuses one client for nested agent invocations while creating model-specific sessions", async () => {
     const child = agent({
       name: "child",
       model: "o3-mini",
@@ -229,14 +229,14 @@ describe("agent invocation", () => {
     });
 
     await expect(parent({ text: "parent" })).resolves.toEqual({ text: "parent-ok" });
-    expect(mocks.copilotClientCtor).toHaveBeenCalledTimes(2);
+    expect(mocks.copilotClientCtor).toHaveBeenCalledTimes(1);
     expect(mocks.createSession).toHaveBeenCalledTimes(2);
     expect(mocks.createSession.mock.calls).toEqual([
       [{ model: "gpt-4.1", streaming: false, onPermissionRequest: mocks.approveAll }],
       [{ model: "o3-mini", streaming: false, onPermissionRequest: mocks.approveAll }],
     ]);
     expect(mocks.disconnectSession).toHaveBeenCalledTimes(2);
-    expect(mocks.stopClient).toHaveBeenCalledTimes(2);
+    expect(mocks.stopClient).toHaveBeenCalledTimes(1);
   });
 
   it("logs raw Copilot SDK events and rig ask events as JSONL", async () => {
