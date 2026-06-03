@@ -135,10 +135,28 @@ export type InferSchema<T> =
   T extends { type: "object"; additionalProperties: infer Value } ? Record<string, InferSchema<Value>> :
   unknown;
 
+/**
+ * Schema helper namespace for declaring typed agent input/output shapes.
+ *
+ * Each helper produces a `Schema` value that drives both TypeScript inference
+ * (`InferSchema<T>`) and the JSON Schema emitted inside the model prompt.
+ *
+ * @example
+ * ```ts
+ * agent({
+ *   input:  s.object({ query: s.string }),
+ *   output: s.object({ answer: s.string, confidence: s.optional(s.number) }),
+ * });
+ * ```
+ */
 export const s = {
+  /** Schema for a JSON string value. */
   string: createTypedPrimitiveSchema<StringSchema>("string"),
+  /** Schema for a JSON number value. */
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
+  /** Schema for a JSON boolean value. */
   boolean: createTypedPrimitiveSchema<BooleanSchema>("boolean"),
+  /** Schema that accepts any JSON value (no type constraint). */
   unknown: createUnknownSchema(),
   array<Item extends Schema>(items: Item, description?: string): ArraySchema<Item> {
     return description === undefined ? markAsSchema({ type: "array", items }) : markAsSchema({ type: "array", items, description });
@@ -852,6 +870,31 @@ export async function runLauncherCli(
   await runProgramCodeFromStdin(mergedOptions, io, scriptName);
 }
 
+/**
+ * Define a typed agent from a declarative spec.
+ *
+ * Returns a callable `AgentFn` that, when invoked, opens a Copilot session,
+ * sends the rendered prompt, validates the response against `output`, and
+ * returns the parsed value typed as `InferSchema<Output>`.
+ *
+ * The returned function also carries metadata (`agentName`, `inputSchema`,
+ * `outputSchema`, `spec`) so it can be passed as a subagent to another agent
+ * via the `agents` field.
+ *
+ * @param spec - Agent specification including instructions, schemas, model,
+ *   add-ons, and optional subagents.
+ *
+ * @example
+ * ```ts
+ * const classify = agent({
+ *   model: "mini",
+ *   instructions: "Classify the sentiment.",
+ *   input: s.object({ text: s.string }),
+ *   output: s.object({ label: s.enum("positive", "negative", "neutral") }),
+ * });
+ * const result = await classify({ text: "I love it!" });
+ * ```
+ */
 export function agent<
   const Input extends Schema = StringSchema,
   const Output extends Schema = StringSchema
