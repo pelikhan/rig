@@ -1464,9 +1464,19 @@ function ok(): ValidationResult {
   return { ok: true };
 }
 
+function valuePreview(value: unknown): string {
+  if (value === undefined || value === null) return "";
+  try {
+    const text = JSON.stringify(value);
+    return text.length <= 40 ? ` (${text})` : ` (${text.slice(0, 37)}...)`;
+  } catch {
+    return "";
+  }
+}
+
 function bad(path: string, expected: string, actual: unknown): ValidationResult {
   const actualType = actual === null ? "null" : Array.isArray(actual) ? "array" : typeof actual;
-  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}` };
+  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}${valuePreview(actual)}` };
 }
 
 function tag(name: string, value: string): string {
