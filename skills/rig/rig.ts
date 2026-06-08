@@ -852,6 +852,13 @@ export async function runLauncherCli(
   await runProgramCodeFromStdin(mergedOptions, io, scriptName);
 }
 
+/**
+ * Defines a typed agent that prompts a Copilot model and validates the
+ * response against the declared `output` schema. Input/output types are
+ * inferred from the `s.*` schema descriptors. Pass an optional description
+ * to any `s.*` helper (e.g. `s.string("one-sentence summary")`) to embed
+ * field-level guidance directly in the schema sent to the model.
+ */
 export function agent<
   const Input extends Schema = StringSchema,
   const Output extends Schema = StringSchema
