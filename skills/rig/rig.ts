@@ -1121,9 +1121,12 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
     return { ok: true };
   }
   if ("enum" in schema) {
-    return schema.enum.some((item: Json) => deepEqual(item, value))
-      ? ok()
-      : bad(path, schema.enum.map((item: Json) => JSON.stringify(item)).join(" | "), value);
+    if (schema.enum.some((item: Json) => deepEqual(item, value))) {
+      return ok();
+    }
+    const allowed = schema.enum.map((item: Json) => JSON.stringify(item)).join(" | ");
+    const got = value === undefined ? "undefined" : (JSON.stringify(value) ?? typeof value);
+    return { ok: false, error: `${path}: expected ${allowed}, got ${got}` };
   }
   if ("items" in schema) {
     if (!Array.isArray(value)) {
