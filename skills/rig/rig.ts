@@ -1465,8 +1465,20 @@ function ok(): ValidationResult {
 }
 
 function bad(path: string, expected: string, actual: unknown): ValidationResult {
-  const actualType = actual === null ? "null" : Array.isArray(actual) ? "array" : typeof actual;
-  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}` };
+  let actualDesc: string;
+  if (actual === null) {
+    actualDesc = "null";
+  } else if (Array.isArray(actual)) {
+    actualDesc = "array";
+  } else if (typeof actual === "string") {
+    const truncated = actual.length > 40 ? `${actual.slice(0, 40)}…` : actual;
+    actualDesc = JSON.stringify(truncated);
+  } else if (typeof actual === "number" || typeof actual === "boolean") {
+    actualDesc = String(actual);
+  } else {
+    actualDesc = typeof actual;
+  }
+  return { ok: false, error: `${path}: expected ${expected}, got ${actualDesc}` };
 }
 
 function tag(name: string, value: string): string {
