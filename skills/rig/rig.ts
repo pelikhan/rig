@@ -1466,7 +1466,9 @@ function ok(): ValidationResult {
 
 function bad(path: string, expected: string, actual: unknown): ValidationResult {
   const actualType = actual === null ? "null" : Array.isArray(actual) ? "array" : typeof actual;
-  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}` };
+  const isScalar = actual === null || typeof actual === "string" || typeof actual === "number" || typeof actual === "boolean";
+  const actualDetail = isScalar ? ` (${JSON.stringify(actual)})` : "";
+  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}${actualDetail}` };
 }
 
 function tag(name: string, value: string): string {
