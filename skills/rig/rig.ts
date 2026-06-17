@@ -852,6 +852,23 @@ export async function runLauncherCli(
   await runProgramCodeFromStdin(mergedOptions, io, scriptName);
 }
 
+/**
+ * Defines a typed AI agent backed by the Copilot engine.
+ *
+ * Returns a callable that accepts input conforming to `spec.input` and
+ * resolves to a value conforming to `spec.output`.  Prompt intents
+ * (`p.bash`, `p.read`, `p.write`) may appear anywhere in the input to inject
+ * deferred shell or file-system instructions into the model prompt.
+ *
+ * @example
+ * const reviewer = agent({
+ *   model: "mini",
+ *   input: s.object({ diff: s.string }),
+ *   output: s.object({ approved: s.boolean, notes: s.string }),
+ *   instructions: "Review the diff and approve or reject it.",
+ * });
+ * const result = await reviewer({ diff: p.bash("git diff HEAD") });
+ */
 export function agent<
   const Input extends Schema = StringSchema,
   const Output extends Schema = StringSchema
