@@ -852,6 +852,20 @@ export async function runLauncherCli(
   await runProgramCodeFromStdin(mergedOptions, io, scriptName);
 }
 
+/**
+ * Creates a typed agent function from a declarative spec.
+ *
+ * @param spec.instructions - Prompt instructions that shape the agent's behaviour.
+ * @param spec.input - Input schema; defaults to `s.string`. Use `s.*` helpers.
+ * @param spec.output - Output schema; defaults to `s.string`. The harness validates
+ *   the LLM response against this schema and retries up to `maxTurns` on failure.
+ * @param spec.model - Copilot model name; defaults to `"gpt-4.1"`.
+ * @param spec.maxTurns - Maximum repair turns before giving up; defaults to `4`.
+ * @param spec.addons - Middleware hooks that run around each prompt turn.
+ * @param spec.agents - Named sub-agents surfaced to the prompt via `<subagents>`.
+ * @param spec.tools - Copilot tools made available during the session.
+ * @returns An async function `(input, options?) => Promise<Output>` typed against the schemas.
+ */
 export function agent<
   const Input extends Schema = StringSchema,
   const Output extends Schema = StringSchema
