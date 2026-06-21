@@ -885,7 +885,7 @@ export function agent(spec: AgentSpec<any, any>): AgentFn<any, any> {
         };
 
         await runAgentAddons(runtime.addons, context, async () => {
-          lastResponse = await sendCopilotPrompt(copilot.session, context.prompt, context.signal);
+          lastResponse = await sendCopilotPrompt(copilot.session, context.prompt, context.spec.name, context.turn, context.signal);
           context.response = lastResponse;
         });
 
@@ -1360,9 +1360,9 @@ async function createCopilotSession(
   };
 }
 
-async function sendCopilotPrompt(session: CopilotSession, prompt: string, signal?: AbortSignal): Promise<string> {
+async function sendCopilotPrompt(session: CopilotSession, prompt: string, agentName: string, turn: number, signal?: AbortSignal): Promise<string> {
   const request = signal ? { prompt, signal } : { prompt };
-  writeEvent(rigEvent("copilot-ask", { prompt }));
+  writeEvent(rigEvent("copilot-ask", { agent: agentName, turn, prompt }));
   const response = await session.sendAndWait(request);
   if (!response) {
     return "";
