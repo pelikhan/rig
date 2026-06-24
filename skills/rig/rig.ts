@@ -139,6 +139,12 @@ export const s = {
   string: createTypedPrimitiveSchema<StringSchema>("string"),
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
   boolean: createTypedPrimitiveSchema<BooleanSchema>("boolean"),
+  /**
+   * Accepts any JSON value. Serializes to `{}` in JSON Schema, giving the model no structural
+   * constraints. Pass a description to guide the LLM toward the expected shape:
+   * `s.unknown("a normalized JSON-compatible config object")`.
+   * Use when the output shape is genuinely dynamic and cannot be described upfront.
+   */
   unknown: createUnknownSchema(),
   array<Item extends Schema>(items: Item, description?: string): ArraySchema<Item> {
     return description === undefined ? markAsSchema({ type: "array", items }) : markAsSchema({ type: "array", items, description });
