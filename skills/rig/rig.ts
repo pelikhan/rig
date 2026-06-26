@@ -1466,6 +1466,11 @@ function ok(): ValidationResult {
 
 function bad(path: string, expected: string, actual: unknown): ValidationResult {
   const actualType = actual === null ? "null" : Array.isArray(actual) ? "array" : typeof actual;
+  if (typeof actual === "string" || typeof actual === "number" || typeof actual === "boolean" || actual === null) {
+    const repr = JSON.stringify(actual);
+    const truncated = repr.length > 80 ? `${repr.slice(0, 77)}...` : repr;
+    return { ok: false, error: `${path}: expected ${expected}, got ${actualType} (${truncated})` };
+  }
   return { ok: false, error: `${path}: expected ${expected}, got ${actualType}` };
 }
 
