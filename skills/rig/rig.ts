@@ -852,6 +852,22 @@ export async function runLauncherCli(
   await runProgramCodeFromStdin(mergedOptions, io, scriptName);
 }
 
+/**
+ * Defines a typed agent with declarative input/output schemas and optional instructions.
+ *
+ * Returns an async function that invokes the agent against a Copilot model session.
+ * Input and output types are inferred from the `s.*` schema descriptors. Call-time
+ * `options` (e.g. `model`, `maxTurns`, `signal`) override the spec defaults.
+ *
+ * @example
+ * const guide = agent({
+ *   model: "mini",
+ *   input: s.object({ fromVersion: s.string, toVersion: s.string }),
+ *   output: s.object({ title: s.string, steps: s.array(s.string) }),
+ *   instructions: "Write a concise migration guide.",
+ * });
+ * const result = await guide({ fromVersion: "1.0", toVersion: "2.0" });
+ */
 export function agent<
   const Input extends Schema = StringSchema,
   const Output extends Schema = StringSchema
