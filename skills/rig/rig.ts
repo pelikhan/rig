@@ -1466,7 +1466,18 @@ function ok(): ValidationResult {
 
 function bad(path: string, expected: string, actual: unknown): ValidationResult {
   const actualType = actual === null ? "null" : Array.isArray(actual) ? "array" : typeof actual;
-  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}` };
+  let suffix = "";
+  if (actual !== null && actual !== undefined) {
+    try {
+      const repr = JSON.stringify(actual);
+      if (typeof repr === "string") {
+        suffix = ` (${repr.length > 60 ? `${repr.slice(0, 60)}\u2026` : repr})`;
+      }
+    } catch {
+      // Ignore non-serializable values (e.g. BigInt).
+    }
+  }
+  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}${suffix}` };
 }
 
 function tag(name: string, value: string): string {
