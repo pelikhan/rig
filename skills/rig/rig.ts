@@ -135,24 +135,58 @@ export type InferSchema<T> =
   T extends { type: "object"; additionalProperties: infer Value } ? Record<string, InferSchema<Value>> :
   unknown;
 
+/**
+ * Schema helpers for declaring agent input/output shapes.
+ *
+ * @example
+ * ```ts
+ * agent({
+ *   output: s.object({
+ *     title: s.string,
+ *     score: s.number,
+ *     tags: s.array(s.string),
+ *     status: s.enum("open", "closed"),
+ *     meta: s.optional(s.record(s.string)),
+ *   }),
+ * });
+ * ```
+ */
 export const s = {
+  /** Schema for a string value. Call as `s.string` or `s.string("description")`. */
   string: createTypedPrimitiveSchema<StringSchema>("string"),
+  /** Schema for a numeric value. Call as `s.number` or `s.number("description")`. */
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
+  /** Schema for a boolean value. Call as `s.boolean` or `s.boolean("description")`. */
   boolean: createTypedPrimitiveSchema<BooleanSchema>("boolean"),
+  /** Schema that accepts any JSON value (no type constraint). */
   unknown: createUnknownSchema(),
+  /** Schema for a homogeneous array whose items match `items`. */
   array<Item extends Schema>(items: Item, description?: string): ArraySchema<Item> {
     return description === undefined ? markAsSchema({ type: "array", items }) : markAsSchema({ type: "array", items, description });
   },
+  /** Schema for an object with a fixed set of named properties. */
   object<Fields extends Record<string, Schema>>(properties: Fields, description?: string): ObjectSchema<Fields> {
     return description === undefined ? markAsSchema({ type: "object", properties }) : markAsSchema({ type: "object", properties, description });
   },
+  /** Schema for an object whose keys are arbitrary strings and values all match `additionalProperties`. */
   record<Value extends Schema>(additionalProperties: Value, description?: string): RecordSchema<Value> {
     return description === undefined ? markAsSchema({ type: "object", additionalProperties }) : markAsSchema({ type: "object", additionalProperties, description });
   },
+  /**
+   * Schema that restricts the value to one of a fixed set of literals.
+   *
+   * @example `s.enum("pending", "done", "error")`
+   * @example `s.enum(["a", "b"] as const, "the mode")`
+   */
   enum: createEnumSchema,
+  /**
+   * Marks a field schema as optional (may be absent or `undefined` in the output).
+   * Only meaningful inside `s.object` properties.
+   */
   optional<Inner extends Schema>(schema: Inner, description?: string): OptionalSchema<Inner> {
     return markAsOptional(cloneSchema(schema, description));
   },
+  /** Converts a rig schema to a plain JSON Schema object. */
   toJsonSchema,
 };
 
