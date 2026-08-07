@@ -150,6 +150,9 @@ export const s = {
     return description === undefined ? markAsSchema({ type: "object", additionalProperties }) : markAsSchema({ type: "object", additionalProperties, description });
   },
   enum: createEnumSchema,
+  literal<const V extends Json>(value: V, description?: string): EnumSchema<readonly [V]> {
+    return description === undefined ? markAsSchema({ enum: [value] as readonly [V] }) : markAsSchema({ enum: [value] as readonly [V], description });
+  },
   optional<Inner extends Schema>(schema: Inner, description?: string): OptionalSchema<Inner> {
     return markAsOptional(cloneSchema(schema, description));
   },
