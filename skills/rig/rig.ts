@@ -135,24 +135,56 @@ export type InferSchema<T> =
   T extends { type: "object"; additionalProperties: infer Value } ? Record<string, InferSchema<Value>> :
   unknown;
 
+/**
+ * Schema helpers for declaring agent input and output shapes.
+ * Each helper is also callable with an optional `description` string that
+ * is forwarded verbatim into the generated JSON Schema, giving the model
+ * extra context about the field's purpose.
+ *
+ * @example
+ * ```ts
+ * agent({
+ *   output: s.object({
+ *     summary: s.string("A one-sentence summary"),
+ *     score:   s.number("Confidence, 0–1"),
+ *     tags:    s.array(s.string),
+ *     meta:    s.optional(s.record(s.string)),
+ *   })
+ * })
+ * ```
+ */
 export const s = {
+  /** Schema for a JSON string value. Call as `s.string` or `s.string("description")`. */
   string: createTypedPrimitiveSchema<StringSchema>("string"),
+  /** Schema for a JSON number value. Call as `s.number` or `s.number("description")`. */
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
+  /** Schema for a JSON boolean value. Call as `s.boolean` or `s.boolean("description")`. */
   boolean: createTypedPrimitiveSchema<BooleanSchema>("boolean"),
+  /** Schema that accepts any JSON value (no type constraint). */
   unknown: createUnknownSchema(),
+  /** Schema for a homogeneous JSON array. Pass the element schema as `items`. */
   array<Item extends Schema>(items: Item, description?: string): ArraySchema<Item> {
     return description === undefined ? markAsSchema({ type: "array", items }) : markAsSchema({ type: "array", items, description });
   },
+  /** Schema for a JSON object with a fixed set of named fields. */
   object<Fields extends Record<string, Schema>>(properties: Fields, description?: string): ObjectSchema<Fields> {
     return description === undefined ? markAsSchema({ type: "object", properties }) : markAsSchema({ type: "object", properties, description });
   },
+  /** Schema for a JSON object whose keys are arbitrary strings mapping to a uniform value type. */
   record<Value extends Schema>(additionalProperties: Value, description?: string): RecordSchema<Value> {
     return description === undefined ? markAsSchema({ type: "object", additionalProperties }) : markAsSchema({ type: "object", additionalProperties, description });
   },
+  /**
+   * Schema for a closed set of JSON literal values.
+   *
+   * @example `s.enum("open", "closed", "draft")` or `s.enum(["open","closed"], "PR state")`
+   */
   enum: createEnumSchema,
+  /** Wraps any schema to make the corresponding object field optional (absent is allowed). */
   optional<Inner extends Schema>(schema: Inner, description?: string): OptionalSchema<Inner> {
     return markAsOptional(cloneSchema(schema, description));
   },
+  /** Converts a rig `Schema` to a plain JSON Schema object for external use. */
   toJsonSchema,
 };
 
