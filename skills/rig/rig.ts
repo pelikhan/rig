@@ -322,11 +322,23 @@ export type AgentFn<Input = unknown, Output = unknown> = ((input: AgentInputValu
   use: (addons: AgentAddon | AgentAddon[]) => AgentFn<Input, Output>;
 };
 
+/**
+ * Options shared by all `p.*` prompt intent helpers.
+ *
+ * These options are serialised into the prompt text that is sent to the model
+ * as contextual instructions — they are **not** executed in-process by the
+ * harness itself.
+ */
 export type PromptIntentOptions = {
+  /** Working directory for the command or file path resolution. */
   cwd?: string;
+  /** Additional environment variables to expose during execution. */
   env?: Record<string, string>;
+  /** Maximum execution time in milliseconds. */
   timeout?: number;
+  /** Human-readable description of why this intent is needed (improves prompt clarity). */
   purpose?: string;
+  /** Abort signal forwarded to the underlying session turn. */
   signal?: AbortSignal;
 };
 
@@ -454,15 +466,34 @@ function promptFactory(...args: unknown[]): PromptBuilder {
   return builder;
 }
 
+/**
+ * Prompt helpers namespace.
+ *
+ * Used as a tagged-template tag (`p\`...\``) to compose prompt strings, and as
+ * a collection of declarative *prompt intent* factories (`p.bash`, `p.read`,
+ * `p.write`) that are serialised into the prompt sent to the model — they are
+ * **not** executed in-process by the harness.
+ *
+ * @example
+ * // tagged-template composition
+ * const prompt = p`Summarise: ${p.read("README.md")}`;
+ *
+ * @example
+ * // standalone intent with options
+ * const files = p.bash("ls -la", { cwd: ".", purpose: "list source files" });
+ */
 export const p: PromptHelpers = Object.assign(
   promptFactory,
   {
+    /** Declares a shell command whose output should be included in the prompt. */
     bash(command: string, options?: PromptIntentOptions): PromptIntent {
       return createPromptIntent("prompt.text", withOptions({ command }, options));
     },
+    /** Declares a file whose contents should be included in the prompt. */
     read(path: string, options?: PromptIntentOptions): PromptIntent {
       return createPromptIntent("prompt.read", withOptions({ path }, options));
     },
+    /** Declares a file write that should be described to the model as context. */
     write(path: string, contents: string, options?: PromptIntentOptions): PromptIntent {
       return createPromptIntent("prompt.write", withOptions({ path, contents }, options));
     },
