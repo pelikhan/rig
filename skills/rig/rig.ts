@@ -135,6 +135,24 @@ export type InferSchema<T> =
   T extends { type: "object"; additionalProperties: infer Value } ? Record<string, InferSchema<Value>> :
   unknown;
 
+/**
+ * Schema builder namespace. Each helper returns a typed `Schema` value that
+ * the harness uses to generate the `<output_schema>` prompt block and to
+ * validate the model's JSON response at runtime.
+ *
+ * TypeScript types are inferred automatically via `InferSchema<T>`, so the
+ * same declaration drives both the prompt and the call-site return type.
+ *
+ * Primitive helpers (`s.string`, `s.number`, `s.boolean`) are also callable
+ * with an optional description string:
+ * @example
+ * s.string                      // StringSchema
+ * s.string("A short summary")   // StringSchema with description
+ * s.object({ name: s.string, age: s.optional(s.number) })
+ * s.array(s.string)
+ * s.enum("open", "closed")
+ * s.record(s.number)            // Record<string, number>
+ */
 export const s = {
   string: createTypedPrimitiveSchema<StringSchema>("string"),
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
