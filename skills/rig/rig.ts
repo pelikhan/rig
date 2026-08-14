@@ -1117,7 +1117,7 @@ function parseJson(text: string): { ok: true; value: unknown } | { ok: false; er
 }
 
 function validateSchema(value: unknown, schema: Schema, path: string, optional: boolean): ValidationResult {
-  if ((optional || isOptionalSchema(schema)) && value === undefined) {
+  if ((optional || isOptionalSchema(schema)) && (value === undefined || value === null)) {
     return { ok: true };
   }
   if ("enum" in schema) {
