@@ -150,6 +150,10 @@ export const s = {
     return description === undefined ? markAsSchema({ type: "object", additionalProperties }) : markAsSchema({ type: "object", additionalProperties, description });
   },
   enum: createEnumSchema,
+  /** A single-value enum (a discriminant literal). Equivalent to `s.enum(value)` but communicates intent more clearly. */
+  literal<const V extends Json>(value: V, description?: string): EnumSchema<[V]> {
+    return description === undefined ? markAsSchema({ enum: [value] }) : markAsSchema({ enum: [value], description });
+  },
   optional<Inner extends Schema>(schema: Inner, description?: string): OptionalSchema<Inner> {
     return markAsOptional(cloneSchema(schema, description));
   },
