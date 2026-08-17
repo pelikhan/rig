@@ -1466,7 +1466,14 @@ function ok(): ValidationResult {
 
 function bad(path: string, expected: string, actual: unknown): ValidationResult {
   const actualType = actual === null ? "null" : Array.isArray(actual) ? "array" : typeof actual;
-  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}` };
+  let snippet: string;
+  try {
+    const serialized = JSON.stringify(actual);
+    snippet = serialized !== undefined && serialized.length > 40 ? `${serialized.slice(0, 40)}…` : (serialized ?? String(actual));
+  } catch {
+    snippet = String(actual);
+  }
+  return { ok: false, error: `${path}: expected ${expected}, got ${actualType} (${snippet})` };
 }
 
 function tag(name: string, value: string): string {
