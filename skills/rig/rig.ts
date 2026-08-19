@@ -136,20 +136,37 @@ export type InferSchema<T> =
   unknown;
 
 export const s = {
+  /** Accepts any JSON string value. Serializes to `{"type":"string"}` in the output schema. */
   string: createTypedPrimitiveSchema<StringSchema>("string"),
+  /** Accepts any JSON number value. Serializes to `{"type":"number"}` in the output schema. */
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
+  /** Accepts any JSON boolean value. Serializes to `{"type":"boolean"}` in the output schema. */
   boolean: createTypedPrimitiveSchema<BooleanSchema>("boolean"),
+  /**
+   * Accepts any JSON value (null, boolean, number, string, array, or object).
+   * Serializes to `{}` in the output schema — no type constraint is emitted.
+   * Use when the field type is genuinely dynamic (e.g. a repaired/normalized JSON fragment).
+   * Pass a description string to guide the model: `s.unknown("any valid JSON value")`.
+   */
   unknown: createUnknownSchema(),
+  /** Accepts a JSON array whose items match `items`. */
   array<Item extends Schema>(items: Item, description?: string): ArraySchema<Item> {
     return description === undefined ? markAsSchema({ type: "array", items }) : markAsSchema({ type: "array", items, description });
   },
+  /** Accepts a JSON object whose named properties match the provided `properties` map. */
   object<Fields extends Record<string, Schema>>(properties: Fields, description?: string): ObjectSchema<Fields> {
     return description === undefined ? markAsSchema({ type: "object", properties }) : markAsSchema({ type: "object", properties, description });
   },
+  /** Accepts a JSON object with arbitrary string keys whose values all match `additionalProperties`. */
   record<Value extends Schema>(additionalProperties: Value, description?: string): RecordSchema<Value> {
     return description === undefined ? markAsSchema({ type: "object", additionalProperties }) : markAsSchema({ type: "object", additionalProperties, description });
   },
+  /** Accepts exactly one of the listed literal JSON values. */
   enum: createEnumSchema,
+  /**
+   * Marks a field as optional in the output schema.
+   * Optional fields are omitted from the JSON Schema `required` array and are allowed to be `undefined` at runtime.
+   */
   optional<Inner extends Schema>(schema: Inner, description?: string): OptionalSchema<Inner> {
     return markAsOptional(cloneSchema(schema, description));
   },
