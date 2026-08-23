@@ -454,6 +454,21 @@ function promptFactory(...args: unknown[]): PromptBuilder {
   return builder;
 }
 
+/**
+ * Prompt helpers for composing agent instructions and input values.
+ *
+ * - `` p`...` `` — tagged template that builds a {@link PromptBuilder}
+ * - `p()` — returns a blank {@link PromptBuilder}
+ * - `p.bash(cmd)` — prompt intent: instructs the model to run a shell command and return its stdout
+ * - `p.read(path)` — prompt intent: instructs the model to read a file and return its contents
+ * - `p.write(path, contents)` — prompt intent: instructs the model to write a file
+ * - `p.var(name, value)` — creates a named {@link PromptVariable} for use in a {@link PromptBuilder}
+ * - `p.region(lang, body)` — wraps a value in a fenced code block string
+ *
+ * Prompt intents (`p.bash`, `p.read`, `p.write`) are **declarative placeholders** — they are
+ * serialized into natural-language instructions embedded in the prompt and executed by the model,
+ * not by the harness itself.
+ */
 export const p: PromptHelpers = Object.assign(
   promptFactory,
   {
