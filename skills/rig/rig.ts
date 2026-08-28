@@ -18,6 +18,7 @@ export type ValidationResult = { ok: true } | { ok: false; error: string };
 
 export type StringSchema = { type: "string"; description?: string };
 export type NumberSchema = { type: "number"; description?: string };
+export type IntegerSchema = { type: "integer"; description?: string };
 export type BooleanSchema = { type: "boolean"; description?: string };
 export type UnknownSchema = { description?: string };
 export type ArraySchema<Item extends Schema = Schema> = { type: "array"; items: Item; description?: string };
@@ -36,6 +37,7 @@ export type OptionalSchema<Inner extends Schema = Schema> = Inner & OptionalMark
 export type Schema =
   | StringSchema
   | NumberSchema
+  | IntegerSchema
   | BooleanSchema
   | UnknownSchema
   | ArraySchema<any>
@@ -76,7 +78,7 @@ function isOptionalSchema(schema: Schema): schema is OptionalSchema<Schema> {
   return OPTIONAL_SYMBOL in schema;
 }
 
-function createTypedPrimitiveSchema<T extends StringSchema | NumberSchema | BooleanSchema>(type: T["type"]): SchemaHelperFactory<T> {
+function createTypedPrimitiveSchema<T extends StringSchema | NumberSchema | IntegerSchema | BooleanSchema>(type: T["type"]): SchemaHelperFactory<T> {
   const base = markAsSchema({ type } as T);
   const factory = Object.assign(
     markAsSchema(((description?: string) => (description === undefined ? base : markAsSchema({ type, description } as T))) as SchemaHelperFactory<T>),
@@ -125,6 +127,7 @@ export type InferSchema<T> =
   T extends OptionalMarker ? InferSchema<UnwrapOptional<T>> | undefined :
   T extends { type: "string" } ? string :
   T extends { type: "number" } ? number :
+  T extends { type: "integer" } ? number :
   T extends { type: "boolean" } ? boolean :
   T extends { enum: infer Values extends readonly unknown[] } ? Values[number] :
   T extends { type: "array"; items: infer Item } ? InferSchema<Item>[] :
@@ -138,6 +141,7 @@ export type InferSchema<T> =
 export const s = {
   string: createTypedPrimitiveSchema<StringSchema>("string"),
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
+  integer: createTypedPrimitiveSchema<IntegerSchema>("integer"),
   boolean: createTypedPrimitiveSchema<BooleanSchema>("boolean"),
   unknown: createUnknownSchema(),
   array<Item extends Schema>(items: Item, description?: string): ArraySchema<Item> {
@@ -1169,6 +1173,7 @@ function validateSchema(value: unknown, schema: Schema, path: string, optional: 
   if ("type" in schema) {
     if (schema.type === "string") return typeof value === "string" ? ok() : bad(path, "string", value);
     if (schema.type === "number") return typeof value === "number" ? ok() : bad(path, "number", value);
+    if (schema.type === "integer") return typeof value === "number" && Number.isInteger(value) ? ok() : bad(path, "integer", value);
     if (schema.type === "boolean") return typeof value === "boolean" ? ok() : bad(path, "boolean", value);
   }
   return ok();
