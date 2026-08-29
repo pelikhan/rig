@@ -135,24 +135,57 @@ export type InferSchema<T> =
   T extends { type: "object"; additionalProperties: infer Value } ? Record<string, InferSchema<Value>> :
   unknown;
 
+/**
+ * Schema helpers for declaring agent `input` and `output` shapes.
+ *
+ * Each helper produces a typed `Schema` value that rig uses both for
+ * TypeScript inference and for generating the `<output_schema>` block
+ * that is injected into every Copilot prompt.
+ *
+ * Primitive helpers (`s.string`, `s.number`, `s.boolean`, `s.unknown`) are
+ * dual-purpose: they can be called as functions to attach a description, or
+ * used directly as values when no description is needed.
+ *
+ * @example
+ * ```ts
+ * agent({
+ *   input: s.object({ query: s.string }),
+ *   output: s.object({
+ *     answer: s.string("The concise answer"),
+ *     confidence: s.number,
+ *     sources: s.optional(s.array(s.string)),
+ *   }),
+ * });
+ * ```
+ */
 export const s = {
+  /** Schema for a string value. Call as `s.string("description")` to attach a description. */
   string: createTypedPrimitiveSchema<StringSchema>("string"),
+  /** Schema for a numeric value. Call as `s.number("description")` to attach a description. */
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
+  /** Schema for a boolean value. Call as `s.boolean("description")` to attach a description. */
   boolean: createTypedPrimitiveSchema<BooleanSchema>("boolean"),
+  /** Schema for an unconstrained JSON value. Call as `s.unknown("description")` to attach a description. */
   unknown: createUnknownSchema(),
+  /** Schema for a homogeneous array. */
   array<Item extends Schema>(items: Item, description?: string): ArraySchema<Item> {
     return description === undefined ? markAsSchema({ type: "array", items }) : markAsSchema({ type: "array", items, description });
   },
+  /** Schema for an object with a fixed set of named fields. */
   object<Fields extends Record<string, Schema>>(properties: Fields, description?: string): ObjectSchema<Fields> {
     return description === undefined ? markAsSchema({ type: "object", properties }) : markAsSchema({ type: "object", properties, description });
   },
+  /** Schema for a string-keyed map with uniform value types (open-ended object). */
   record<Value extends Schema>(additionalProperties: Value, description?: string): RecordSchema<Value> {
     return description === undefined ? markAsSchema({ type: "object", additionalProperties }) : markAsSchema({ type: "object", additionalProperties, description });
   },
+  /** Schema for one of a fixed set of literal JSON values. */
   enum: createEnumSchema,
+  /** Marks a field schema as optional (the key may be absent from the output). */
   optional<Inner extends Schema>(schema: Inner, description?: string): OptionalSchema<Inner> {
     return markAsOptional(cloneSchema(schema, description));
   },
+  /** Converts a rig `Schema` to a plain JSON Schema object. */
   toJsonSchema,
 };
 
