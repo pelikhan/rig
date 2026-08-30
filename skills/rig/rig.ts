@@ -135,6 +135,24 @@ export type InferSchema<T> =
   T extends { type: "object"; additionalProperties: infer Value } ? Record<string, InferSchema<Value>> :
   unknown;
 
+/**
+ * Schema helpers for declaring agent input and output shapes.
+ *
+ * Each helper produces a typed JSON Schema descriptor consumed by `agent()`.
+ * Pass an optional `description` string to annotate fields for the model.
+ *
+ * Primitives (`s.string`, `s.number`, `s.boolean`) double as callable factories:
+ * - `s.string` — bare schema value
+ * - `s.string("A short label")` — schema with description
+ *
+ * @example
+ * agent({
+ *   output: s.object({
+ *     changed: s.boolean("Whether any files were modified"),
+ *     summary: s.string("Human-readable description of the change"),
+ *   }),
+ * })
+ */
 export const s = {
   string: createTypedPrimitiveSchema<StringSchema>("string"),
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
@@ -852,6 +870,24 @@ export async function runLauncherCli(
   await runProgramCodeFromStdin(mergedOptions, io, scriptName);
 }
 
+/**
+ * Creates a typed agent function from a declarative spec.
+ *
+ * The returned function is callable as `agentFn(input, options?)` and also
+ * exposes `.agentName`, `.inputSchema`, `.outputSchema`, `.spec`, and `.use(addons)`.
+ *
+ * @param spec - Agent configuration including instructions, input/output schemas,
+ *   model selection, max turns, addons (middleware), and sub-agent registrations.
+ * @returns A strongly-typed async function that invokes the agent via the Copilot SDK.
+ *
+ * @example
+ * const summarize = agent({
+ *   model: "mini",
+ *   instructions: "Summarize the text.",
+ *   output: s.object({ title: s.string, bullets: s.array(s.string) }),
+ * });
+ * const result = await summarize("Long article text…");
+ */
 export function agent<
   const Input extends Schema = StringSchema,
   const Output extends Schema = StringSchema
