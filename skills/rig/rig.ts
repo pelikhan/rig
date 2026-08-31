@@ -278,14 +278,34 @@ export function defineTool<T = unknown>(name: string, config: ToolConfig<T>): To
   });
 }
 
+/**
+ * Declarative specification for an agent.
+ *
+ * @typeParam Input  - Schema describing the agent's input shape (defaults to `StringSchema`).
+ * @typeParam Output - Schema describing the agent's output shape (defaults to `StringSchema`).
+ */
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
+  /** Human-readable agent identifier used in error messages and events. Defaults to `"agent"`. */
   name?: string;
+  /** System-level guidance injected into the prompt `<instructions>` block. */
   instructions?: string | PromptBuilder;
+  /** Input schema. Defaults to `s.string`. */
   input?: Input;
+  /** Output schema. The harness validates each response against this and repairs on mismatch. Defaults to `s.string`. */
   output?: Output;
+  /**
+   * Model identifier to use for this agent's Copilot session.
+   * Defaults to `"gpt-4.1"` when not set on the spec or the call-time {@link CallOptions}.
+   */
   model?: string;
+  /**
+   * Maximum number of prompt-response turns before the harness gives up.
+   * Includes the initial turn plus any repair turns. Defaults to `4`.
+   */
   maxTurns?: number;
+  /** Middleware functions that wrap each turn, e.g. built-in repair or custom steering. */
   addons?: AgentAddon | AgentAddon[];
+  /** Sub-agents made available in the prompt `<subagents>` block for delegation. */
   agents?: Record<string, AgentFn<any, any>>;
   systemMessage?: SystemMessageConfig;
   tools?: Tool<any>[];
@@ -852,6 +872,26 @@ export async function runLauncherCli(
   await runProgramCodeFromStdin(mergedOptions, io, scriptName);
 }
 
+/**
+ * Creates a typed agent function from a declarative {@link AgentSpec}.
+ *
+ * The returned function accepts an input value (typed by `Input`) and returns a
+ * `Promise` resolving to the validated output (typed by `Output`).  The harness
+ * sends the prompt to Copilot, validates the JSON response against the output
+ * schema, and automatically re-prompts (up to `maxTurns`) when validation fails.
+ *
+ * @example
+ * ```ts
+ * const haiku = agent({
+ *   name: "haiku-writer",
+ *   model: "claude-sonnet-4.5",
+ *   output: s.object({ haiku: s.string }),
+ *   instructions: "Write one haiku about the user's topic.",
+ * });
+ * const result = await haiku("autumn leaves");
+ * console.log(result.haiku);
+ * ```
+ */
 export function agent<
   const Input extends Schema = StringSchema,
   const Output extends Schema = StringSchema
