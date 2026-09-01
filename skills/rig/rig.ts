@@ -4,7 +4,7 @@ import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { promisify } from "node:util";
-import { CopilotClient, RuntimeConnection, approveAll, defineTool as sdkDefineTool } from "@github/copilot-sdk";
+import { CopilotClient, RuntimeConnection, approveAll } from "@github/copilot-sdk";
 import type {
   CopilotClientOptions,
   SystemMessageConfig,
@@ -272,10 +272,11 @@ export type ToolConfig<TArgs = unknown> = {
 };
 
 export function defineTool<T = unknown>(name: string, config: ToolConfig<T>): Tool<T> {
-  return sdkDefineTool(name, {
+  return {
+    name,
     ...normalizeToolConfig(config),
     parameters: normalizeToolParameters(config.parameters),
-  });
+  } as Tool<T>;
 }
 
 export type AgentSpec<Input extends Schema = StringSchema, Output extends Schema = StringSchema> = {
