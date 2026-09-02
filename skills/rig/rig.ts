@@ -135,6 +135,28 @@ export type InferSchema<T> =
   T extends { type: "object"; additionalProperties: infer Value } ? Record<string, InferSchema<Value>> :
   unknown;
 
+/**
+ * Schema helpers for declaring agent input and output shapes.
+ *
+ * Primitive helpers (`s.string`, `s.number`, `s.boolean`, `s.unknown`) double as
+ * ready-to-use schema values **and** factory functions that accept an optional
+ * description string:
+ *
+ * ```ts
+ * output: s.string                        // plain string schema
+ * output: s.string("A short summary")     // string schema with description
+ * output: s.object({ score: s.number })   // object schema
+ * ```
+ *
+ * - `s.string` / `s.number` / `s.boolean` — primitive leaf schemas
+ * - `s.unknown` — opaque value, no validation applied
+ * - `s.array(items, description?)` — typed array schema
+ * - `s.object(properties, description?)` — object schema with named fields
+ * - `s.record(valueSchema, description?)` — dictionary with uniform value type
+ * - `s.enum(...values)` / `s.enum(values, description)` — closed set of JSON literals
+ * - `s.optional(schema, description?)` — marks a field as optional in an object
+ * - `s.toJsonSchema(schema)` — converts any schema to a plain JSON Schema object
+ */
 export const s = {
   string: createTypedPrimitiveSchema<StringSchema>("string"),
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
