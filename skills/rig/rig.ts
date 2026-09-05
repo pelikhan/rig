@@ -852,6 +852,31 @@ export async function runLauncherCli(
   await runProgramCodeFromStdin(mergedOptions, io, scriptName);
 }
 
+/**
+ * Declares a typed agent with a schema-driven input/output contract.
+ *
+ * The returned function invokes the agent against a Copilot model session.
+ * On success it resolves to a value whose TypeScript type is derived from
+ * the `output` schema via {@link InferSchema}.  On failure it throws an
+ * {@link AgentError} (parse or validation error) after exhausting all
+ * repair turns.
+ *
+ * @param spec - Agent specification: instructions, input/output schemas,
+ *   model, addons, tools, and optional sub-agents.
+ * @returns An async callable decorated with `.agentName`, `.inputSchema`,
+ *   `.outputSchema`, and `.use()` for composing addons.
+ *
+ * @example
+ * ```ts
+ * const summarize = agent({
+ *   model: "mini",
+ *   input: s.object({ text: s.string }),
+ *   output: s.object({ summary: s.string, bullets: s.array(s.string) }),
+ *   instructions: "Summarize the provided text.",
+ * });
+ * const result = await summarize({ text: "..." });
+ * ```
+ */
 export function agent<
   const Input extends Schema = StringSchema,
   const Output extends Schema = StringSchema
