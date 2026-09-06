@@ -1466,7 +1466,20 @@ function ok(): ValidationResult {
 
 function bad(path: string, expected: string, actual: unknown): ValidationResult {
   const actualType = actual === null ? "null" : Array.isArray(actual) ? "array" : typeof actual;
-  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}` };
+  const preview = previewValue(actual);
+  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}${preview}` };
+}
+
+function previewValue(value: unknown): string {
+  if (typeof value === "string") {
+    const truncated = value.length > 40 ? `${value.slice(0, 40)}\u2026` : value;
+    return ` (${JSON.stringify(truncated)})`;
+  }
+  if (value !== null && typeof value === "object") {
+    const serialized = JSON.stringify(value);
+    return ` (${serialized.length > 50 ? `${serialized.slice(0, 50)}\u2026` : serialized})`;
+  }
+  return "";
 }
 
 function tag(name: string, value: string): string {
