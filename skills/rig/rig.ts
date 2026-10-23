@@ -135,24 +135,58 @@ export type InferSchema<T> =
   T extends { type: "object"; additionalProperties: infer Value } ? Record<string, InferSchema<Value>> :
   unknown;
 
+/**
+ * Schema helper namespace. Every member returns a `Schema` value that describes
+ * a type for agent input and output declarations.
+ *
+ * Primitive helpers (`s.string`, `s.number`, `s.boolean`, `s.unknown`) can be
+ * used as plain values **or** called as functions to attach a description:
+ * ```ts
+ * s.string                   // StringSchema, no description
+ * s.string("The issue title") // StringSchema with description
+ * ```
+ */
 export const s = {
+  /** A JSON string schema. Call with a description string to annotate the field. */
   string: createTypedPrimitiveSchema<StringSchema>("string"),
+  /** A JSON number schema. Call with a description string to annotate the field. */
   number: createTypedPrimitiveSchema<NumberSchema>("number"),
+  /** A JSON boolean schema. Call with a description string to annotate the field. */
   boolean: createTypedPrimitiveSchema<BooleanSchema>("boolean"),
+  /** An unconstrained / pass-through schema (`unknown` at the TypeScript level). */
   unknown: createUnknownSchema(),
+  /** A JSON array schema whose items all conform to `items`. */
   array<Item extends Schema>(items: Item, description?: string): ArraySchema<Item> {
     return description === undefined ? markAsSchema({ type: "array", items }) : markAsSchema({ type: "array", items, description });
   },
+  /** A JSON object schema with named, typed properties. */
   object<Fields extends Record<string, Schema>>(properties: Fields, description?: string): ObjectSchema<Fields> {
     return description === undefined ? markAsSchema({ type: "object", properties }) : markAsSchema({ type: "object", properties, description });
   },
+  /**
+   * A JSON object schema whose values are all the same type (a string-keyed
+   * dictionary). Use `s.object` when field names are statically known.
+   */
   record<Value extends Schema>(additionalProperties: Value, description?: string): RecordSchema<Value> {
     return description === undefined ? markAsSchema({ type: "object", additionalProperties }) : markAsSchema({ type: "object", additionalProperties, description });
   },
+  /**
+   * A JSON enum schema. Two call signatures are supported:
+   * ```ts
+   * s.enum("bug", "feature", "chore")              // spread values
+   * s.enum(["bug", "feature", "chore"], "The kind") // array + description
+   * ```
+   */
   enum: createEnumSchema,
+  /**
+   * Wraps any schema to make the field optional in an `s.object`.
+   * Optional fields may be `undefined` at the TypeScript level and are
+   * omitted from the JSON Schema `required` array.
+   */
   optional<Inner extends Schema>(schema: Inner, description?: string): OptionalSchema<Inner> {
     return markAsOptional(cloneSchema(schema, description));
   },
+  /** Converts a rig `Schema` to a plain JSON Schema object. */
   toJsonSchema,
 };
 
