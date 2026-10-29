@@ -1466,7 +1466,16 @@ function ok(): ValidationResult {
 
 function bad(path: string, expected: string, actual: unknown): ValidationResult {
   const actualType = actual === null ? "null" : Array.isArray(actual) ? "array" : typeof actual;
-  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}` };
+  const preview = previewValue(actual);
+  const detail = preview !== undefined ? ` (${preview})` : "";
+  return { ok: false, error: `${path}: expected ${expected}, got ${actualType}${detail}` };
+}
+
+function previewValue(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === "string") return JSON.stringify(value.length > 40 ? `${value.slice(0, 40)}…` : value);
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return undefined;
 }
 
 function tag(name: string, value: string): string {
