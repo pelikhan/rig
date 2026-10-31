@@ -852,6 +852,24 @@ export async function runLauncherCli(
   await runProgramCodeFromStdin(mergedOptions, io, scriptName);
 }
 
+/**
+ * Defines a typed agent from a declarative spec.
+ *
+ * @param spec - Agent configuration including instructions, input/output schemas, model, addons, and tools.
+ * @returns An async function that invokes the agent. The function is also decorated with
+ *   `agentName`, `inputSchema`, `outputSchema`, `spec`, and a `use()` method for attaching addons.
+ *
+ * @example
+ * ```ts
+ * const summarize = agent({
+ *   model: "mini",
+ *   input: s.object({ text: s.string }),
+ *   output: s.object({ summary: s.string, keywords: s.array(s.string) }),
+ *   instructions: "Summarize the provided text concisely.",
+ * });
+ * const result = await summarize({ text: p.bash("cat README.md") });
+ * ```
+ */
 export function agent<
   const Input extends Schema = StringSchema,
   const Output extends Schema = StringSchema
